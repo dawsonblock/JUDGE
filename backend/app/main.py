@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi.errors import RateLimitExceeded
-from slowapi.extension import _rate_limit_exceeded_handler
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -90,15 +88,12 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
-    # Configure rate limiting
+    # Configure rate limiting (simple in-memory limiter raises HTTPException(429) directly)
     from app.core.rate_limit import get_rate_limiter
 
     limiter = get_rate_limiter()
     if limiter:
         app.state.limiter = limiter
-        app.add_exception_handler(
-            RateLimitExceeded, _rate_limit_exceeded_handler
-        )
 
     # Configure request size limits
     app.add_middleware(

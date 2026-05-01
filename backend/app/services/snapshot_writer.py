@@ -75,7 +75,7 @@ def write_snapshot(
         # Try filesystem storage
         try:
             evidence_store = EvidenceStore(root_path=evidence_root)
-            storage_path = evidence_store.store(content_bytes, content_hash)
+            storage_path = evidence_store.write_snapshot(content_bytes, content_hash)
             storage_backend = "filesystem"
             raw_content = None  # Don't store in DB
         except Exception:
@@ -106,8 +106,7 @@ def write_snapshot(
     )
     
     db.add(snapshot)
-    db.commit()
-    db.refresh(snapshot)
+    # Caller is responsible for commit/refresh
     
     return snapshot
 
@@ -127,7 +126,7 @@ def read_snapshot_content(db: Session, snapshot: SourceSnapshot) -> bytes | None
             evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
             if evidence_root:
                 evidence_store = EvidenceStore(root_path=evidence_root)
-                return evidence_store.read(snapshot.storage_path)
+                return evidence_store.read_snapshot(snapshot.storage_path)
         except Exception:
             # Fall through to DB fallback
             pass

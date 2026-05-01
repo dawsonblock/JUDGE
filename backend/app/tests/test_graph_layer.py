@@ -561,7 +561,10 @@ class TestGraphAPI:
             db.add(edge)
             db.commit()
 
-            response = client.get(f"/api/graph/entity/judge/{judge_entity.id}/edges")
+            response = client.get(
+                f"/api/graph/entity/judge/{judge_entity.id}/edges",
+                headers={"X-JTA-Admin-Token": "test-token"}
+            )
             assert response.status_code == 200
 
             data = response.json()
@@ -584,7 +587,10 @@ class TestGraphAPI:
             db.add(event)
             db.commit()
 
-            response = client.get(f"/api/graph/case/{case.id}/timeline")
+            response = client.get(
+                f"/api/graph/case/{case.id}/timeline",
+                headers={"X-JTA-Admin-Token": "test-token"}
+            )
             assert response.status_code == 200
 
             data = response.json()
@@ -610,7 +616,8 @@ class TestGraphAPI:
 
             response = client.get(
                 f"/api/graph/path?from_type=judge&from_id={judge_entity.id}"
-                f"&to_type=case&to_id={case_entity.id}"
+                f"&to_type=case&to_id={case_entity.id}",
+                headers={"X-JTA-Admin-Token": "test-token"}
             )
             assert response.status_code == 200
 

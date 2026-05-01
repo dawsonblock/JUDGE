@@ -82,6 +82,80 @@ class SnapshotLinkedDataResponse(BaseModel):
     total_evidence: int
 
 
+# Static routes must be defined BEFORE dynamic routes
+# to avoid path parameter conflicts
+
+@router.get("/by-hash/{content_hash}", response_model=SnapshotResponse)
+def get_snapshot_by_hash(
+    content_hash: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin_token),
+) -> SnapshotResponse:
+    """Find snapshot by content hash (admin only)."""
+    snapshot = db.query(SourceSnapshot).filter_by(content_hash=content_hash).first()
+
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    # Check if raw content exists
+    has_raw = False
+    if snapshot.storage_backend == "db":
+        has_raw = snapshot.raw_content is not None
+    elif snapshot.storage_path:
+        store = EvidenceStore()
+        has_raw = store.exists(snapshot.content_hash)
+
+    return SnapshotResponse(
+        id=snapshot.id,
+        source_url=snapshot.source_url,
+        fetched_at=snapshot.fetched_at.isoformat() if snapshot.fetched_at else "",
+        content_hash=snapshot.content_hash,
+        http_status=snapshot.http_status,
+        content_type=snapshot.content_type,
+        storage_backend=snapshot.storage_backend,
+        storage_path=snapshot.storage_path,
+        retention_until=snapshot.retention_until.isoformat() if snapshot.retention_until else None,
+        created_at=snapshot.created_at.isoformat() if snapshot.created_at else "",
+        has_raw_content=has_raw,
+    )
+
+
+@router.get("/search/by-url")
+def search_snapshots_by_url(
+    url_pattern: str = Query(..., description="URL pattern to search for"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin_token),
+) -> dict[str, Any]:
+    """Search snapshots by URL pattern (admin only)."""
+    from sqlalchemy import func
+
+    snapshots = (
+        db.query(SourceSnapshot)
+        .filter(func.lower(SourceSnapshot.source_url).contains(func.lower(url_pattern)))
+        .order_by(SourceSnapshot.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "url_pattern": url_pattern,
+        "total": len(snapshots),
+        "snapshots": [
+            {
+                "id": s.id,
+                "source_url": s.source_url,
+                "fetched_at": s.fetched_at.isoformat() if s.fetched_at else None,
+                "content_hash": s.content_hash,
+                "storage_backend": s.storage_backend,
+            }
+            for s in snapshots
+        ],
+    }
+
+
+# Dynamic routes with path parameters
+
 @router.get("/{snapshot_id}", response_model=SnapshotResponse)
 def get_snapshot(
     snapshot_id: int,
@@ -152,6 +226,26 @@ def get_snapshot_raw(
     if content is None and content_bytes is None:
         raise HTTPException(status_code=404, detail="No raw content available")
 
+    # Verify hash using original bytes (before any encoding/decoding)
+    hash_verified = True
+    bytes_for_hash: bytes | None = None
+
+    if verify_hash:
+        import hashlib
+        if content_bytes:
+            # Filesystem storage: use original bytes
+            bytes_for_hash = content_bytes
+        elif content:
+            # DB storage: encode stored string exactly as written
+            bytes_for_hash = content.encode("utf-8")
+        
+        if bytes_for_hash:
+            computed_hash = hashlib.sha256(bytes_for_hash).hexdigest()
+            hash_verified = computed_hash == snapshot.content_hash
+
+    # Track original size before any encoding
+    original_size_bytes = len(bytes_for_hash) if bytes_for_hash else 0
+
     # Convert bytes to string for response
     if content_bytes:
         try:
@@ -163,17 +257,10 @@ def get_snapshot_raw(
 
     assert content is not None
 
-    # Verify hash if requested
-    hash_verified = True
-    if verify_hash:
-        import hashlib
-        computed_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        hash_verified = computed_hash == snapshot.content_hash
-
     return SnapshotContentResponse(
         content=content,
         content_type=snapshot.content_type,
-        size_bytes=len(content.encode("utf-8")),
+        size_bytes=original_size_bytes,
         hash_verified=hash_verified,
     )
 
@@ -233,72 +320,3 @@ def get_snapshot_linked(
         total_review_items=len(review_items),
         total_evidence=len(evidence_records),
     )
-
-
-@router.get("/by-hash/{content_hash}", response_model=SnapshotResponse)
-def get_snapshot_by_hash(
-    content_hash: str,
-    db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
-) -> SnapshotResponse:
-    """Find snapshot by content hash (admin only)."""
-    snapshot = db.query(SourceSnapshot).filter_by(content_hash=content_hash).first()
-
-    if not snapshot:
-        raise HTTPException(status_code=404, detail="Snapshot not found")
-
-    # Check if raw content exists
-    has_raw = False
-    if snapshot.storage_backend == "db":
-        has_raw = snapshot.raw_content is not None
-    elif snapshot.storage_path:
-        store = EvidenceStore()
-        has_raw = store.exists(snapshot.content_hash)
-
-    return SnapshotResponse(
-        id=snapshot.id,
-        source_url=snapshot.source_url,
-        fetched_at=snapshot.fetched_at.isoformat() if snapshot.fetched_at else "",
-        content_hash=snapshot.content_hash,
-        http_status=snapshot.http_status,
-        content_type=snapshot.content_type,
-        storage_backend=snapshot.storage_backend,
-        storage_path=snapshot.storage_path,
-        retention_until=snapshot.retention_until.isoformat() if snapshot.retention_until else None,
-        created_at=snapshot.created_at.isoformat() if snapshot.created_at else "",
-        has_raw_content=has_raw,
-    )
-
-
-@router.get("/search/by-url")
-def search_snapshots_by_url(
-    url_pattern: str = Query(..., description="URL pattern to search for"),
-    limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
-) -> dict[str, Any]:
-    """Search snapshots by URL pattern (admin only)."""
-    from sqlalchemy import func
-
-    snapshots = (
-        db.query(SourceSnapshot)
-        .filter(func.lower(SourceSnapshot.source_url).contains(func.lower(url_pattern)))
-        .order_by(SourceSnapshot.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-
-    return {
-        "url_pattern": url_pattern,
-        "total": len(snapshots),
-        "snapshots": [
-            {
-                "id": s.id,
-                "source_url": s.source_url,
-                "fetched_at": s.fetched_at.isoformat() if s.fetched_at else None,
-                "content_hash": s.content_hash,
-                "storage_backend": s.storage_backend,
-            }
-            for s in snapshots
-        ],
-    }

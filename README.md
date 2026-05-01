@@ -449,7 +449,7 @@ This is a prototype. The following are real gaps that would need to be closed be
 - `Base.metadata.create_all()` is used on startup when `AUTO_SEED=true`, bypassing Alembic entirely for local development.
 
 **Security (Partially Hardened)**
-- Rate limiting: SlowAPI-based limits configured (100/min public, 30/min admin, 60/min map, 10/min ingestion). In-memory storage; Redis recommended for production.
+- Rate limiting: Simple in-memory rate limiter configured (100/min public, 30/min admin, 60/min map, 10/min ingestion). Returns HTTP 429 on exceed. Redis recommended for production.
 - Request size limits: Content-Length header check + chunked file reading with max_csv_upload_size enforcement.
 - CORS: Strict origin validation in production (HTTPS-only, no wildcards). Fails startup if origins empty.
 - Source verification: SourceSnapshot persistence with SSRF protection and content hashing.

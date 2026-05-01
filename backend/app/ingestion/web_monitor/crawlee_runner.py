@@ -78,6 +78,7 @@ class CrawleeRunner:
         content: bytes | str,
         title: str | None = None,
         text_excerpt: str | None = None,
+        ingestion_run_id: int | None = None,
     ) -> SourceSnapshot:
         """Create a source snapshot from fetched content.
 
@@ -91,6 +92,7 @@ class CrawleeRunner:
             content: Raw content (bytes or string)
             title: Page title if extracted (stored in raw_content field)
             text_excerpt: Text excerpt if extracted
+            ingestion_run_id: Optional ID of the ingestion run
 
         Returns:
             SourceSnapshot entity
@@ -122,14 +124,16 @@ class CrawleeRunner:
             content_type=content_type or "unknown",
             headers=None,  # Not captured in current implementation
             error_message=None,
-            ingestion_run_id=None,
+            ingestion_run_id=ingestion_run_id,
         )
+        self.db.flush()  # Get snapshot.id assigned
         return snapshot
 
     def _create_review_item(
         self,
         candidate: "ExtractedCandidate",
         snapshot: SourceSnapshot,
+        ingestion_run_id: int | None = None,
     ) -> ReviewItem:
         """Create a ReviewItem from an ExtractedCandidate.
 
@@ -142,6 +146,7 @@ class CrawleeRunner:
         Args:
             candidate: Extracted candidate from extractor
             snapshot: Associated SourceSnapshot
+            ingestion_run_id: Optional ID of the ingestion run
 
         Returns:
             ReviewItem entity ready for admin review
@@ -184,10 +189,11 @@ class CrawleeRunner:
             privacy_status=privacy_status,
             publish_recommendation="hold",  # Never auto-publish crawled content
             status="pending",  # Always requires admin review
+            ingestion_run_id=ingestion_run_id,
         )
         return review_item
 
-    def run(self) -> IngestionRun:
+    async def run(self) -> IngestionRun:
         """Execute the web monitoring run.
 
         Returns:
@@ -197,6 +203,8 @@ class CrawleeRunner:
         from crawlee.crawlers import HttpCrawler
 
         # Check SourceRegistry control plane
+        # Note: WebMonitorTarget.enabled is template metadata only;
+        # SourceRegistry.is_active is the only runtime authority
         registry_key = f"web_monitor_{self.target.name.lower().replace(' ', '_')}"
         registry = require_source_registry(
             self.db,
@@ -230,6 +238,7 @@ class CrawleeRunner:
         )
         self.db.add(run)
         self.db.flush()
+        ingestion_run_id = run.id
 
         # Track metrics
         fetched_count = 0
@@ -244,7 +253,8 @@ class CrawleeRunner:
                 max_requests_per_crawl=config["max_requests_per_crawl"],
                 max_crawl_depth=config["max_crawl_depth"],
                 max_concurrency=config["max_concurrency"],
-                respect_robots_txt=config.get("respect_robots_txt", True),
+                # respect_robots_txt parameter removed - Crawlee does not expose direct control
+                # robots.txt behavior is either respected by default or not configurable per-crawl
             )
 
             @crawler.router.default_handler
@@ -286,6 +296,7 @@ class CrawleeRunner:
                         content=content,
                         title=title,
                         text_excerpt=text_excerpt,
+                        ingestion_run_id=ingestion_run_id,
                     )
 
                     self.snapshots.append(snapshot)
@@ -309,7 +320,7 @@ class CrawleeRunner:
                         parsed_count += 1  # Only increment on successful parse
 
                         # Create ReviewItem from candidate (never auto-publish)
-                        review_item = self._create_review_item(candidate, snapshot)
+                        review_item = self._create_review_item(candidate, snapshot, ingestion_run_id)
                         self.db.add(review_item)
                         context.log.info(
                             f"Created ReviewItem from {url}: "
@@ -335,7 +346,7 @@ class CrawleeRunner:
             ]
 
             # Execute crawl
-            crawler.run(start_requests)
+            await crawler.run(start_requests)
 
             # Update run status
             run.fetched_count = fetched_count
@@ -365,7 +376,7 @@ class CrawleeRunner:
         return run
 
 
-def run_web_monitor_target(target: "WebMonitorTarget", db: Session) -> IngestionRun:
+async def run_web_monitor_target(target: "WebMonitorTarget", db: Session) -> IngestionRun:
     """Run web monitoring for a specific target.
 
     Convenience function to create runner and execute.
@@ -378,4 +389,20 @@ def run_web_monitor_target(target: "WebMonitorTarget", db: Session) -> Ingestion
         IngestionRun with results
     """
     runner = CrawleeRunner(target, db)
-    return runner.run()
+    return await runner.run()
+
+
+def run_web_monitor_target_sync(target: "WebMonitorTarget", db: Session) -> IngestionRun:
+    """Run web monitoring for a specific target (sync wrapper).
+
+    Convenience function to create runner and execute.
+
+    Args:
+        target: WebMonitorTarget configuration
+        db: Database session
+
+    Returns:
+        IngestionRun with results
+    """
+    import asyncio
+    return asyncio.run(run_web_monitor_target(target, db))

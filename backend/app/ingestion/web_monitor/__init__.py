@@ -18,6 +18,7 @@ known source target -> Crawlee fetch -> snapshot -> extractor -> candidate item
 from app.ingestion.web_monitor.crawlee_runner import (
     CrawleeRunner,
     run_web_monitor_target,
+    run_web_monitor_target_sync,
 )
 from app.ingestion.web_monitor.extractors import (
     ExtractedCandidate,
@@ -30,6 +31,7 @@ __all__ = [
     "WebMonitorTarget",
     "CrawleeRunner",
     "run_web_monitor_target",
+    "run_web_monitor_target_sync",
     "ExtractedCandidate",
     "extract_from_page",
     "get_extractor",

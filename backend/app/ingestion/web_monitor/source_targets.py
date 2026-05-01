@@ -68,7 +68,7 @@ class WebMonitorTarget(BaseModel):
     )
     robots_txt_obey: bool = Field(
         default=True,
-        description="Respect robots.txt",
+        description="Template metadata: intent to respect robots.txt. Not directly configurable in Crawlee.",
     )
 
     @field_validator("allowed_domains")
@@ -125,11 +125,13 @@ class WebMonitorTarget(BaseModel):
         Returns:
             Dictionary of Crawlee configuration options
         """
+        # Note: respect_robots_txt is not passed to HttpCrawler as Crawlee
+        # doesn't expose direct control over robots.txt behavior
         return {
             "max_requests_per_crawl": self.max_requests,
             "max_crawl_depth": self.max_depth,
             "max_concurrency": self.concurrency,
-            "respect_robots_txt": self.robots_txt_obey,
+            "respect_robots_txt": self.robots_txt_obey,  # Template metadata only
         }
 
 

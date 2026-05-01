@@ -4,10 +4,11 @@ This module provides a simple in-memory rate limiter that enforces per-IP limits
 Rate limiting is enabled by default but can be disabled via JTA_RATE_LIMIT_ENABLED=false.
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from time import time
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from app.core.config import get_settings
 
@@ -74,7 +75,7 @@ def get_rate_limiter() -> SimpleRateLimiter:
 def _check_rate_limit(request: Request, limit_key: str) -> None:
     """Check rate limit for the given key.
     
-    Raises ValueError if limit is exceeded.
+    Raises HTTPException(429) if limit is exceeded.
     
     Args:
         request: FastAPI Request object
@@ -91,15 +92,19 @@ def _check_rate_limit(request: Request, limit_key: str) -> None:
     
     # Get IP address as key
     # Use X-Forwarded-For if present (behind proxy), otherwise use client
-    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    ip = request.headers.get("X-Forwarded-For") or (request.client.host if request.client else None) or "unknown"
     # If X-Forwarded-For contains multiple IPs, use the first one
     if "," in ip:
         ip = ip.split(",")[0].strip()
     
-    # Check limit
+    # Check limit with separate buckets per limit_key
+    bucket_key = f"{limit_key}:{ip}"
     limiter = get_rate_limiter()
-    if not limiter.check(ip, limit):
-        raise ValueError(f"Rate limit exceeded for {limit_key}: {limit} requests per minute")
+    if not limiter.check(bucket_key, limit):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded for {limit_key}: {limit} requests per minute"
+        )
 
 
 # Rate limiting dependencies that actually enforce limits

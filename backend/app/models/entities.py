@@ -2,7 +2,6 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
-    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -935,6 +934,15 @@ class EntityGraphEdge(Base):
     __table_args__ = (
         # Unique constraint: same subject, predicate, object at same time
         # Different valid_from allows temporal versioning
+        UniqueConstraint(
+            "subject_type",
+            "subject_id",
+            "predicate",
+            "object_type",
+            "object_id",
+            "valid_from",
+            name="uq_entity_graph_edge_unique_temporal",
+        ),
         {
             "sqlite_autoincrement": True,
         },

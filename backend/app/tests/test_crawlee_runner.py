@@ -9,7 +9,7 @@ from app.db.session import SessionLocal
 from app.ingestion.web_monitor import (
     CrawleeRunner,
     WebMonitorTarget,
-    run_web_monitor_target,
+    run_web_monitor_target_sync,
 )
 from app.models.entities import SourceSnapshot
 
@@ -184,7 +184,7 @@ class TestCrawleeRunnerIntegration:
 
         with SessionLocal() as db:
             # This should create a disabled registry entry
-            run = run_web_monitor_target(target, db)
+            run = run_web_monitor_target_sync(target, db)
 
             # Should fail because target is disabled
             assert run.status == "failed"
@@ -204,7 +204,7 @@ class TestCrawleeRunnerIntegration:
         )
 
         with SessionLocal() as db:
-            run = run_web_monitor_target(target, db)
+            run = run_web_monitor_target_sync(target, db)
 
             # Should fail closed
             assert run.status in ["failed", "completed_with_errors"]
