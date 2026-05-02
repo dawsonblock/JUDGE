@@ -18,7 +18,7 @@ depends_on: Union[Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add unique constraint to entity_graph_edges table."""
-    # First, deduplicate existing data - keep only the most recent record for each group
+    # First, deduplicate existing data - keep only the oldest record (MIN id) for each group
     op.execute("""
         DELETE FROM entity_graph_edges
         WHERE id NOT IN (
