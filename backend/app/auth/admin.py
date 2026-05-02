@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.auth.actor import AdminActor, AdminRole
+from app.auth.actor import AdminActor
 from app.core.config import Settings, get_settings
 from app.db.session import SessionLocal
 from app.models.entities import (
