@@ -15,6 +15,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
 from app.models.entities import IngestionRun, SourceRegistry
@@ -90,7 +91,7 @@ class IngestionRunSummary(BaseModel):
 @router.get("", response_model=list[SourceResponse])
 def list_sources(
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     is_active: bool | None = Query(None, description="Filter by active status"),
     source_type: str | None = Query(None, description="Filter by source type"),
     country: str | None = Query(None, description="Filter by country"),
@@ -115,7 +116,7 @@ def list_sources(
 def get_source(
     source_key: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Get detailed information about a specific source."""
     source = db.query(SourceRegistry).filter(
@@ -133,7 +134,7 @@ def update_source(
     source_key: str,
     update: SourceUpdateRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Update source configuration (enable/disable, rate limit, tier, notes)."""
     source = db.query(SourceRegistry).filter(
@@ -166,7 +167,7 @@ def update_source(
 def enable_source(
     source_key: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Enable a source for ingestion."""
     source = db.query(SourceRegistry).filter(
@@ -188,7 +189,7 @@ def enable_source(
 def disable_source(
     source_key: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Disable a source (stops active crawls)."""
     source = db.query(SourceRegistry).filter(
@@ -210,7 +211,7 @@ def disable_source(
 def get_source_health(
     source_key: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     days: int = Query(7, ge=1, le=90, description="Lookback period in days"),
 ) -> dict[str, Any]:
     """Get health metrics for a source."""
@@ -249,7 +250,7 @@ def get_source_health(
 def get_source_runs(
     source_key: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> list[IngestionRun]:

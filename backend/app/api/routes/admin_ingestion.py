@@ -15,6 +15,7 @@ from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.models.entities import IngestionRun, ReviewItem, SourceSnapshot
 
@@ -89,7 +90,7 @@ class SourceStats(BaseModel):
 @router.get("", response_model=list[IngestionRunSummary])
 def list_ingestion_runs(
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     source: str | None = Query(None, description="Filter by source key"),
     status: str | None = Query(None, description="Filter by status"),
     from_date: date | None = Query(None, description="Start date filter"),
@@ -122,7 +123,7 @@ def list_ingestion_runs(
 @router.get("/stats/daily", response_model=list[DailyStats])
 def get_daily_stats(
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     days: int = Query(7, ge=1, le=90),
 ) -> list[DailyStats]:
     """Get daily ingestion statistics for the last N days."""
@@ -168,7 +169,7 @@ def get_daily_stats(
 @router.get("/stats/by-source", response_model=list[SourceStats])
 def get_source_stats(
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     days: int = Query(30, ge=1, le=90),
 ) -> list[SourceStats]:
     """Get statistics grouped by source."""
@@ -222,7 +223,7 @@ def get_source_stats(
 def get_ingestion_run(
     run_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> IngestionRun:
     """Get detailed information about a specific ingestion run."""
     run = db.query(IngestionRun).filter(IngestionRun.id == run_id).first()
@@ -237,7 +238,7 @@ def get_ingestion_run(
 def get_run_review_items(
     run_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -278,7 +279,7 @@ def get_run_review_items(
 def get_run_snapshots(
     run_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -319,7 +320,7 @@ def get_run_snapshots(
 def retry_ingestion_run(
     run_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
     """Queue a retry of a failed ingestion run.
 

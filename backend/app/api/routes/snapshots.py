@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.models.entities import RelationshipEvidence, ReviewItem, SourceSnapshot
 from app.services.evidence_store import EvidenceStore
@@ -89,7 +90,7 @@ class SnapshotLinkedDataResponse(BaseModel):
 def get_snapshot_by_hash(
     content_hash: str,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SnapshotResponse:
     """Find snapshot by content hash (admin only)."""
     snapshot = db.query(SourceSnapshot).filter_by(content_hash=content_hash).first()
@@ -125,7 +126,7 @@ def search_snapshots_by_url(
     url_pattern: str = Query(..., description="URL pattern to search for"),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
     """Search snapshots by URL pattern (admin only)."""
     from sqlalchemy import func
@@ -160,7 +161,7 @@ def search_snapshots_by_url(
 def get_snapshot(
     snapshot_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SnapshotResponse:
     """Get snapshot metadata by ID (admin only)."""
     snapshot = db.query(SourceSnapshot).filter_by(id=snapshot_id).first()
@@ -196,7 +197,7 @@ def get_snapshot_raw(
     snapshot_id: int,
     verify_hash: bool = Query(True, description="Verify content hash matches"),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SnapshotContentResponse:
     """Get raw snapshot content (admin only).
 
@@ -269,7 +270,7 @@ def get_snapshot_raw(
 def get_snapshot_linked(
     snapshot_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> SnapshotLinkedDataResponse:
     """Get review items and evidence linked to this snapshot (admin only)."""
     # Verify snapshot exists

@@ -91,3 +91,68 @@ class TestSimpleRateLimiter:
         limiter2 = get_rate_limiter()
         
         assert limiter1 is limiter2
+
+
+class TestTrustedProxyIP:
+    """Test that X-Forwarded-For is only trusted from configured proxy IPs."""
+
+    def _make_request(self, direct_ip: str, forwarded_for: str | None = None) -> object:
+        """Build a minimal mock Request."""
+        from unittest.mock import MagicMock
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = direct_ip
+        headers = {}
+        if forwarded_for:
+            headers["X-Forwarded-For"] = forwarded_for
+        req.headers = headers
+        return req
+
+    def test_untrusted_proxy_ignores_forwarded_for(self, monkeypatch):
+        """If direct IP is not in trusted list, X-Forwarded-For is ignored."""
+        from unittest.mock import patch
+
+        class FakeSettings:
+            trusted_proxy_ips = "10.0.0.1"
+            rate_limit_enabled = True
+            rate_limit_backend = "memory"
+            redis_url = None
+
+        with patch("app.core.rate_limit.get_settings", return_value=FakeSettings()):
+            from app.core.rate_limit import _get_client_ip
+            req = self._make_request("8.8.8.8", forwarded_for="1.2.3.4")
+            ip = _get_client_ip(req)
+            assert ip == "8.8.8.8", f"Should use direct IP when proxy is not trusted, got {ip}"
+
+    def test_trusted_proxy_uses_forwarded_for(self, monkeypatch):
+        """If direct IP is in trusted list, X-Forwarded-For leftmost IP is used."""
+        from unittest.mock import patch
+
+        class FakeSettings:
+            trusted_proxy_ips = "10.0.0.1"
+            rate_limit_enabled = True
+            rate_limit_backend = "memory"
+            redis_url = None
+
+        with patch("app.core.rate_limit.get_settings", return_value=FakeSettings()):
+            from app.core.rate_limit import _get_client_ip
+            req = self._make_request("10.0.0.1", forwarded_for="1.2.3.4, 10.0.0.1")
+            ip = _get_client_ip(req)
+            assert ip == "1.2.3.4", f"Should use leftmost X-Forwarded-For IP, got {ip}"
+
+    def test_no_trusted_proxies_uses_direct_ip(self, monkeypatch):
+        """With empty trusted_proxy_ips, always use direct connection IP."""
+        from unittest.mock import patch
+
+        class FakeSettings:
+            trusted_proxy_ips = ""
+            rate_limit_enabled = True
+            rate_limit_backend = "memory"
+            redis_url = None
+
+        with patch("app.core.rate_limit.get_settings", return_value=FakeSettings()):
+            from app.core.rate_limit import _get_client_ip
+            req = self._make_request("203.0.113.1", forwarded_for="1.2.3.4")
+            ip = _get_client_ip(req)
+            assert ip == "203.0.113.1"
+
