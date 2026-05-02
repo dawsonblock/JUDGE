@@ -16,6 +16,7 @@ export default function Nav() {
         <Link href="/judges">Judges</Link>
         <Link href="/sources">Sources</Link>
         <Link href="/admin/review">Admin Review</Link>
+        <Link href="/admin/sources">Sources</Link>
         <Link href="/admin/ai-checks">AI Checks</Link>
       </nav>
     </header>
