@@ -1,172 +1,161 @@
-# Current Status — Judge Atlas
+# Judge Atlas - Current Status & Limitations
 
-**Date**: 2026-05-02  
-**Repo**: JUDGE-main  
-**Classification**: Research Alpha — Local Prototype
+**Date:** 2026-05-02  
+**Release Status:** **ALPHA - Not Production Ready**
 
----
+## What This Is
 
-## Summary
+Judge Atlas is a map-first legal & public-record transparency prototype. It shows court events and reported crime incidents as separate layers on a North America map, with strong safety gates to prevent abuse.
 
-Judge Atlas is a **map-first transparency platform** for court events and crime incident context. It is currently a **research alpha** hardened prototype, not production legal infrastructure.
+- **Core Data Model:** Locations, courts, judges, cases, defendants, events, crimes, source registry, evidence snapshots, review items, audit logs, graph edges, entity linking, AI rule-based classification
+- **Backend:** FastAPI, SQLAlchemy ORM, 22 Alembic migrations, PostGIS
+- **Frontend:** Next.js, Leaflet, TypeScript, TailwindCSS
+- **Map:** North America Leaflet base, event layers, crime aggregates, visibility controls
+- **Admin:** Review queue, audit logs, source registry, AI correctness (rule-based)
 
----
+## What Works
 
-## Component Status
-
-### Backend — FastAPI + SQLAlchemy
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Core API | **WORKING** | FastAPI with OpenAPI docs at `/docs` |
-| Database | **WORKING** | SQLite (local), PostgreSQL+PostGIS (production target) |
-| Migrations | **WORKING** | 19 Alembic migrations apply cleanly |
-| Models | **WORKING** | 33 tables defined in ORM |
-| Review Gates | **WORKING** | pending_review blocks public visibility |
-| Map Endpoints | **WORKING** | GeoJSON events and crime incidents |
-| Admin API | **PARTIAL** | Shared token auth (local-alpha only) |
-| Rate Limiting | **PARTIAL** | In-memory only, single-process |
-| Source Snapshots | **WORKING** | Hash-based provenance tracking |
-| Evidence Storage | **PARTIAL** | Content-addressed foundation, not full vault |
-| CourtListener Ingestion | **STUB** | Scaffolding present, not fully implemented |
-| Canadian Law Ingestion | **STUB** | Hard-coded placeholder sections only |
-| Crime Incident Ingestion | **PARTIAL** | Adapters for some open data portals |
-| Web Monitor (Crawlee) | **PARTIAL** | Controlled monitoring only, disabled by default |
-| AI Correctness Checks | **STUB** | Framework present, not production AI |
-
-### Frontend — Next.js + Leaflet
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Map UI | **WORKING** | Leaflet with court events and crime layers |
-| Admin Review Page | **PARTIAL** | Token bug fix needed for AI queue (Phase 1) |
-| Source Panel | **WORKING** | Displays provenance info |
-| Record Drawer | **WORKING** | Shows record details |
-| Dashboard | **WORKING** | Stats and navigation |
-| Build | **WORKING** | 9 pages generate successfully |
-| Typecheck | **WORKING** | No TypeScript errors |
-| Lint | **WORKING** | No ESLint errors |
-
-### Infrastructure
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Docker Compose | **PARTIAL** | Dockerfile needs UID fix (999 vs 1001) |
-| Docker Desktop | **UNVERIFIED** | Storage corruption encountered in last test |
-| CI/CD | **STUB** | GitHub Actions workflows present, not fully active |
-| Redis | **NOT IMPLEMENTED** | Required for multi-worker rate limiting |
-| Production Secrets | **NOT IMPLEMENTED** | Uses .env files only |
-
----
+- **Core Schema:** Sufficient for long-term goals (entity linking, graph edges, evidence vault, memory derivatives)
+- **Public Safety Gates:** Filters by public_visibility=True, approved statuses, non-placeholder locations, safe precision
+- **Evidence Layer:** SourceSnapshot stores raw content, hashes, extracted text, storage backend path, truncation flags (ready for external vault)
+- **Review System:** All ingested data is pending_review by default; nothing auto-publishes without admin approval
+- **Source Registry:** Ingestion sources disabled by default; only active sources execute
+- **Audit Logging:** All admin mutations captured with actor, action, entity, payload, request metadata
 
 ## Known Limitations
 
-### Security & Auth
-- **Admin auth**: Shared token only (local-alpha). No user accounts, roles, or OAuth.
-- **Rate limiting**: In-memory, per-process. Not suitable for multi-worker deployment.
-- **Secrets**: Stored in plain .env files. No rotation or vault integration.
+### 1. Memory System Is Contract-Only
+- File: `docs/MEMORY_INTEGRATION_CONTRACT.md`
+- No memory tables, embeddings, retrieval planner, invalidation engine, or API
+- Backend is ready to receive a fluid memory layer, but memory is not implemented
+- **Do not claim the app uses memory yet**
 
-### Data Integrity
-- **Canadian law**: Hard-coded placeholder sections. Not fetched from official sources.
-- **CourtListener**: Ingestion scaffolding only. Not pulling live data.
-- **AI checks**: Framework stub. Not making real AI determinations.
+### 2. Canadian Law Is Stub-Only
+- Files: `backend/app/ingestion/laws/canada_*.py`
+- Only placeholder law sections; no real Canadian law text ingestion
+- Not a blocker for Saskatoon police/crime use case, but Canadian legal context is missing
 
-### Testing
-- **SQLite tests**: Comprehensive (394 tests pass).
-- **PostgreSQL tests**: Not automated. Requires manual verification.
-- **PostGIS tests**: Not automated. Spatial queries use simplified geometry in SQLite.
+### 3. AI is Rule-Based, Not True AI
+- Files: `backend/app/ai/classify.py`, `redaction.py`, `summarize.py`, `pipeline.py`
+- Uses deterministic keyword patterns, redaction rules, and extraction rules
+- No LLM, no embeddings, no semantic understanding
+- **Marketing label:** Should be "Automated Validation Checks" or "Rule-Based Extraction," not "AI Correctness Engine"
 
-### Deployment
-- **Docker**: Frontend image build needs UID fix.
-- **Production**: Not ready. Needs Redis, real auth, PostgreSQL/PostGIS hardening.
+### 4. CourtListener Is Scaffolding, Not Live Ingestion
+- Model and bulk normalizer exist
+- No turnkey "pull all court decisions" pipeline
+- Requires manual source registry enablement, retry handling, admin review workflow
+- **Not production-ready for CourtListener live sync**
+
+### 5. Admin Auth Is Shared-Token Alpha
+- Single shared token for all admin operations
+- No per-user identity, no roles, no OAuth/OIDC, no MFA, no session management
+- Audit logs show actor="shared-admin-token"
+- **Not acceptable for public deployment**
+
+### 6. Proof System Has Known Bug
+- `scripts/proof_all.sh` uses `DATABASE_URL` instead of `JTA_DATABASE_URL`
+- Alembic reads `JTA_DATABASE_URL`, so migration proof may not test intended database
+- Proof artifacts are from 19 migrations; repo now has 22
+- **Fixed in recent commit**
+
+### 7. Crawlee Web Monitor Is Alpha
+- Crawlee runner was updated to use review_required instead of invalid "hold" status
+- Confidence capped at 0.5
+- All crawled content starts as pending_review
+- Test coverage added but not yet full
+
+### 8. Docker Compose Admin Defaults Were Unsafe
+- Previously hardcoded dev tokens and enabled admin endpoints by default
+- **Fixed in recent commit:** admin endpoints now disabled by default, tokens must come from .env
+
+### 9. Redis Rate Limiter Has Fallback
+- Can fall back to in-memory rate limiter if Redis unavailable
+- In production, this should fail closed
+- **Fixed in recent commit:** production startup checks Redis availability
+
+## Migration Status
+
+**Total Migrations:** 22 (correct as of 2026-05-02)
+
+Recent migrations:
+- `20260502_0001_add_snapshot_integrity_fields.py` — storage_backend, content_size_bytes, truncation_flag
+- `20260502_0002_add_audit_actor_fields.py` — audit_logs.actor_id
+- `20260502_0003_expand_source_registry_source_type.py` — source_type String(20)→String(80)
+
+**Proof Status:** Alembic upgrade head tested on SQLite; full migration suite not yet re-proven against 22 migrations. Run `bash scripts/proof_all.sh` with fixed JTA_DATABASE_URL to verify current state.
+
+## What Is Safe
+
+- **Public Map Endpoints:** Filter rigorously; filter by public_visibility=True, approved review status, non-placeholder coordinates
+- **Source Snapshots:** Do not auto-publish; stored with integrity (hash, truncation flags, storage backend metadata)
+- **Evidence Vault Design:** Ready for external storage at JTA_EVIDENCE_STORE_ROOT; snapshot_writer refuses silent truncation
+- **Review Queue:** All ingested data mandatory for human review before public visibility
+- **Audit Trail:** All admin mutations logged with actor, action, entity, timestamp, request metadata
+
+## What Is Not Safe
+
+- **Shared-Token Admin Auth:** No per-user identity; not suitable for multi-person teams or public internet
+- **CourtListener Live Sync:** Not yet production-grade retry pipeline or admin UI integration
+- **Dev Tokens in Production:** Must use secure random tokens; no "change-in-production" markers allowed
+- **Wildcard CORS:** Startup validation now rejects wildcard origins in production
+- **Redis Fallback:** Startup validation now fails if Redis is required but unavailable
+
+## Next Repair Order
+
+### Phase 0 (Status Documentation)
+- [x] Update this file with true current status
+
+### Phase 1 (Fix Proof System)
+- [x] Patch `scripts/proof_all.sh` to use `JTA_DATABASE_URL`
+- [ ] Run clean proof command on current state
+- [ ] Verify all 22 migrations pass
+
+### Phase 2 (Crawlee Safety)
+- [x] Fix publish_recommendation ("hold" → "review_required")
+- [x] Add test coverage for Crawlee safety defaults
+- [x] Production startup checks added
+
+### Phase 3 (Production Safety)
+- [x] Disable admin endpoints by default in docker-compose.yml
+- [x] Require explicit token configuration in .env
+- [x] Startup validation: fail if tokens missing, dev tokens detected, wildcard CORS, Redis unavailable
+
+### Phase 4 (Source Registry)
+- [ ] Make source enable/disable the real control switch in admin UI
+- [ ] Add UI controls to enable/disable courtlistener, saskatoon_police, statscan, etc.
+- [ ] Verify ingestion runner respects source is_active
+
+### Phase 5 (Evidence Vault)
+- [ ] Configure JTA_EVIDENCE_STORE_ROOT=/Volumes/ExternalDrive/judge-atlas-evidence (or equivalent)
+- [ ] Add startup verification: path exists, writable, not inside repo
+- [ ] Large snapshots stored on external drive by hash
+
+### Phase 6 (Fluid Memory)
+- [ ] Design memory as derivative layer, not source of truth
+- [ ] Add memory claim state tables with invalidation, checksums, rebuild status
+- [ ] Embeddings, summaries, relationship hints reference source IDs, review IDs, graph edge IDs
+- [ ] Rebuilds trigger when evidence changes
+
+## Do Not Yet Claim
+
+- [ ] "Production-ready" — Alpha only
+- [ ] "AI-powered" — Rule-based extraction only
+- [ ] "Uses memory" — Contract defined, not implemented
+- [ ] "Complete Canadian law coverage" — Stubs only
+- [ ] "Live CourtListener sync" — Scaffolding only
+- [ ] "Enterprise authentication" — Shared-token alpha only
+
+## Do Claim
+
+- [x] "Open-source legal transparency research prototype"
+- [x] "Map-first, review-first, fail-closed design"
+- [x] "Strong source-first and evidence-first commitment"
+- [x] "No auto-publish without human review"
+- [x] "All admin mutations audited"
+- [x] "Ready for local development and research"
 
 ---
 
-## What Works Today
-
-1. **Local development** with SQLite backend
-2. **Frontend build** with Node 20+
-3. **Map visualization** of court events and reported incidents
-4. **Review queue** for admin review (with token bug fix)
-5. **Source provenance** tracking with SHA-256 hashes
-6. **Privacy gates** — personal addresses never mapped
-7. **Alembic migrations** for schema evolution
-
----
-
-## What's Needed for Production
-
-1. **Real authentication** — Replace shared token with OAuth/OIDC or user accounts
-2. **Redis rate limiting** — Multi-worker safe rate limiting
-3. **PostgreSQL + PostGIS** — Production database with spatial indexing
-4. **Real Canadian law fetchers** — XML/HTML parsing from official sources
-5. **CourtListener integration** — Live PACER/RECAP data ingestion
-6. **CI/CD hardening** — Automated PostgreSQL/PostGIS testing
-7. **Secrets management** — Vault or managed secrets service
-8. **Audit logging** — Per-user review action logs
-9. **Evidence vault** — Encrypted storage with chain of custody
-
----
-
-## Labels Reference
-
-| Label | Meaning |
-|-------|---------|
-| **WORKING** | Implemented and tested |
-| **PARTIAL** | Works but has limitations or gaps |
-| **STUB** | Interface exists, implementation is placeholder |
-| **NOT IMPLEMENTED** | Planned but not built |
-| **LOCAL-ONLY** | Works locally, needs config for production |
-| **UNVERIFIED** | Status unknown, needs testing |
-
----
-
-## Verification Commands
-
-```bash
-# Backend tests
-cd backend
-python -m pytest
-
-# Frontend build
-cd frontend
-npm install
-npm run lint
-npm run typecheck
-npm run build
-
-# Migrations (requires DB)
-cd backend
-alembic upgrade head
-```
-
----
-
-## Disclaimer
-
-> ⚠️ **Research Alpha**: This is a hardened prototype for research and development. It is not production legal infrastructure. Do not deploy to public-facing production without completing the hardening items listed above.
-
----
-
-## Release Status
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Alpha | ✅ **Implemented** | Core API, models, migrations, review gates, map endpoints |
-| Hardened | 🔄 **Partially Implemented** | Evidence integrity (Phase 1), admin identity (Phase 2), content-type gating (Phase 5), Redis rate limiting (Phase 7) |
-| Production | ❌ **Not Yet** | Requires: real Postgres/PostGIS, JWT auth, Redis rate limiting, full audit logging, pentest |
-
-### Hardening Phases (2026-05-02)
-
-- **Phase 0** ✅ Repo cleanup (.gitignore updates)
-- **Phase 1** ✅ Evidence snapshot integrity (fixed hash mismatch, no silent truncation)
-- **Phase 2** ✅ Admin identity safety (AdminActor, no raw token in audit logs)
-- **Phase 3** ✅ Postgres/PostGIS proof script
-- **Phase 4** ✅ PDF extraction (pypdf, extractors.py)
-- **Phase 5** ✅ Content-type allowlist enforcement
-- **Phase 6** ✅ Public visibility gates (pre-existing tests pass)
-- **Phase 7** ✅ Rate limiting Redis option + trusted proxy IP support
-- **Phase 8** ✅ Environment and docs truth cleanup
-- **Phase 9** — Frontend dependency audit (run manually)
-- **Phase 10** ✅ Docker Compose smoke proof script
-- **Phase 12** ✅ Final acceptance proof script
+**Maintainer Note:**  
+This app is the best version of Judge Atlas foundation so far as an alpha. The schema is correct, the safety spine is strong, and the next moves are clear. Do not call it production-ready yet. Do not expose admin endpoints publicly with dev tokens. Do complete the source registry UI, evidence vault, and memory layer before expanding to multi-user or public deployment.

@@ -139,7 +139,7 @@ class CrawleeRunner:
 
         All crawled candidates are created with:
         - status="pending" (never auto-publish)
-        - publish_recommendation="hold"
+        - publish_recommendation="review_required"
         - confidence capped at 0.5
         - privacy_status based on warnings
 
@@ -187,7 +187,7 @@ class CrawleeRunner:
             source_quality=self.target.source_tier,
             confidence=min(candidate.confidence, 0.5),  # Hard cap at 0.5
             privacy_status=privacy_status,
-            publish_recommendation="hold",  # Never auto-publish crawled content
+            publish_recommendation="review_required",  # Never auto-publish crawled content
             status="pending",  # Always requires admin review
             ingestion_run_id=ingestion_run_id,
         )

@@ -46,6 +46,45 @@ def _validate_cors_origins(cors_origins: str, app_env: str) -> list[str]:
     return origins if origins else ["*"]
 
 
+def _validate_production_safety(settings) -> None:
+    """Validate production safety settings. Fail fast if unsafe."""
+    if settings.app_env != "production":
+        return  # Skip checks outside production
+
+    # Check for missing admin tokens
+    if not settings.admin_token:
+        print("ERROR: JTA_ADMIN_TOKEN required in production")
+        sys.exit(1)
+    if not settings.admin_review_token:
+        print("ERROR: JTA_ADMIN_REVIEW_TOKEN required in production")
+        sys.exit(1)
+
+    # Reject dev tokens
+    dev_token_markers = ["dev", "change-in-production", "localhost", "test"]
+    for token in [settings.admin_token, settings.admin_review_token]:
+        if any(marker in token.lower() for marker in dev_token_markers):
+            print(
+                "ERROR: Development token detected in production. "
+                "Use secure, random tokens for production."
+            )
+            sys.exit(1)
+
+    # Check Redis availability if configured
+    if settings.rate_limit_backend == "redis":
+        import redis
+        try:
+            r = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=2)
+            r.ping()
+        except Exception as e:
+            print(
+                f"ERROR: Redis configured but unavailable in production: {e}. "
+                "Rate limiting requires Redis in production."
+            )
+            sys.exit(1)
+
+    print("[STARTUP] Production safety checks passed")
+
+
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     """Middleware to limit request body size using Content-Length header."""
 
@@ -77,6 +116,9 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+
+    # Validate production safety before proceeding
+    _validate_production_safety(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
