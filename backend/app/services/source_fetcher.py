@@ -285,23 +285,34 @@ def fetch_source(
                     result.content_type, url,
                 )
             else:
-                # Read with size limit
-                result.raw_content = resp.read(max_bytes + 1)
-                if len(result.raw_content) > max_bytes:
+                # Read with size limit. If the response exceeds max_bytes,
+                # discard the body rather than persisting a truncated partial
+                # snapshot.
+                raw_content = resp.read(max_bytes + 1)
+                if len(raw_content) > max_bytes:
                     result.error = f"Content exceeds max_bytes: {max_bytes}"
-                    result.raw_content = result.raw_content[:max_bytes]
-
-                # Compute hash
-                if result.raw_content:
-                    result.raw_content_hash = _sha256(result.raw_content)
-
-                # Extract text for HTML content
-                if "text/html" in result.content_type and result.raw_content:
-                    result.extracted_text = _extract_text_from_html(
-                        result.raw_content, result.content_type
+                    result.raw_content = None
+                    result.raw_content_hash = None
+                    result.extracted_text = None
+                    result.extracted_text_hash = None
+                    log.warning(
+                        "source_fetcher: response exceeded max_bytes for %s; discarding body",
+                        url,
                     )
-                    if result.extracted_text:
-                        result.extracted_text_hash = _sha256(result.extracted_text)
+                else:
+                    result.raw_content = raw_content
+
+                    # Compute hash
+                    if result.raw_content:
+                        result.raw_content_hash = _sha256(result.raw_content)
+
+                    # Extract text for HTML content
+                    if "text/html" in result.content_type and result.raw_content:
+                        result.extracted_text = _extract_text_from_html(
+                            result.raw_content, result.content_type
+                        )
+                        if result.extracted_text:
+                            result.extracted_text_hash = _sha256(result.extracted_text)
 
         log.info("source_fetcher: fetched %s (%s bytes)", url, len(result.raw_content or b""))
 
