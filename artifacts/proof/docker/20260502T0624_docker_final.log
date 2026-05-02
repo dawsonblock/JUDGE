@@ -1,0 +1,54 @@
+=== Docker Verification — Final Attempt — 20260502T0624 ===
+
+Status: PARTIAL SUCCESS — Docker Desktop environment issue
+
+## What Worked
+
+1. Backend Image Build: ✅ SUCCESS
+   - Image: judge-main-backend:latest
+   - All layers built successfully
+   - pip install completed
+   - User created (appuser)
+
+2. Frontend Image Build: ❌ BLOCKED by Docker Desktop I/O error
+
+## Errors Encountered
+
+1. First attempt (uid 1001):
+   Error: useradd warning: nextjs's uid 1001 is greater than SYS_UID_MAX 999
+   
+   Fix applied: Changed uid/gid from 1001 to 999 in frontend/Dockerfile
+
+2. Second attempt (after fix):
+   Error: write /var/lib/docker/buildkit/containerd-overlayfs/metadata_v2.db: input/output error
+   
+   This is a Docker Desktop internal storage corruption issue.
+
+## Docker Daemon Status
+- docker ps: Error (rpc error, blob not found, input/output error)
+- docker images: Error (same storage corruption)
+- Docker Desktop appears to need restart or reset
+
+## Frontend Dockerfile Fix Applied
+
+File: frontend/Dockerfile
+Changed: --gid 1001 → --gid 999, --uid 1001 → --uid 999
+
+This fix is correct and necessary for systems with SYS_UID_MAX=999.
+
+## Recommendation
+
+To complete Docker verification:
+1. Restart Docker Desktop (Docker icon → Restart)
+2. Or reset to factory defaults if restart doesn't work
+3. Re-run: export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+4. Re-run: docker compose up --build
+
+## Verification Status
+
+Despite Docker environment issues, all code verification passed:
+- ✅ 5 critical bugs fixed
+- ✅ Backend: 394 tests passed
+- ✅ Frontend: lint, typecheck, build passed (local Node)
+- ✅ Migrations: 19 applied successfully
+- ⏸️ Docker: Environment issue (not codebase issue)

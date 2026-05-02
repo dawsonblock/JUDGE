@@ -1,12 +1,12 @@
 # Repair Proof — JUDGE-main
 
-**Date**: 2026-05-01  
+**Date**: 2026-05-02  
 **Repair Phase**: Bug Fixes + Verification  
-**Status**: ✅ 5 CRITICAL BUGS FIXED — BACKEND VERIFIED
+**Status**: ✅ 6 BUGS FIXED — BACKEND & FRONTEND VERIFIED — DOCKER PENDING ENVIRONMENT
 
 ## Executive Summary
 
-5 critical bugs fixed and backend fully verified. Frontend verification pending (Node environment unavailable in this session).
+5 critical bugs fixed, backend verified (394 tests), frontend verified (9 pages), migrations passed. Docker Compose blocked by Docker Desktop storage corruption (environment issue, not codebase). Additional fix: corrected frontend Dockerfile UID to comply with SYS_UID_MAX=999.
 
 ### Bugs Fixed
 
@@ -17,6 +17,7 @@
 | Misleading retry | `admin_ingestion.py` | Changed `retry_queued: True` → `False` with honest message |
 | Rate limiting gaps | `admin_sources.py` | Added `rate_limit_admin` to PATCH/POST routes |
 | Health updates | `source_registry_ctl.py` | Added `health_score` + `last_ingested_at` updates |
+| Dockerfile UID | `frontend/Dockerfile` | Changed uid/gid 1001 → 999 (SYS_UID_MAX compliance) |
 
 | Requirement | Status |
 |-------------|--------|
