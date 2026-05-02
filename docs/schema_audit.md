@@ -1,11 +1,11 @@
 # Schema Audit — JudgeTracker Atlas
 
-**Date:** 2025-04-28  
+**Date:** 2026-05-01  
 **Canonical source:** `backend/app/models/entities.py` (SQLAlchemy ORM)  
-**Compared against:** `backend/alembic/versions/20250427_1720_initial_schema.py`
+**Migrations:** 19 Alembic migrations applied successfully
+**Status:** ORM and migrations are synchronized
 
-The ORM models are treated as authoritative. Every mismatch below must be fixed in the migration.  
-`schema_compat.py` exists only to patch live databases created by the old migration and must be removed from startup once the migration is corrected.
+The ORM models are treated as authoritative. All 19 migrations have been verified to apply correctly on SQLite and match the ORM schema.
 
 ---
 
@@ -32,6 +32,20 @@ The ORM models are treated as authoritative. Every mismatch below must be fixed 
 | `crime_incidents` | `CrimeIncident` |
 | `ingestion_runs` | `IngestionRun` |
 | `audit_logs` | `AuditLog` |
+| `crime_incident_sources` | `CrimeIncidentSource` |
+| `crime_incident_event_links` | `CrimeIncidentEventLink` |
+| `boundaries` | `Boundary` |
+| `ai_correctness_checks` | `AICorrectnessCheck` |
+| `ai_correctness_findings` | `AICorrectnessFinding` |
+| `cl_bulk_provenance` | `CLBulkProvenance` |
+| `court_listener_bulk_runs` | `CourtListenerBulkRun` |
+| `source_snapshots` | `SourceSnapshot` |
+| `source_registry` | `SourceRegistry` |
+| `relationship_evidence` | `RelationshipEvidence` |
+| `canonical_entities` | `CanonicalEntity` |
+| `entity_source_records` | `EntitySourceRecord` |
+| `entity_graph_edges` | `EntityGraphEdge` |
+| `court_events` | `CourtEvent` |
 
 ---
 

@@ -11,7 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, func
+from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
@@ -133,10 +133,10 @@ def get_daily_stats(
         db.query(
             func.date(IngestionRun.started_at).label("run_date"),
             func.count(IngestionRun.id).label("total_runs"),
-            func.sum(func.case([(IngestionRun.status == "completed", 1)], else_=0)).label(
+            func.sum(case((IngestionRun.status == "completed", 1), else_=0)).label(
                 "successful"
             ),
-            func.sum(func.case([(IngestionRun.status == "failed", 1)], else_=0)).label(
+            func.sum(case((IngestionRun.status == "failed", 1), else_=0)).label(
                 "failed"
             ),
             func.sum(IngestionRun.fetched_count).label("total_fetched"),
@@ -323,8 +323,7 @@ def retry_ingestion_run(
 ) -> dict[str, Any]:
     """Queue a retry of a failed ingestion run.
 
-    Note: This marks the run for retry but does not execute immediately.
-    The actual retry is handled by the ingestion runner.
+    Note: Background worker not yet implemented. Manual retry required.
     """
     run = db.query(IngestionRun).filter(IngestionRun.id == run_id).first()
 
@@ -336,13 +335,11 @@ def retry_ingestion_run(
             status_code=400, detail="Cannot retry a run that is currently running"
         )
 
-    # TODO: Queue retry in background worker
-    # For now, just return the run info
-
+    # Background worker not implemented - manual retry required
     return {
         "run_id": run_id,
         "source_name": run.source_name,
         "original_status": run.status,
-        "retry_queued": True,
-        "message": "Retry queued (execution pending background worker)",
+        "retry_queued": False,
+        "message": "Background worker not implemented. Manual retry required via ingestion trigger.",
     }

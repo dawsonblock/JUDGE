@@ -15,6 +15,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
 from app.models.entities import IngestionRun, SourceRegistry
 
@@ -127,7 +128,7 @@ def get_source(
     return source
 
 
-@router.patch("/{source_key}", response_model=SourceResponse)
+@router.patch("/{source_key}", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
 def update_source(
     source_key: str,
     update: SourceUpdateRequest,
@@ -161,7 +162,7 @@ def update_source(
     return source
 
 
-@router.post("/{source_key}/enable", response_model=SourceResponse)
+@router.post("/{source_key}/enable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
 def enable_source(
     source_key: str,
     db: Session = Depends(get_db),
@@ -183,7 +184,7 @@ def enable_source(
     return source
 
 
-@router.post("/{source_key}/disable", response_model=SourceResponse)
+@router.post("/{source_key}/disable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
 def disable_source(
     source_key: str,
     db: Session = Depends(get_db),

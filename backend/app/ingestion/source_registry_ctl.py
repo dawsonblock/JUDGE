@@ -92,8 +92,11 @@ def update_source_health(
     if registry is None:
         return
 
+    now = datetime.now(timezone.utc)
+    registry.last_ingested_at = now
+
     if run.status in ("completed", "completed_with_errors"):
-        registry.last_successful_fetch = datetime.now(timezone.utc)
+        registry.last_successful_fetch = now
         # Clear error if successful
         if run.status == "completed" and run.error_count == 0:
             registry.last_error = None
@@ -103,7 +106,20 @@ def update_source_health(
         if run.errors:
             error_msg = str(run.errors[0])
             registry.last_error = f"Status: {run.status}, Error: {error_msg[:200]}"
-        registry.last_error_at = datetime.now(timezone.utc)
+        registry.last_error_at = now
+
+    # Calculate health score based on recent run success
+    total_processed = run.persisted_count + run.skipped_count + run.error_count
+    if total_processed > 0:
+        success_rate = (run.persisted_count + run.skipped_count) / total_processed
+        # Simple health score: blend previous score with new success rate
+        if registry.health_score is None:
+            registry.health_score = success_rate
+        else:
+            registry.health_score = 0.7 * registry.health_score + 0.3 * success_rate
+    else:
+        # No records processed, slight penalty to health score
+        registry.health_score = max(0.0, (registry.health_score or 1.0) - 0.1)
 
     db.commit()
 

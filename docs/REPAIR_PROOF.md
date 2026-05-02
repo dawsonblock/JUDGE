@@ -1,28 +1,38 @@
 # Repair Proof — JUDGE-main
 
 **Date**: 2026-05-01  
-**Repair Phase**: All 12 Phases Complete  
-**Status**: ✅ REPAIR COMPLETE — ACCEPTANCE BAR MET
+**Repair Phase**: Bug Fixes + Verification  
+**Status**: ✅ 5 CRITICAL BUGS FIXED — BACKEND VERIFIED
 
 ## Executive Summary
 
-All 12 repair phases executed successfully. The JUDGE-main codebase is now a clean, tested, and documented foundation for the judge/crime/court-source mapping application.
+5 critical bugs fixed and backend fully verified. Frontend verification pending (Node environment unavailable in this session).
+
+### Bugs Fixed
+
+| Bug | File | Fix |
+|-----|------|-----|
+| Snapshot persistence | `source_fetcher.py` | Added `db.flush()` + `db.commit()` after `write_snapshot()` |
+| SQLAlchemy case() | `admin_ingestion.py` | Changed `func.case([...])` to `case((...), else_=0)` |
+| Misleading retry | `admin_ingestion.py` | Changed `retry_queued: True` → `False` with honest message |
+| Rate limiting gaps | `admin_sources.py` | Added `rate_limit_admin` to PATCH/POST routes |
+| Health updates | `source_registry_ctl.py` | Added `health_score` + `last_ingested_at` updates |
 
 | Requirement | Status |
 |-------------|--------|
 | Repository hygiene | ✅ Clean — 0 `__pycache__` outside `.venv` |
 | Alembic migrations | ✅ 19 migrations pass on fresh SQLite |
-| Backend tests | ✅ 394 passed, 5 warnings |
+| Backend tests | ✅ 394 passed, 5 warnings (Pydantic deprecation only) |
 | Python syntax | ✅ `compileall` passes |
-| Frontend build | ✅ 9 pages generated |
-| Frontend lint | ✅ No ESLint errors |
-| Frontend typecheck | ✅ `tsc --noEmit` passes |
+| Frontend build | ⏳ Not verified — Node environment unavailable |
+| Frontend lint | ⏳ Not verified — Node environment unavailable |
+| Frontend typecheck | ⏳ Not verified — Node environment unavailable |
 | Admin protection | ✅ Tests prove 401/403 enforcement |
 | Web monitor safety | ✅ `is_active` authority, `pending_review` only |
 | Graph edge dedup | ✅ MIN(id) deterministic, unique constraint applied |
 | Snapshot routes | ✅ Static routes before dynamic, hash verification correct |
-| Memory contract | ✅ `MEMORY_INTEGRATION_CONTRACT.md` exists |
-| Documentation | ✅ All docs match code behavior |
+| 5 Critical bugs fixed | ✅ See Bugs Fixed section above |
+| Documentation | ✅ Updated to reflect current status |
 
 ## Commands Run
 
@@ -95,10 +105,12 @@ find /Users/dawsonblock/Downloads/JUDGE-ATLAS/JUDGE-main -type d -name "__pycach
 
 ## Known Limitations (Honest)
 
-1. **Rate Limiting**: In-memory only, suitable for dev/test. Production needs Redis.
-2. **Frontend**: Not verified in this repair pass (no npm run executed).
-3. **PostgreSQL**: Migrations tested on SQLite only; production uses PostgreSQL.
+1. **Rate Limiting**: In-memory only, suitable for dev/test. Production needs Redis-backed rate limiting.
+2. **Frontend**: Not verified in this repair pass (Node environment unavailable in this session). Previous proof logs show passing status.
+3. **PostgreSQL**: Migrations tested on SQLite only; production uses PostgreSQL with PostGIS.
 4. **Web Monitor**: Crawlee integration present but no live crawl tests in suite.
+5. **Authentication**: Alpha-level shared-token auth only. Not suitable for public production use without proper RBAC.
+6. **Secrets Management**: Tokens stored in plain `.env` files. Production needs proper secret rotation.
 
 ## Security Verification
 
@@ -135,28 +147,64 @@ All 18 migrations apply cleanly on fresh SQLite:
 
 ## Risks Not Fixed
 
-1. **Frontend build status**: Not verified (Phase 9 not executed)
-2. **SlowAPI dependency**: Still in requirements.txt but unused; could be removed
-3. **Production PostgreSQL migrations**: Tested on SQLite only
-4. **Live web crawling**: No integration tests against real sites
+1. **Frontend build status**: Not freshly verified in this session (Node unavailable). Previous logs show passing status.
+2. **Production PostgreSQL migrations**: Tested on SQLite only
+3. **Live web crawling**: No integration tests against real sites
+4. **SSRF hardening**: DNS rebinding window still exists (Python resolves host again during request)
+5. **X-Forwarded-For trust**: Rate limiting trusts this header; only safe behind trusted proxy
 
 ## Next Recommended Actions
 
-1. **Frontend verification**: Run `npm install && npm run build` in `frontend/`
+1. **Frontend verification**: Run `npm install && npm run build` in `frontend/` with Node 20
 2. **PostgreSQL test**: Run migrations against PostgreSQL test instance
-3. **Remove SlowAPI**: If confirmed unused, remove from `requirements.txt`
-4. **Web monitor tests**: Add integration tests for Crawlee runner
+3. **Docker smoke test**: Verify `docker compose up` works with PostGIS
+4. **SSRF hardening**: Add fetch sandbox or stricter network egress controls
+5. **Audit dependencies**: Address npm audit vulnerabilities from previous proof logs
+
+## Summary
+
+### What Was Fixed
+
+This repair pass addressed **5 critical bugs** identified in the codebase:
+
+1. **Source Snapshot Persistence** — Snapshots now properly flush and commit to the database before the ID is read, fixing provenance tracking.
+
+2. **SQLAlchemy case() Syntax** — Fixed incorrect `func.case([...])` usage to proper `case((...), else_=0)` syntax for daily stats aggregation.
+
+3. **Misleading Retry Endpoint** — Changed the retry endpoint to honestly report that background workers are not implemented, rather than falsely claiming a retry was queued.
+
+4. **Rate Limiting Consistency** — Added rate limiting to all admin mutation routes in `admin_sources.py` that were missing protection.
+
+5. **Source Registry Health** — Health score and `last_ingested_at` fields are now properly updated on every ingestion run.
+
+### Verification Results
+
+| Check | Result |
+|-------|--------|
+| Python syntax (`compileall`) | ✅ PASS |
+| Alembic migrations (SQLite) | ✅ 19 migrations applied |
+| pytest | ✅ 394 passed, 5 warnings |
+| Backend dependencies | ✅ Installed successfully |
+
+### Remaining Work
+
+- Frontend verification (requires Node 20 environment)
+- Docker Compose smoke test
+- PostgreSQL migration test
+- SSRF hardening improvements
+- Production security hardening (auth, secrets, Redis rate limiting)
 
 ## Acceptance Bar Status
 
 | Requirement | Status |
 |-------------|--------|
+| 5 critical bugs fixed | ✅ PASS |
 | `alembic upgrade head` on fresh DB | ✅ PASS |
 | `pytest` | ✅ 394 passed |
 | `python -m compileall backend` | ✅ PASS |
 | Repo cache clean | ✅ PASS |
 | `.gitignore` updated | ✅ PASS |
-| Docs exist | ✅ PASS |
+| Docs updated | ✅ PASS |
 | Admin routes protected | ✅ PASS |
 
 **Overall**: ✅ REPAIR ACCEPTABLE — Critical blockers resolved, migrations pass, tests pass, documentation created.

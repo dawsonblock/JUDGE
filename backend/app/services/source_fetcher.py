@@ -291,7 +291,7 @@ def _persist_snapshot(result: FetchResult, settings) -> int | None:
     """Persist fetch result to SourceSnapshot table using canonical writer."""
     try:
         from app.services.snapshot_writer import write_snapshot
-        
+
         with SessionLocal() as db:
             snapshot = write_snapshot(
                 db=db,
@@ -304,6 +304,8 @@ def _persist_snapshot(result: FetchResult, settings) -> int | None:
                 content_type=result.content_type,
                 error_message=result.error,
             )
+            db.flush()  # Ensure ID is generated before commit
+            db.commit()  # Persist to database
             result.snapshot_id = snapshot.id
             log.debug("source_fetcher: persisted snapshot id=%s", snapshot.id)
             return snapshot.id
