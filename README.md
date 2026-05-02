@@ -1,53 +1,97 @@
-# Judge Atlas
+# 🗺️ Judge Atlas
 
-**A map-first platform for tracking court events with verified sources.**
+> **A map-first transparency platform for tracking court events with verified public sources.**
 
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
-[![Status](https://img.shields.io/badge/status-research%20alpha-orange)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-research%20alpha-orange.svg)](https://github.com/dawsonblock/JUDGE-ATLAS/issues)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg?logo=python&logoColor=white)](backend/pyproject.toml)
+[![Node](https://img.shields.io/badge/node-20-green.svg?logo=node.js&logoColor=white)](frontend/package.json)
 
-[Live Demo](#) • [Documentation](./docs) • [Report Issue](../../issues)
-
----
-
-## What is Judge Atlas?
-
-Judge Atlas is a transparency tool that maps federal court events—sentencing, detention orders, release decisions, and appeal outcomes—connecting them to judges, cases, and **verified public sources**.
-
-### Key Features
-
-- **Interactive Map** — Explore court events geographically with filterable markers
-- **Verified Sources** — Every record links to official court documents or police open data
-- **Privacy Protection** — Automatic redaction of personal information; anonymized defendant identities
-- **Review Workflow** — Human review of all records before public display
-- **Open Data** — GeoJSON API for researchers and journalists
-
-### What Makes It Different?
-
-| Feature | Judge Atlas | Typical Court Databases |
-|---------|-------------|------------------------|
-| Source linking | ✅ Required for every record | ❌ Often missing |
-| Privacy-safe | ✅ Automatic redaction | ❌ Raw data dumps |
-| Map visualization | ✅ Built-in interactive map | ❌ Text-only lists |
-| Judge tracking | ✅ Judge-event connections | ❌ Rarely available |
-| Free & open source | ✅ MIT License | ❌ Usually proprietary |
-
-**⚠️ Important:** Judge Atlas is a **research alpha / hardened prototype**, not production legal infrastructure. See [Known Gaps](#known-gaps) for limitations and [Verification Status](#verification-status) for current test results.
+[📖 Documentation](./docs) · [🐛 Report Issue](../../issues) · [🚀 Deployment Guide](./DEPLOYMENT.md)
 
 ---
 
-## Screenshots
+## TL;DR
 
-> _Screenshot placeholder: Map view with court event markers and detail panel_
+Judge Atlas maps federal court events—sentencing, detention orders, release decisions—to **verified public sources**. Every record links to official court documents or police open data, with automatic privacy redaction and human review before publication.
 
-> _Screenshot placeholder: Admin review queue showing pending records_
-
-> _Screenshot placeholder: Source evidence panel with linked documents_
+**⚠️ Research Alpha:** This is a hardened prototype, not production legal infrastructure. See [Known Gaps](#-known-gaps) for current limitations.
 
 ---
 
-## Technology Stack
+## ✨ What Makes It Different
 
-Judge Atlas is built with modern, open-source technologies:
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**🔗 Source Required**
+Every record links to an official source. No unattributed data.
+
+</td>
+<td width="33%" valign="top">
+
+**🔒 Privacy by Default**
+Automatic redaction + anonymized defendants. No personal addresses exposed.
+
+</td>
+<td width="33%" valign="top">
+
+**🗺️ Map-First Design**
+Geographic exploration with court-level precision (not home addresses).
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+**⚖️ Judge Tracking**
+Connect events to judges with verified source evidence.
+
+</td>
+<td width="33%" valign="top">
+
+**👁️ Human Review Queue**
+All records reviewed before public display. Fail-closed by design.
+
+</td>
+<td width="33%" valign="top">
+
+**📡 Open Data API**
+GeoJSON endpoints for researchers and journalists. MIT licensed.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🖼️ Screenshots
+
+<details>
+<summary><b>📍 Map View</b> — Geographic exploration with filterable court event markers</summary>
+
+> _Screenshot placeholder: Interactive map with court event markers and detail panel_
+
+</details>
+
+<details>
+<summary><b>👁️ Review Queue</b> — Admin interface for human review of pending records</summary>
+
+> _Screenshot placeholder: Admin review queue showing pending records with source evidence
+
+</details>
+
+<details>
+<summary><b>📋 Source Evidence</b> — Expandable panel with linked documents and verification trail</summary>
+
+> _Screenshot placeholder: Source evidence panel with linked court documents_
+
+</details>
+
+---
+
+## 🛠️ Technology Stack
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
@@ -59,82 +103,61 @@ Judge Atlas is built with modern, open-source technologies:
 
 ---
 
-## Data Sources
+## 📊 Data Sources
 
-Records in Judge Atlas come from verified sources only:
+Records in Judge Atlas come from **verified sources only**:
 
-1. **Court Records** — Federal court dockets via [CourtListener](https://www.courtlistener.com/) (RECAP/PACER)
-2. **Police Open Data** — Official crime statistics from participating departments
-3. **Government Statistics** — Verified aggregate reports
-4. **News Context** — Secondary context only (never primary source)
+| Source | Description |
+|--------|-------------|
+| **⚖️ Court Records** | Federal court dockets via [CourtListener](https://www.courtlistener.com/) (RECAP/PACER) |
+| **👮 Police Open Data** | Official crime statistics from participating departments |
+| **📈 Government Stats** | Verified aggregate reports |
+| **📰 News Context** | Secondary context only (never primary source) |
 
-All records must pass a **publication gate** before appearing on the map:
+**🔒 Publication Gate** — All records must pass these checks before appearing on the map:
+
 - ✅ Valid source URL required
-- ✅ Reviewed and approved by admin
+- ✅ Reviewed and approved by admin  
 - ✅ No personal addresses or identifying details
 - ✅ Privacy-safe location precision (city/neighborhood level)
 
 ---
 
-## Repository Layout
+## 📁 Repository Layout
 
 ```text
 .
-├── backend/
-│   ├── alembic/                    Alembic migrations
-│   │   └── versions/
-│   │       └── 20250427_1720_initial_schema.py
-│   ├── app/
-│   │   ├── ai/                     Deterministic evidence-clerk pipeline
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   │       ├── admin_review.py  Review queue + audit history
-│   │   │       ├── ai_review.py     AI review item actions
-│   │   │       ├── ingestion.py     Admin import trigger endpoints
-│   │   │       ├── map.py           GeoJSON map endpoints
-│   │   │       └── public_events.py Public event/case/judge API
-│   │   ├── auth/                   Token auth + feature flag guards
-│   │   ├── core/                   Settings (pydantic-settings)
-│   │   ├── db/                     SQLAlchemy engine, session, PostGIS init
-│   │   ├── ingestion/
-│   │   │   ├── adapters.py         ParsedRecord / RawRecord schema
-│   │   │   ├── courtlistener.py    CourtListener v4 adapter
-│   │   │   ├── persistence.py      Court-event upsert logic
-│   │   │   ├── runner.py           Ingestion run orchestration + lock
-│   │   │   └── crime_sources/      CSV import, validation, persistence
-│   │   ├── models/entities.py      SQLAlchemy ORM models
-│   │   ├── schemas/                Pydantic request/response schemas
-│   │   ├── seed/                   Sample data seeded on startup
-│   │   ├── serializers/public.py   Privacy-safe serialization + disclaimers
-│   │   ├── services/               Outcome, text, constants helpers
-│   │   ├── tests/                  pytest test suite
-│   │   └── workers/                Background task stubs
+├── 📂 backend/                          Python FastAPI backend
+│   ├── 📂 alembic/                      Database migrations
+│   ├── 📂 app/
+│   │   ├── 📂 ai/                       Evidence-clerk pipeline
+│   │   ├── 📂 api/routes/               REST endpoints
+│   │   │   ├── admin_review.py          Review queue + audit history
+│   │   │   ├── ai_review.py             AI review item actions
+│   │   │   ├── ingestion.py             Import trigger endpoints
+│   │   │   ├── map.py                   GeoJSON map endpoints
+│   │   │   └── public_events.py         Public event/case/judge API
+│   │   ├── 📂 auth/                     Token auth + feature flags
+│   │   ├── 📂 core/                     Pydantic settings
+│   │   ├── 📂 db/                       SQLAlchemy + PostGIS
+│   │   ├── 📂 ingestion/                Data adapters
+│   │   ├── 📂 models/                   SQLAlchemy ORM
+│   │   ├── 📂 schemas/                  Pydantic schemas
+│   │   ├── 📂 seed/                     Sample data
+│   │   └── 📂 tests/                    pytest suite
 │   ├── Dockerfile.backend
 │   └── pyproject.toml
-├── frontend/
-│   ├── app/
-│   │   ├── admin/review/page.tsx   Admin review queue + history UI
-│   │   ├── map/page.tsx            Full-screen map page
-│   │   └── page.tsx                Dashboard home
-│   ├── components/
-│   │   ├── AtlasDashboard.tsx      Main map + filter + detail panel
-│   │   ├── JudgeNorthAmericaMap.tsx Leaflet map wrapper
-│   │   └── SourcePanel.tsx         Expandable source evidence panel
-│   ├── lib/api.ts                  API types + fetch helpers
+│
+├── 📂 frontend/                         Next.js 14 frontend
+│   ├── 📂 app/                          Next.js app router
+│   ├── 📂 components/                   React components
+│   ├── lib/api.ts                       API client
 │   ├── Dockerfile
 │   └── package.json
-├── docs/
-│   ├── AI_PIPELINE.md
-│   ├── API.md
-│   ├── schema_audit.md
-│   ├── SOURCES.md
-│   └── frontend_verification.md
-├── scripts/
-│   ├── verify_backend.sh           Syntax + pytest + artifact log
-│   ├── verify_frontend.sh          npm lint + typecheck + build
-│   ├── verify_docker.sh            Docker Compose smoke test
-│   └── verify_local.sh             Local dev smoke test
-├── artifacts/proof/backend/        Timestamped verification logs
+│
+├── 📂 docs/                             Documentation
+├── 📂 scripts/                          Verification scripts
+├── 📂 artifacts/proof/                  Verification logs
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -142,9 +165,9 @@ All records must pass a **publication gate** before appearing on the map:
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-### Option 1: Docker Compose (Recommended for First Run)
+### 🐳 Option 1: Docker Compose (Recommended)
 
 ```bash
 cd JUDGE-main
@@ -152,22 +175,25 @@ cp .env.example .env
 docker compose up --build
 ```
 
-### Option 2: Direct Local Development
+### 💻 Option 2: Local Development
 
-**Prerequisites:**
+<details>
+<summary><b>Prerequisites</b></summary>
+
 - Python 3.12+
 - Node.js 20
 - PostgreSQL 16 with PostGIS extension
+
+</details>
 
 **Backend (Terminal 1):**
 ```bash
 cd JUDGE-main/backend
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[test]"
-# Ensure PostgreSQL is running with judgetracker database
 createdb judgetracker  # If database doesn't exist
-python -m alembic upgrade head  # Run migrations
+python -m alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -178,64 +204,63 @@ npm install
 npm run dev
 ```
 
-### Verify Local Setup
+### 🔍 Verify Local Setup
 
 | URL | What |
-|---|---|
-| <http://localhost:3000> | Frontend dashboard |
-| <http://localhost:3000/map> | Interactive map |
-| <http://localhost:8000/health> | Backend health check |
-| <http://localhost:8000/docs> | Interactive API docs (Swagger UI) |
-| <http://localhost:8000/api/map/events> | GeoJSON court events |
-| <http://localhost:8000/api/map/crime-incidents> | GeoJSON crime incidents |
+|-----|------|
+| http://localhost:3000 | Frontend dashboard |
+| http://localhost:3000/map | Interactive map |
+| http://localhost:8000/health | Backend health check |
+| http://localhost:8000/docs | Swagger UI API docs |
+| http://localhost:8000/api/map/events | GeoJSON court events |
+| http://localhost:8000/api/map/crime-incidents | GeoJSON crime incidents |
 
 ```bash
-# Quick verification commands
+# Quick verification
 curl http://localhost:8000/health
 curl http://localhost:8000/api/map/events
-curl http://localhost:8000/api/map/crime-incidents
 ```
 
-Sample data is seeded automatically on backend startup (when `JTA_AUTO_SEED=true`). No CourtListener token is needed for local development.
+> 💡 Sample data auto-seeds when `JTA_AUTO_SEED=true`. No CourtListener token needed for local dev.
 
 ---
 
-## Environment Variables
+## ⚙️ Environment Variables
 
-All variables are in `.env.example`. Key ones:
+Key variables from `.env.example`:
 
 | Variable | Default | Purpose |
-|---|---|---|
+|----------|---------|---------|
 | `JTA_DATABASE_URL` | (required) | PostgreSQL connection string |
 | `JTA_CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins |
-| `JTA_ENABLE_ADMIN_REVIEW` | `false` | Enable the review queue API |
-| `JTA_ADMIN_REVIEW_TOKEN` | (empty) | Token required for `X-JTA-Admin-Token` header |
-| `JTA_ENABLE_ADMIN_IMPORTS` | `false` | Enable ingestion trigger endpoints |
+| `JTA_ENABLE_ADMIN_REVIEW` | `false` | Enable review queue API |
+| `JTA_ADMIN_REVIEW_TOKEN` | (empty) | Admin token for review endpoints |
+| `JTA_ENABLE_ADMIN_IMPORTS` | `false` | Enable ingestion endpoints |
 | `JTA_ADMIN_TOKEN` | (empty) | Token for import endpoints |
 | `COURTLISTENER_API_TOKEN` | (empty) | CourtListener v4 API token |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Frontend → backend (browser) |
-| `BACKEND_INTERNAL_URL` | `http://backend:8000` | Frontend → backend (server-side, Docker) |
+| `BACKEND_INTERNAL_URL` | `http://backend:8000` | Frontend → backend (Docker) |
 
-Both `JTA_ENABLE_ADMIN_REVIEW` and `JTA_ENABLE_ADMIN_IMPORTS` are **false by default**. The system is fail-closed: if they are off, all admin endpoints return 403.
+> 🔒 **Fail-Closed by Default:** Admin features require explicit opt-in. All admin endpoints return `403` unless enabled.
 
 ---
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### Public
+### 📢 Public Endpoints
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | `GET` | `/health` | Liveness check |
-| `GET` | `/api/events` | Paginated list of public-visible events |
-| `GET` | `/api/events/{event_id}` | Single event detail |
+| `GET` | `/api/events` | Public events (paginated) |
+| `GET` | `/api/events/{id}` | Single event detail |
 | `GET` | `/api/cases` | Public cases |
 | `GET` | `/api/judges` | Public judges |
-| `GET` | `/api/map/events` | GeoJSON FeatureCollection of mapped events |
-| `GET` | `/api/map/crime-incidents` | GeoJSON FeatureCollection of crime incidents |
-| `GET` | `/api/evidence/source-panel/{entity_type}/{entity_id}` | Source evidence panel for an entity |
+| `GET` | `/api/map/events` | GeoJSON court events |
+| `GET` | `/api/map/crime-incidents` | GeoJSON crime incidents |
+| `GET` | `/api/evidence/source-panel/{type}/{id}` | Source evidence panel |
 
-Map endpoints support `?bbox=west,south,east,north` (WGS84 decimal degrees) for spatial filtering **using latitude/longitude column comparisons only** (PostGIS geometry is not used for bbox filtering). Returns a response envelope:
+**Spatial Filtering:** Map endpoints support `?bbox=west,south,east,north` (WGS84). Uses lat/lon column comparisons (PostGIS geom column exists but not yet used for bbox queries).
 
 ```json
 {
@@ -248,29 +273,37 @@ Map endpoints support `?bbox=west,south,east,north` (WGS84 decimal degrees) for 
 }
 ```
 
-### Admin (requires `JTA_ENABLE_ADMIN_REVIEW=true` + `X-JTA-Admin-Token`)
+### 🔐 Admin Endpoints
+
+<details>
+<summary><b>👁️ Review Queue</b> (requires <code>JTA_ENABLE_ADMIN_REVIEW=true</code> + token)</summary>
 
 | Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/admin/review-queue` | Paginated review queue for events, crime incidents, sources |
-| `POST` | `/api/admin/review-queue/{entity_type}/{entity_id}/decision` | Apply a review decision |
-| `GET` | `/api/admin/review-history` | Paginated `EvidenceReview` audit trail |
+|--------|------|-------------|
+| `GET` | `/api/admin/review-queue` | Paginated review queue |
+| `POST` | `/api/admin/review-queue/{type}/{id}/decision` | Apply decision |
+| `GET` | `/api/admin/review-history` | Audit trail |
 
-Valid decisions: `approve`, `reject`, `correct`, `dispute`, `remove`. Each decision is persisted to `EvidenceReview` and updates `public_visibility` on the entity.
+**Valid decisions:** `approve`, `reject`, `correct`, `dispute`, `remove`
 
-### Admin Imports (requires `JTA_ENABLE_ADMIN_IMPORTS=true` + `X-JTA-Admin-Token`)
+</details>
+
+<details>
+<summary><b>📥 Data Imports</b> (requires <code>JTA_ENABLE_ADMIN_IMPORTS=true</code> + token)</summary>
 
 | Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/ingest/courtlistener` | Trigger a CourtListener REST API ingestion run |
-| `POST` | `/api/admin/import/crime-incidents/manual-csv` | Upload a crime incidents CSV (admin) |
-| `POST` | `/api/admin/ai/verify-source/{record_type}/{record_id}` | Verify source with Ollama (event or crime_incident) |
-| `GET` | `/api/admin/review/items` | AI review item queue |
-| `POST` | `/api/admin/review/items/{id}/{action}` | Act on an AI review item |
+|--------|------|-------------|
+| `POST` | `/api/ingest/courtlistener` | Trigger CourtListener ingestion |
+| `POST` | `/api/admin/import/crime-incidents/manual-csv` | Upload crime CSV |
+| `POST` | `/api/admin/ai/verify-source/{type}/{id}` | Verify source with Ollama |
+| `GET` | `/api/admin/review/items` | AI review queue |
+| `POST` | `/api/admin/review/items/{id}/{action}` | Act on AI review item |
+
+</details>
 
 ---
 
-## Data Model (key entities)
+## 🗄️ Data Model
 
 ```
 Judge ──< Event >── Case ──< CaseParty >── Defendant
@@ -285,59 +318,74 @@ EvidenceReview  (audit log of every review decision)
 ReviewItem      (AI-generated evidence-clerk draft)
 ```
 
-All entities carry `review_status` and `public_visibility`. Nothing appears on the public API until `public_visibility=True` and `review_status` is in an approved set (`verified_court_record`, `official_police_open_data_report`, etc.).
+> 🔒 **Fail-Closed:** All entities carry `review_status` and `public_visibility`. Nothing appears on the public API until `public_visibility=True` with approved `review_status`.
 
 ---
 
-## Privacy and Safety Rules
+## 🛡️ Privacy & Safety Rules
 
-These are enforced in code, not just policy:
+> **Code-enforced protections, not just policy:**
 
-- **Defendants are anonymized.** Public API returns `DEF-000001`-style labels. Real names never appear in public responses.
-- **No personal addresses, DOBs, family details, victim locations, or residence indicators** are exposed anywhere in the public API. The serializer and AI pipeline both run redaction passes.
-- **Map points are courthouse locations**, not home or incident addresses.
-- **Crime incidents use generalized coordinates** — neighbourhood, community, or city-level centroid. `exact_address` precision is rejected at import. Zero-coordinate records are rejected.
-- **Crime incident CSV imports default to `is_public=False`.** Records do not become public until manually reviewed and approved.
-- **`source_url` on crime incidents must be a valid HTTP/HTTPS URL** or the record is rejected at import.
-- **CourtListener-ingested events default to `pending_review` / `public_visibility=False`**. They do not appear on the public map or events API until reviewed.
-- **Repeat-offender flags** come only from explicit matched phrases in source text. They are not inferred.
-- **Outcomes require verified court, appeal, or official sources.** News is secondary context only and cannot create outcomes.
-- **Review status is preserved on re-ingestion** unless safety-sensitive fields change, in which case the record drops back to `pending_review`.
-- Crime incidents are not linked to judges, cases, or defendants unless a future verified legal record explicitly supports that linkage.
-
----
-
-## Ingestion
-
-### CourtListener / RECAP
-
-Set `COURTLISTENER_API_TOKEN` in `.env`. The adapter targets the v4 REST API (`/api/rest/v4/dockets/`), fetches RECAP/PACER-derived docket entries, parses them with a deterministic classifier, and persists them as `Event` + `LegalSource` rows.
-
-Run caps: configurable max pages, dockets per run, and a timeout. Retry/backoff on 429 and 5xx. Ingestion lock prevents concurrent runs. PACER-direct fetching (purchasing documents) is intentionally not implemented.
-
-### Manual CSV Import
-
-Upload a CSV with columns: `source_id`, `incident_type`, `incident_category`, `reported_at`, `occurred_at`, `latitude_public`, `longitude_public`, `precision_level`, `city`, `province_state`, `country`, `public_area_label`, `notes`, `source_name`, `source_url`, `is_public`.
-
-Validation rejects: `exact_address` precision, zero coordinates, residence/victim terms in notes or area labels, non-HTTP source URLs. All imported records start `is_public=False` regardless of the CSV column.
+| Rule | Implementation |
+|------|----------------|
+| **👤 Anonymized Defendants** | Public API returns `DEF-000001` labels. Real names never exposed. |
+| **🏠 No Personal Addresses** | DOBs, family details, victim locations redacted by serializer + AI pipeline. |
+| **📍 Court-Level Precision** | Map points are courthouse locations, never home/incident addresses. |
+| **🗺️ Generalized Coordinates** | Crime incidents use neighborhood/city centroids. `exact_address` rejected at import. |
+| **🔒 Default Private** | CSV imports start `is_public=False`. Records require manual review. |
+| **🔗 Valid Source Required** | Crime incidents need valid HTTP/HTTPS `source_url` or are rejected. |
+| **⏳ Pending Review Default** | CourtListener events start `pending_review` / `public_visibility=False`. |
+| **📝 Explicit Flags Only** | Repeat-offender flags require matched phrases in source text. Never inferred. |
+| **⚖️ Verified Outcomes** | Outcomes require court/appeal/official sources. News is secondary only. |
+| **🔄 Review Status Preserved** | Maintained on re-ingestion unless safety fields change (then drops to `pending_review`). |
 
 ---
 
-## AI-Assisted Evidence Clerk
+## 📥 Ingestion
 
-A deterministic (no external LLM call) pipeline that:
+### ⚖️ CourtListener / RECAP
 
-1. Redacts private data patterns from ingested text
-2. Classifies record type and source quality
-3. Writes a neutral plain-language summary
-4. Suggests entity links (judge, case, defendant)
-5. Creates a `ReviewItem` draft for admin review
+Set `COURTLISTENER_API_TOKEN` in `.env`. The adapter targets the v4 REST API (`/api/rest/v4/dockets/`), fetches RECAP/PACER docket entries, and persists them as `Event` + `LegalSource` rows.
 
-AI outputs are **not authoritative**. All high-risk fields (repeat-offender indicators, crime-to-case links, post-release outcomes, news-only allegations) require human admin review before any public display. See `docs/AI_PIPELINE.md`.
+- **Rate limiting:** Configurable max pages, dockets per run, timeout
+- **Resilience:** Retry/backoff on 429 and 5xx
+- **Concurrency:** Ingestion lock prevents concurrent runs
+- **Scope:** PACER-direct document purchasing intentionally excluded
+
+### 📄 Manual CSV Import
+
+Upload a CSV with columns:
+```
+source_id, incident_type, incident_category, reported_at, occurred_at,
+latitude_public, longitude_public, precision_level, city, province_state,
+country, public_area_label, notes, source_name, source_url, is_public
+```
+
+**🚫 Validation rejects:**
+- `exact_address` precision
+- Zero coordinates
+- Residence/victim terms in notes/labels
+- Non-HTTP source URLs
+
+> 🔒 All imports start `is_public=False` regardless of CSV value.
 
 ---
 
-## Review Workflow
+## 🤖 AI-Assisted Evidence Clerk
+
+Deterministic pipeline (no external LLM calls):
+
+1. 🔒 Redacts private data patterns from ingested text
+2. 🏷️ Classifies record type and source quality
+3. 📝 Writes neutral plain-language summary
+4. 🔗 Suggests entity links (judge, case, defendant)
+5. 📋 Creates `ReviewItem` draft for admin review
+
+> ⚠️ **AI outputs are not authoritative.** High-risk fields require human review. See [`docs/AI_PIPELINE.md`](./docs/AI_PIPELINE.md).
+
+---
+
+## 👁️ Review Workflow
 
 ```
 Ingested record
@@ -349,138 +397,140 @@ public_visibility = False
     ▼
 Admin reviews via /api/admin/review-queue
     │
-    ├── approve  → review_status = "verified_court_record" (or appropriate), public_visibility = True
-    ├── reject   → review_status = "rejected",              public_visibility = False
-    ├── correct  → review_status = "corrected",             public_visibility = True,  correction_note set
-    ├── dispute  → review_status = "disputed",              public_visibility = False, dispute_note set
-    └── remove   → review_status = "removed_from_public",  public_visibility = False
+    ├── ✅ approve  → review_status = "verified_court_record"
+    │                  public_visibility = True
+    ├── ❌ reject   → review_status = "rejected"
+    │                  public_visibility = False
+    ├── ✏️ correct  → review_status = "corrected"
+    │                  public_visibility = True, correction_note set
+    ├── ⚠️ dispute  → review_status = "disputed"
+    │                  public_visibility = False, dispute_note set
+    └── 🗑️ remove   → review_status = "removed_from_public"
+                       public_visibility = False
     │
     ▼
-EvidenceReview row written (previous_status, new_status, reviewer, timestamp, notes)
+EvidenceReview row written (audit trail)
 ```
 
-Every decision is logged to `EvidenceReview` and queryable via `GET /api/admin/review-history`.
+All decisions logged to `EvidenceReview` and queryable via `GET /api/admin/review-history`.
 
 ---
 
-### Current verification status
+## ✅ Verification Status
+
+> **Verify current state locally:**
 
 ```bash
-# Backend: creates backend/.venv, installs deps, runs alembic + pytest
+# Backend: creates .venv, installs deps, runs alembic + pytest
 ./scripts/verify_backend.sh
 
-# Frontend: requires Node 20 exactly — fails if wrong version
+# Frontend: requires Node 20 — hard-fails if wrong version
 ./scripts/verify_frontend.sh
 
 # Docker: compose build + health check
 ./scripts/verify_docker.sh
 ```
 
-## Verification Status
+> 📝 Proof logs in `artifacts/proof/` are historical artifacts. Current status determined by CI or local runs.
 
-Current verification status is determined by CI. Committed proof logs in `artifacts/proof/` are historical artifacts only and do not reflect the current state of the codebase.
+<details>
+<summary><b>🔍 What each script does</b></summary>
 
-To verify the current state, run:
-
-```bash
-# Backend verification
-./scripts/verify_backend.sh
-
-# Frontend verification  
-./scripts/verify_frontend.sh
-```
-
-### What each script does
-
-**`verify_backend.sh`** (steps run in order, hard-fail on any error):
+**`verify_backend.sh`** (hard-fail on any error):
 1. Locate Python 3 interpreter
-2. Create or reuse `backend/.venv` and run `pip install -e ".[test]"`
-3. Print `python --version` and `pip freeze`
+2. Create/reuse `backend/.venv`, run `pip install -e ".[test]"`
+3. Print versions
 4. `python -m compileall -q app`
-5. `JTA_DATABASE_URL=sqlite:///./verify_migration_test.db python -m alembic upgrade head` — deletes DB before and after, **no skip clause**
+5. `JTA_DATABASE_URL=sqlite:///./test.db alembic upgrade head`
 6. `python -m pytest -q`
 
-Timestamped logs written to `artifacts/proof/backend/<timestamp>.log`.
-
-**`verify_frontend.sh`** (requires Node 20 — hard-fails if `node --version` is not `v20.*`):
-1. Node version check — exit 1 if not v20
+**`verify_frontend.sh`** (requires Node 20):
+1. Node version check
 2. `npm ci`
 3. `npm run lint`
 4. `npm run typecheck`
 5. `npm run build`
 
-Timestamped logs written to `artifacts/proof/frontend/<timestamp>.log`.
+</details>
 
-### Manual backend (without the script)
-
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
-python -m compileall -q app
-JTA_DATABASE_URL=sqlite:///./verify_migration_test.db python -m alembic upgrade head
-python -m pytest -q
-```
-
-### Current verification status
+### Current Status
 
 | Check | Status | Notes |
-|---|---|---|
-| `python -m compileall -q app` | See CI | Run `./scripts/verify_backend.sh` for current status |
-| `python -m pytest -q` | See CI | Run `./scripts/verify_backend.sh` for current count |
-| Alembic `upgrade head` (SQLite) | See CI | Run `./scripts/verify_backend.sh` to verify migrations |
-| Frontend lint / typecheck / build | See CI | Run `./scripts/verify_frontend.sh` for current status |
-| Docker Compose build | Manual | Manual verification required |
-| PostGIS geometry | Ready | Migration exists; column added on PostgreSQL only |
-| API split (incidents/aggregates) | Complete | Separate endpoints: `/api/map/crime-incidents?exclude_aggregate=true`, `/api/map/crime-aggregates` |
+|-------|--------|-------|
+| `compileall` | See CI | Run `./scripts/verify_backend.sh` |
+| `pytest` | See CI | Run `./scripts/verify_backend.sh` |
+| Alembic migrations | See CI | SQLite test in verify script |
+| Frontend lint/typecheck/build | See CI | Run `./scripts/verify_frontend.sh` |
+| Docker Compose | Manual | Manual verification required |
+| PostGIS geometry | Ready | Migration exists; bbox uses lat/lon |
+| API split | Complete | Separate incidents/aggregates endpoints |
 
 ---
 
-## Known Gaps
+## ⚠️ Known Gaps
 
-This is a prototype. The following are real gaps that would need to be closed before any production use:
+> **This is a prototype.** The following are real gaps that must be closed before any production use:
 
-**Auth and access control**
-- No real authentication system. Admin access uses a single shared secret token (`X-JTA-Admin-Token`). There are no user accounts, sessions, roles, or per-user audit trails.
-- The token is compared in plaintext. No rate limiting on auth attempts.
+<details>
+<summary><b>🔐 Auth & Access Control</b></summary>
 
-**Database and migrations**
-- Alembic `upgrade head` has not been exercised in CI. The migration file matches the ORM (audited in `docs/schema_audit.md`) but there is no automated migration test in this runtime environment.
-- `Base.metadata.create_all()` is used on startup when `AUTO_SEED=true`, bypassing Alembic entirely for local development.
+- No real authentication system. Admin access uses a single shared secret token (`X-JTA-Admin-Token`). No user accounts, sessions, roles, or per-user audit trails.
+- Token compared in plaintext. No rate limiting on auth attempts.
 
-**Security (Partially Hardened)**
-- Rate limiting: Simple in-memory rate limiter configured (100/min public, 30/min admin, 60/min map, 10/min ingestion). Returns HTTP 429 on exceed. Redis recommended for production.
-- Request size limits: Content-Length header check + chunked file reading with max_csv_upload_size enforcement.
-- CORS: Strict origin validation in production (HTTPS-only, no wildcards). Fails startup if origins empty.
-- Source verification: SourceSnapshot persistence with SSRF protection and content hashing.
-- Source control: SourceRegistry ingestion control plane (fail-closed on missing sources).
-- No security headers (CSP, HSTS, etc.).
-- No secrets management — tokens are plain `.env` values.
-- No complete security audit has been performed.
+</details>
 
-**Data and legal**
-- Only SAMPLE data is seeded. No real court data is included.
-- CourtListener ingestion has not been exercised end-to-end in this environment.
-- Source licensing for any real data has not been reviewed.
-- Crime incident layer uses manually imported sample records only (Saskatoon is manual CSV only; no full automatic collector exists yet). No live official police open-data adapter exists yet.
-- No geocoding pipeline. Court coordinates are pre-seeded or manual.
+<details>
+<summary><b>🗄️ Database & Migrations</b></summary>
 
-**Operational**
-- No production monitoring, alerting, or structured logging pipeline.
-- No automated backups.
-- No audit log retention policy or storage backend.
-- `on_event("startup")` is deprecated in FastAPI; needs migration to `lifespan`.
-- Frontend verified under Node 20.20.2 (2026-04-29). Build, lint, and typecheck pass.
-- Frontend: See CI for current test counts (varies by environment).
-- PostGIS geometry migration ready (PostgreSQL deployments only). **Bbox filtering uses lat/lon only; geom column exists but is not yet trusted for spatial queries.**
-- Crime incidents and aggregates now fetched via separate API endpoints.
-- Docker Compose requires manual verification (Docker unavailable in this environment).
-- Docker Compose deployment has not been smoke-tested in this environment.
+- Alembic `upgrade head` not exercised in CI. Migration file matches ORM (audited in `docs/schema_audit.md`) but no automated migration test in this runtime.
+- `Base.metadata.create_all()` used on startup when `AUTO_SEED=true`, bypassing Alembic for local development.
 
-**Features not implemented**
-- Source correction and dispute resolution workflow UI.
-- User-facing source dispute submission.
-- Full CourtListener coverage (PACER-direct document fetching intentionally excluded).
-- Court-location geocoding (courthouse coordinates are manually seeded).
-- Real-time ingestion / webhooks.
-- Export or bulk download.
+</details>
+
+<details>
+<summary><b>🛡️ Security (Partially Hardened)</b></summary>
+
+| Hardened | Gap |
+|----------|-----|
+| ✅ Rate limiting (in-memory: 100/min public, 30/min admin) | ❌ No security headers (CSP, HSTS) |
+| ✅ Request size limits | ❌ No secrets management — plain `.env` tokens |
+| ✅ CORS strict validation | ❌ No complete security audit |
+| ✅ Source verification with SSRF protection | |
+| ✅ SourceRegistry fail-closed ingestion | |
+
+</details>
+
+<details>
+<summary><b>📊 Data & Legal</b></summary>
+
+- Only **SAMPLE data** seeded. No real court data included.
+- CourtListener ingestion not exercised end-to-end in this environment.
+- Source licensing for real data not reviewed.
+- Crime incidents: manual CSV only (Saskatoon). No automatic police open-data adapter.
+- No geocoding pipeline. Court coordinates pre-seeded or manual.
+
+</details>
+
+<details>
+<summary><b>🔧 Operational</b></summary>
+
+- No production monitoring, alerting, or structured logging pipeline
+- No automated backups
+- No audit log retention policy or storage backend
+- `on_event("startup")` deprecated in FastAPI; needs `lifespan` migration
+- PostGIS: bbox filtering uses lat/lon only (geom column exists but not yet trusted)
+- Docker Compose: manual verification required
+
+</details>
+
+<details>
+<summary><b>⏳ Features Not Implemented</b></summary>
+
+- Source correction/dispute resolution workflow UI
+- User-facing source dispute submission
+- Full CourtListener coverage (PACER-direct intentionally excluded)
+- Court-location geocoding
+- Real-time ingestion / webhooks
+- Export or bulk download
+
+</details>
