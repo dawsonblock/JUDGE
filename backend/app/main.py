@@ -115,6 +115,9 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
 
 def create_app() -> FastAPI:
+    from pathlib import Path
+    from app.services.evidence_store_validation import validate_evidence_store_root
+    
     settings = get_settings()
 
     # Validate production safety before proceeding
@@ -122,6 +125,19 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Validate evidence store before initializing database
+        try:
+            validate_evidence_store_root(
+                settings.evidence_store_root,
+                required=settings.evidence_store_required,
+                probe_write=settings.evidence_store_probe_write,
+                repo_root=str(Path(__file__).resolve().parents[2]),
+            )
+            print("[STARTUP] Evidence store validated")
+        except RuntimeError as e:
+            print(f"ERROR: Evidence store validation failed: {e}")
+            sys.exit(1)
+        
         initialize_postgis(engine)
         if settings.auto_seed and settings.app_env == "development":
             with SessionLocal() as db:

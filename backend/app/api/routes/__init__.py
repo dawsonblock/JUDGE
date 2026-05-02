@@ -9,6 +9,7 @@ from app.api.routes import (
     ai_review,
     boundaries,
     evidence,
+    evidence_store,
     graph,
     ingestion,
     map,
@@ -29,6 +30,7 @@ router.include_router(admin_review.router)
 router.include_router(admin_ingest.router)
 router.include_router(admin_ingestion.router)
 router.include_router(admin_sources.router)
+router.include_router(evidence_store.router)
 router.include_router(graph.router)
 router.include_router(evidence.router)
 router.include_router(snapshots.router)
