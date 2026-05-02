@@ -8,12 +8,20 @@ Evidence integrity contract:
 - The hash stored in content_hash / original_content_hash is ALWAYS the hash
   of the FULL, un-truncated content.
 - stored_content_hash is the hash of what is actually stored; it MUST equal
-  original_content_hash on every successful write.
+  original_content_hash on every successful write (because read_snapshot_content()
+  returns the original bytes in all storage paths).
 - is_truncated MUST always be False after a successful write.
 - If content is too large for DB storage and no evidence store is configured,
   write_snapshot() raises ValueError rather than creating a partial snapshot.
+
+DB storage encoding:
+- Text content that round-trips cleanly through UTF-8 is stored as-is.
+- Binary content (e.g. PDFs, non-UTF-8 bytes) that would be damaged by UTF-8
+  decoding is stored as 'base64:<base64-encoded-bytes>' so that
+  read_snapshot_content() can return the original bytes exactly.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -31,6 +39,45 @@ if TYPE_CHECKING:
 
 # Maximum size for DB storage (1MB)
 MAX_DB_SIZE = 1024 * 1024
+
+# Prefix used to flag base64-encoded binary DB content.
+_BASE64_PREFIX = "base64:"
+
+
+def _encode_for_db(content_bytes: bytes) -> str:
+    """Encode raw bytes for lossless storage in a Text column.
+
+    Returns the UTF-8 string if the bytes round-trip safely (i.e., the
+    decode/re-encode cycle produces identical bytes).  Otherwise returns a
+    ``base64:<base64-encoded-bytes>`` string so that no byte is lost.
+
+    The ``base64:`` prefix is defined by :data:`_BASE64_PREFIX` and is
+    recognised by :func:`_decode_from_db`.
+    """
+    try:
+        text = content_bytes.decode("utf-8")
+        # Verify the round-trip is lossless
+        if text.encode("utf-8") == content_bytes:
+            return text
+    except UnicodeDecodeError:
+        pass
+    return _BASE64_PREFIX + base64.b64encode(content_bytes).decode("ascii")
+
+
+def _decode_from_db(raw_content: str) -> bytes:
+    """Decode a value previously stored by :func:`_encode_for_db`.
+
+    Args:
+        raw_content: The string stored in :attr:`SourceSnapshot.raw_content`.
+            Either a plain UTF-8 string or a ``base64:<data>`` encoded string.
+
+    Returns:
+        The original raw bytes, identical to what was passed to
+        :func:`_encode_for_db`.
+    """
+    if raw_content.startswith(_BASE64_PREFIX):
+        return base64.b64decode(raw_content[len(_BASE64_PREFIX):])
+    return raw_content.encode("utf-8")
 
 
 def write_snapshot(
@@ -73,13 +120,11 @@ def write_snapshot(
     Raises:
         ValueError: If content exceeds MAX_DB_SIZE and no evidence store is configured.
     """
-    # Convert content to bytes if needed
+    # Normalise input to bytes
     if isinstance(content, str):
         content_bytes = content.encode("utf-8")
-        content_text = content
     else:
         content_bytes = content
-        content_text = content.decode("utf-8", errors="replace")
 
     # Compute SHA256 hash of full original content
     original_hash = hashlib.sha256(content_bytes).hexdigest()
@@ -89,14 +134,16 @@ def write_snapshot(
     evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
 
     if content_size <= MAX_DB_SIZE:
-        # Content fits in DB — store directly, hashes match by definition
+        # Content fits in DB. Encode losslessly so read_snapshot_content()
+        # can recover the original bytes exactly (important for binary formats).
         storage_backend = "db"
         storage_path = None
-        raw_content = content_text
+        raw_content = _encode_for_db(content_bytes)
         stored_hash = original_hash
         stored_size = content_size
     elif evidence_root:
-        # Content is large; try filesystem evidence store
+        # Content is large; write to filesystem evidence store.
+        # No decoding needed — bytes are stored directly.
         evidence_store = EvidenceStore(root_path=evidence_root)
         storage_path = evidence_store.write_snapshot(content_bytes, original_hash)
         storage_backend = "filesystem"
@@ -162,9 +209,9 @@ def read_snapshot_content(db: Session, snapshot: SourceSnapshot) -> bytes | None
             # Fall through to DB fallback
             pass
 
-    # DB fallback
+    # DB path — decode the stored representation back to original bytes
     if snapshot.raw_content:
-        return snapshot.raw_content.encode("utf-8")
+        return _decode_from_db(snapshot.raw_content)
 
     return None
 

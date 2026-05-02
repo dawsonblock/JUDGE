@@ -27,13 +27,20 @@ docker run -d \
     "$IMAGE"
 
 echo "[proof_postgis] Waiting for Postgres to be ready..."
+pg_ready=0
 for i in $(seq 1 30); do
     if docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
         echo "[proof_postgis] Postgres ready after ${i}s"
+        pg_ready=1
         break
     fi
     sleep 1
 done
+if [ "$pg_ready" -ne 1 ]; then
+    echo "[proof_postgis] ERROR: Postgres did not become ready within 30 seconds" >&2
+    docker logs "$CONTAINER" >&2
+    exit 1
+fi
 
 export DATABASE_URL="postgresql+psycopg://${DB_USER}:${DB_PASS}@localhost:${DB_PORT}/${DB_NAME}"
 export JTA_DATABASE_URL="$DATABASE_URL"

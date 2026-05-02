@@ -25,13 +25,20 @@ def _setup_test_data(db, unique_id: str = "1"):
     import uuid
 
     # Create location with unique coordinates
+    import zlib
+    # Use zlib.adler32 for a deterministic, process-stable offset.
+    # MAX_OFFSET_UNITS and OFFSET_SCALE keep coordinates within typical test
+    # bboxes: max offset = 99 * 0.001 = 0.099 degrees (~11 km).
+    _MAX_OFFSET_UNITS = 100
+    _OFFSET_SCALE = 0.001
+    det_offset = (zlib.adler32(str(unique_id).encode()) % _MAX_OFFSET_UNITS) * _OFFSET_SCALE
     location = Location(
         name=f"Test Courthouse {unique_id}",
         location_type="courthouse",
         city="New York",
         state="NY",
-        latitude=40.7128 + (hash(str(unique_id)) % 1000) * 0.001,
-        longitude=-74.0060 - (hash(str(unique_id)) % 1000) * 0.001,
+        latitude=40.7128 + det_offset,
+        longitude=-74.0060 - det_offset,
     )
     db.add(location)
     db.flush()

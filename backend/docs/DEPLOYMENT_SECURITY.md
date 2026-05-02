@@ -53,7 +53,14 @@ Redis rate limiting: Required
 
 ### X-Forwarded-For Handling
 
-**Current behavior**: Rate limiting trusts `X-Forwarded-For` header for client IP identification.
+**Current behavior**: `X-Forwarded-For` is trusted **only** when the direct
+connection IP (`request.client.host`) exactly matches one of the IPs listed
+in `JTA_TRUSTED_PROXY_IPS` (comma-separated exact IPv4/IPv6 addresses).
+If the connection is not from a trusted proxy IP, the direct client host is
+used and `X-Forwarded-For` is ignored entirely.
+
+> ⚠️ CIDR ranges are **not** supported — only exact IP addresses.
+> Configure your reverse proxy's egress IP(s) in `JTA_TRUSTED_PROXY_IPS`.
 
 ### When This is Safe
 
@@ -61,6 +68,7 @@ Redis rate limiting: Required
 - Sets `X-Forwarded-For` correctly
 - Strips client-spoofed values
 - Blocks direct client access
+- Has a stable, known egress IP listed in `JTA_TRUSTED_PROXY_IPS`
 
 ### When This is NOT Safe
 
@@ -68,15 +76,13 @@ Redis rate limiting: Required
 
 ### Required Configuration
 
-```python
-# Production config
-TRUSTED_PROXY_CONFIG = {
-    "enabled": True,
-    "proxy_ips": ["10.0.0.0/8", "172.16.0.0/12"],  # Internal networks
-    "header": "X-Forwarded-For",
-    "recursive": False,  # Don't trust multiple hops
-}
+```bash
+# Production: list exact IP(s) of your reverse proxy
+JTA_TRUSTED_PROXY_IPS=10.0.0.1,10.0.0.2
 ```
+
+> Note: CIDR ranges such as `10.0.0.0/8` are not parsed — provide the exact
+> IP address(es) your proxy will connect from.
 
 ---
 

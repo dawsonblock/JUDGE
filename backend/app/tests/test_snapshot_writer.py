@@ -204,3 +204,55 @@ class TestNoSilentTruncation:
         )
         assert snap.extractor_name == "html_parser"
         assert snap.extractor_version == "stdlib"
+
+
+class TestBinaryContentRoundTrip:
+    """Binary content (e.g. PDFs) must be stored and retrieved without data loss."""
+
+    def test_binary_content_stored_losslessly(self, db):
+        """Arbitrary binary bytes round-trip through DB without modification."""
+        # Bytes that are NOT valid UTF-8
+        binary = bytes(range(256))
+        snap = write_snapshot(db, "http://example.com/bin", _ts(), binary)
+        assert snap.storage_backend == "db"
+        # raw_content should be the base64-encoded form
+        assert snap.raw_content is not None
+        assert snap.raw_content.startswith("base64:")
+
+    def test_binary_content_hash_integrity(self, db):
+        """Stored hash matches the original binary bytes."""
+        binary = bytes(range(256))
+        expected_hash = hashlib.sha256(binary).hexdigest()
+        snap = write_snapshot(db, "http://example.com/bin", _ts(), binary)
+        assert snap.original_content_hash == expected_hash
+        assert snap.stored_content_hash == expected_hash
+
+    def test_read_snapshot_content_recovers_binary(self, db):
+        """read_snapshot_content returns original binary bytes from DB storage."""
+        from app.services.snapshot_writer import read_snapshot_content
+        binary = bytes(range(256))
+        snap = write_snapshot(db, "http://example.com/bin", _ts(), binary)
+        db.flush()
+        recovered = read_snapshot_content(db, snap)
+        assert recovered == binary, "read_snapshot_content must recover original binary bytes"
+
+    def test_read_snapshot_content_recovers_text(self, db):
+        """read_snapshot_content returns correct bytes for plain text content."""
+        from app.services.snapshot_writer import read_snapshot_content
+        content = b"<html>Hello world</html>"
+        snap = write_snapshot(db, "http://example.com/", _ts(), content)
+        db.flush()
+        recovered = read_snapshot_content(db, snap)
+        assert recovered == content
+
+    def test_stored_hash_matches_recovered_bytes(self, db):
+        """Hash of recovered bytes must equal stored_content_hash for both text and binary."""
+        from app.services.snapshot_writer import read_snapshot_content
+        for content in [b"plain UTF-8 text", bytes(range(256)), b"\xff\xfe binary \x00"]:
+            snap = write_snapshot(db, "http://example.com/", _ts(), content)
+            db.flush()
+            recovered = read_snapshot_content(db, snap)
+            assert recovered is not None
+            assert hashlib.sha256(recovered).hexdigest() == snap.stored_content_hash, (
+                f"Hash mismatch for content starting with {content[:8]!r}"
+            )

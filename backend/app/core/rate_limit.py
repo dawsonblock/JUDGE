@@ -69,33 +69,58 @@ class RedisRateLimiter:
     """Redis-backed sliding window rate limiter.
 
     Uses a sorted set per bucket key with timestamps as scores.
+    The allow/deny decision is made atomically via a Lua script so that
+    concurrent requests cannot simultaneously observe the same count and
+    all be permitted beyond the configured limit.
+
     Falls back silently to allowing the request if Redis is unavailable.
     """
+
+    # Atomic Lua script: trim expired members, count, conditionally add.
+    # KEYS[1]  = sorted-set key
+    # ARGV[1]  = current timestamp (float, as string)
+    # ARGV[2]  = window start timestamp (float, as string)
+    # ARGV[3]  = limit (integer, as string)
+    # ARGV[4]  = TTL for the key in seconds (integer, as string)
+    # ARGV[5]  = unique member string (timestamp + random suffix)
+    # Returns 1 if the request is allowed, 0 if rate-limited.
+    _LUA_SCRIPT = """
+local key        = KEYS[1]
+local now        = tonumber(ARGV[1])
+local win_start  = tonumber(ARGV[2])
+local lim        = tonumber(ARGV[3])
+local ttl        = tonumber(ARGV[4])
+local member     = ARGV[5]
+redis.call('ZREMRANGEBYSCORE', key, '-inf', win_start)
+local count = redis.call('ZCARD', key)
+if count >= lim then
+    return 0
+end
+redis.call('ZADD', key, now, member)
+redis.call('EXPIRE', key, ttl)
+return 1
+"""
 
     def __init__(self, redis_url: str):
         import redis as redis_lib
         self._client = redis_lib.from_url(redis_url, decode_responses=True)
+        self._script = self._client.register_script(self._LUA_SCRIPT)
 
     def check(self, key: str, limit: int, window: int = 60) -> bool:
+        import os as _os
+        import time as time_mod
+        now = time_mod.time()
+        window_start = now - window
+        # Generate the unique member ID *outside* the Redis try-block so that
+        # an os.urandom() failure surfaces as a real error rather than being
+        # silently swallowed as if it were a Redis connectivity issue.
+        member = f"{now:.6f}:{_os.urandom(4).hex()}"
         try:
-            import time as time_mod
-            now = time_mod.time()
-            window_start = now - window
-            pipe = self._client.pipeline()
-            pipe.zremrangebyscore(key, "-inf", window_start)
-            pipe.zcard(key)
-            pipe.zadd(key, {str(now): now})
-            pipe.expire(key, window + 1)
-            results = pipe.execute()
-            if not results or len(results) < 2 or not isinstance(results[1], int):
-                # Pipeline result unexpected; fail open
-                return True
-            count_before_add = results[1]
-            if count_before_add >= limit:
-                # Undo the add since we're over limit
-                self._client.zrem(key, str(now))
-                return False
-            return True
+            result = self._script(
+                keys=[key],
+                args=[str(now), str(window_start), str(limit), str(window + 1), member],
+            )
+            return bool(result)
         except Exception:
             # On Redis error, allow the request (fail open for availability)
             return True
