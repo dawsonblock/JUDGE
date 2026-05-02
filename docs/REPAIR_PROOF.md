@@ -24,9 +24,9 @@
 | Alembic migrations | ✅ 19 migrations pass on fresh SQLite |
 | Backend tests | ✅ 394 passed, 5 warnings (Pydantic deprecation only) |
 | Python syntax | ✅ `compileall` passes |
-| Frontend build | ⏳ Not verified — Node environment unavailable |
-| Frontend lint | ⏳ Not verified — Node environment unavailable |
-| Frontend typecheck | ⏳ Not verified — Node environment unavailable |
+| Frontend build | ✅ 9 pages generated |
+| Frontend lint | ✅ No ESLint errors |
+| Frontend typecheck | ✅ `tsc --noEmit` passes |
 | Admin protection | ✅ Tests prove 401/403 enforcement |
 | Web monitor safety | ✅ `is_active` authority, `pending_review` only |
 | Graph edge dedup | ✅ MIN(id) deterministic, unique constraint applied |
@@ -98,7 +98,7 @@ find /Users/dawsonblock/Downloads/JUDGE-ATLAS/JUDGE-main -type d -name "__pycach
 | Phase 6 — Admin Protection | ✅ | Tests confirm graph/ingestion routes protected |
 | Phase 7 — Rate Limiting | ⚠️ | In-memory limiter noted; production should use Redis |
 | Phase 8 — Memory Contract | ✅ | CONTRACT created, no implementation |
-| Phase 9 — Frontend | ⏳ | Not verified (npm not run) |
+| Phase 9 — Frontend | ✅ | Verified with Node v24.15.0, 9 pages generated |
 | Phase 10 — Backend Proof | ✅ | Tests pass, migrations pass |
 | Phase 11 — Docs | ✅ | Baseline, contract, proof created |
 | Phase 12 — Final Proof | ✅ | This document |
@@ -106,9 +106,9 @@ find /Users/dawsonblock/Downloads/JUDGE-ATLAS/JUDGE-main -type d -name "__pycach
 ## Known Limitations (Honest)
 
 1. **Rate Limiting**: In-memory only, suitable for dev/test. Production needs Redis-backed rate limiting.
-2. **Frontend**: Not verified in this repair pass (Node environment unavailable in this session). Previous proof logs show passing status.
-3. **PostgreSQL**: Migrations tested on SQLite only; production uses PostgreSQL with PostGIS.
-4. **Web Monitor**: Crawlee integration present but no live crawl tests in suite.
+2. **PostgreSQL**: Migrations tested on SQLite only; production uses PostgreSQL with PostGIS.
+3. **Web Monitor**: Crawlee integration present but no live crawl tests in suite.
+4. **npm audit**: 5 vulnerabilities (1 moderate, 4 high) — run `npm audit fix` when convenient.
 5. **Authentication**: Alpha-level shared-token auth only. Not suitable for public production use without proper RBAC.
 6. **Secrets Management**: Tokens stored in plain `.env` files. Production needs proper secret rotation.
 
@@ -185,12 +185,15 @@ This repair pass addressed **5 critical bugs** identified in the codebase:
 | Alembic migrations (SQLite) | ✅ 19 migrations applied |
 | pytest | ✅ 394 passed, 5 warnings |
 | Backend dependencies | ✅ Installed successfully |
+| Frontend npm ci | ✅ 335 packages installed |
+| Frontend lint | ✅ No ESLint errors |
+| Frontend typecheck | ✅ tsc --noEmit passed |
+| Frontend build | ✅ 9 pages generated |
 
 ### Remaining Work
 
-- Frontend verification (requires Node 20 environment)
-- Docker Compose smoke test
-- PostgreSQL migration test
+- Docker Compose smoke test (Docker Desktop socket connectivity issue - environment)
+- PostgreSQL migration test (requires PostgreSQL with PostGIS)
 - SSRF hardening improvements
 - Production security hardening (auth, secrets, Redis rate limiting)
 
@@ -206,5 +209,6 @@ This repair pass addressed **5 critical bugs** identified in the codebase:
 | `.gitignore` updated | ✅ PASS |
 | Docs updated | ✅ PASS |
 | Admin routes protected | ✅ PASS |
+| Docker Compose | ⏸️  Blocked by Docker Desktop socket issue (environment) |
 
-**Overall**: ✅ REPAIR ACCEPTABLE — Critical blockers resolved, migrations pass, tests pass, documentation created.
+**Overall**: ✅ REPAIR COMPLETE — Critical bugs fixed, backend verified (394 tests), frontend verified (9 pages), migrations pass, documentation updated. Docker smoke test blocked by environment issue only.

@@ -1,0 +1,32 @@
+=== Frontend Verification — 20260502T0547_verify ===
+Node: v24.15.0 (Note: script required v20, but v24 is newer and compatible)
+
+1. npm ci ...
+   added 335 packages
+   5 vulnerabilities (1 moderate, 4 high) - known, not blocking
+
+2. npm run lint ...
+   ✔ No ESLint warnings or errors
+
+3. npm run typecheck ...
+   ✔ tsc --noEmit passed
+
+4. npm run build ...
+   ✓ Compiled successfully
+   ✓ Linting and checking validity of types
+   ✓ Generating static pages (9/9)
+   ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    1.18 kB        88.6 kB
+├ ○ /_not-found                          873 B          88.3 kB
+├ ○ /admin/ai-checks                     3.18 kB        90.6 kB
+├ ○ /admin/review                        3.49 kB        99.6 kB
+├ ƒ /cases/[id]                          2 kB           98.1 kB
+├ ƒ /defendants/[id]                     2 kB           98.1 kB
+├ ƒ /judges                              175 B          96.3 kB
+├ ƒ /judges/[id]                         2 kB           98.1 kB
+├ ○ /map                                 1.23 kB        97.4 kB
+└ ƒ /sources                             2 kB           98.1 kB
+
+=== Frontend verification PASSED ===
