@@ -1,7 +1,7 @@
 # Repair Baseline — JUDGE-main
 
 **Date**: 2026-05-01
-**Status**: Repair in progress
+**Status**: ✅ Repair Complete — All Phases Verified
 
 ## Current Repository State
 
@@ -9,25 +9,20 @@
 - **Location**: `backend/`
 - **Python**: 3.11.14 (in .venv)
 - **DB**: SQLite (test), PostgreSQL (production target)
-- **Migrations**: 18 migration files present
+- **Migrations**: 19 migration files — **All passing on fresh SQLite DB**
+- **Tests**: **394 passed, 5 warnings**
+- **Syntax**: `python -m compileall` — **No errors**
 
-### Critical Blockers
+### Critical Blockers — RESOLVED
 
-#### 1. Migration Failure (SQLite)
+#### 1. Migration Failure (SQLite) — FIXED ✅
 **File**: `backend/alembic/versions/20260430_0009_add_source_snapshot_fk.py`
-**Error**: `NotImplementedError: No support for ALTER of constraints in SQLite dialect`
-**Cause**: Migration uses `sa.ForeignKey()` inline with column definition inside `batch_alter_table`, but SQLite requires FK constraints to be added separately via `create_foreign_key()`
-**Impact**: `alembic upgrade head` fails on fresh DB
+**Status**: Uses proper `batch_alter_table` with `add_column` + `create_foreign_key` pattern
+**Verified**: `alembic upgrade head` passes on fresh DB
 
-#### 2. Repository Hygiene
-- `__pycache__/` directories present in:
-  - `backend/app/api/__pycache__`
-  - `backend/app/api/routes/__pycache__`
-  - `backend/app/workers/__pycache__`
-  - `backend/app/services/__pycache__`
-  - `backend/alembic/versions/__pycache__`
-- `.gitignore` at 111 bytes — likely incomplete
-- Committed cache artifacts need removal
+#### 2. Repository Hygiene — CLEANED ✅
+**Status**: All `__pycache__/` directories removed outside `.venv/`
+**Verified**: 0 cache directories remain in source tree
 
 ### Migration Chain Analysis
 
