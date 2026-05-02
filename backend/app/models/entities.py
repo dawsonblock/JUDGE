@@ -970,6 +970,114 @@ class EntityGraphEdge(Base):
     )
 
 
+class MemoryRebuildRun(Base, TimestampMixin):
+    """Tracks memory rebuild operations."""
+
+    __tablename__ = "memory_rebuild_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rebuild_scope: Mapped[str] = mapped_column(String(20), nullable=False, server_default="full")
+    scope_entity_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    entities_processed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    claims_created: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    claims_invalidated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    states_updated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MemoryClaim(Base, TimestampMixin):
+    """Individual extracted claims about canonical entities."""
+
+    __tablename__ = "memory_claims"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    claim_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    claim_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
+    )
+    claim_value: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_value_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0", default=0.0)
+    source_snapshot_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("source_snapshots.id"), nullable=True, index=True
+    )
+    extraction_model: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", default=True)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invalidation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class MemoryEvidenceLink(Base):
+    """Links a memory claim to the snapshot that provided evidence."""
+
+    __tablename__ = "memory_evidence_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    claim_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("memory_claims.id"), nullable=False, index=True
+    )
+    snapshot_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("source_snapshots.id"), nullable=False, index=True
+    )
+    evidence_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    span_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    span_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    span_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("claim_id", "snapshot_id", name="uq_memory_evidence_link"),
+    )
+
+
+class MemoryEntityState(Base, TimestampMixin):
+    """Computed per-entity summary derived from active claims."""
+
+    __tablename__ = "memory_entity_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=False, unique=True, index=True
+    )
+    state_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    aliases: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    roles: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    jurisdictions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    biography_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_rebuild_run_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("memory_rebuild_runs.id"), nullable=True, index=True
+    )
+    rebuilt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    active_claim_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+
+
+class MemoryInvalidation(Base):
+    """Immutable audit log of invalidation events."""
+
+    __tablename__ = "memory_invalidations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    invalidation_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    triggered_by_claim_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("memory_claims.id"), nullable=True, index=True
+    )
+    triggered_by_rebuild_run_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("memory_rebuild_runs.id"), nullable=True, index=True
+    )
+    invalidated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class CourtEvent(Base):
     """Timeline events for court cases.
 
