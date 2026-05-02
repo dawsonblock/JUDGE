@@ -195,6 +195,66 @@ def test_review_status_tiers():
     assert public_visibility_for_tier(TIER_HOLD) is False
 
 
+def test_rejected_records_not_public():
+    """Events with rejected status should never be publicly visible."""
+    db = SessionLocal()
+    try:
+        rejected = _make_event(db, review_status="rejected", public_visibility=False, title="RejectedEvent", unique_id="rej1")
+
+        # Should not appear in public events
+        response = client.get("/api/events")
+        assert response.status_code == 200
+        items = response.json()
+        titles = [e.get("title") for e in items]
+        assert "RejectedEvent" not in titles
+
+        # Should return 404 when accessed directly
+        detail_response = client.get(f"/api/events/{rejected.event_id}")
+        assert detail_response.status_code == 404
+    finally:
+        db.close()
+
+
+def test_blocked_records_not_public():
+    """Events with blocked status should never be publicly visible."""
+    db = SessionLocal()
+    try:
+        blocked = _make_event(db, review_status="blocked", public_visibility=False, title="BlockedEvent", unique_id="blk1")
+
+        # Should not appear in public events
+        response = client.get("/api/events")
+        assert response.status_code == 200
+        items = response.json()
+        titles = [e.get("title") for e in items]
+        assert "BlockedEvent" not in titles
+
+        # Should return 404 when accessed directly
+        detail_response = client.get(f"/api/events/{blocked.event_id}")
+        assert detail_response.status_code == 404
+    finally:
+        db.close()
+
+
+def test_disputed_records_not_public():
+    """Events with disputed status should not be publicly visible."""
+    db = SessionLocal()
+    try:
+        disputed = _make_event(db, review_status="disputed", public_visibility=False, title="DisputedEvent", unique_id="dsp1")
+
+        # Should not appear in public events
+        response = client.get("/api/events")
+        assert response.status_code == 200
+        items = response.json()
+        titles = [e.get("title") for e in items]
+        assert "DisputedEvent" not in titles
+
+        # Should return 404 when accessed directly
+        detail_response = client.get(f"/api/events/{disputed.event_id}")
+        assert detail_response.status_code == 404
+    finally:
+        db.close()
+
+
 def test_public_visibility_respects_review_status():
     """Public visibility should respect review status rules."""
     db = SessionLocal()

@@ -121,6 +121,26 @@ class TestJusticeLawsAdapter:
         for section in sections:
             assert section.jurisdiction == "CA-FED"
 
+    def test_stub_sections_marked_as_stub(self):
+        """Hard-coded sections must be marked as stubs."""
+        adapter = JusticeLawsAdapter()
+
+        sections = adapter.fetch_act_sections("Criminal Code")
+
+        for section in sections:
+            assert section.is_stub is True, f"Section {section.section_number} should be marked as stub"
+
+    def test_stub_sections_cannot_be_trusted(self):
+        """Stub sections must not be used as authoritative sources."""
+        adapter = JusticeLawsAdapter()
+
+        sections = adapter.fetch_act_sections("Criminal Code")
+
+        for section in sections:
+            # Stub sections should have empty hash or be explicitly marked
+            assert section.is_stub is True
+            assert "[STUB]" in section.section_text, f"Section {section.section_number} text should indicate stub status"
+
 
 class TestSaskatchewanLawAdapter:
     """Test Saskatchewan law adapter."""
@@ -206,6 +226,16 @@ class TestSaskatchewanLawAdapter:
 
         for section in sections:
             assert "King's Printer" in section.source
+
+    def test_saskatchewan_stub_sections_marked(self):
+        """Saskatchewan hard-coded sections must be marked as stubs."""
+        adapter = SaskatchewanLawAdapter()
+
+        sections = adapter.fetch_police_act_sections()
+
+        for section in sections:
+            assert section.is_stub is True, f"Section {section.section_number} should be marked as stub"
+            assert "[STUB]" in section.section_text, f"Section {section.section_number} text should indicate stub status"
 
 
 class TestLawSectionStructure:

@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-research%20alpha-orange.svg)](https://github.com/dawsonblock/JUDGE-ATLAS/issues)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg?logo=python&logoColor=white)](backend/pyproject.toml)
-[![Node](https://img.shields.io/badge/node-20-green.svg?logo=node.js&logoColor=white)](frontend/package.json)
+[![Node](https://img.shields.io/badge/node-20%2B-green.svg?logo=node.js&logoColor=white)](frontend/package.json)
 
 [📖 Documentation](./docs) · [🐛 Report Issue](../../issues) · [🚀 Deployment Guide](./DEPLOYMENT.md)
 

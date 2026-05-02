@@ -43,6 +43,36 @@ United States:
 - News cannot create a verified legal outcome by itself.
 - Repeat-offender wording must remain indicator-based unless a source explicitly supports the legal fact.
 
+## Canadian Law Source Status
+
+**STATUS**: STUB — Hard-coded placeholder content only
+
+The Canadian law adapters (`canada_federal_justice_xml.py`, `canada_saskatchewan.py`) currently return hard-coded placeholder sections marked with `is_stub=True`. These are **NOT** fetched from official sources and must **NOT** be used as authoritative legal text.
+
+### Current Limitations
+
+- Section text is placeholder (e.g., "[STUB] In this Act...")
+- No actual XML/HTML fetching from official sources
+- No content hashing for verification
+- No freshness tracking
+
+### Production Requirements
+
+Before using Canadian law in production:
+
+1. Implement real fetchers for:
+   - Justice Laws Website (XML): https://laws.justice.gc.ca
+   - Saskatchewan King's Printer (API): https://publications.saskatchewan.ca
+2. Add XML/HTML parsing
+3. Compute SHA-256 hashes of source content
+4. Track fetch timestamps
+5. Set `is_stub=False` for fetched content
+6. Add caching and freshness checks
+
+### Adapter Interfaces
+
+The adapter classes (`JusticeLawsAdapter`, `SaskatchewanLawAdapter`) define the correct interfaces. They can be extended to implement real fetching without changing the API.
+
 ## Review Workflow
 
 New ingested legal events, legal sources, and crime incidents enter `pending_review` by default. Public endpoints only show records with public review statuses: `verified_court_record`, `official_police_open_data_report`, `news_only_context`, or `corrected`. Statuses `pending_review`, `disputed`, `rejected`, and `removed_from_public` are never exposed on public endpoints.

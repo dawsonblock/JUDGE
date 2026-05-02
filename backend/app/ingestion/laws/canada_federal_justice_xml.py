@@ -32,7 +32,12 @@ import httpx
 
 @dataclass
 class LawSection:
-    """A section of Canadian federal law."""
+    """A section of Canadian federal law.
+
+    IMPORTANT: When is_stub=True, this is placeholder/hard-coded content,
+    NOT fetched from official sources. Stub content must never be marked
+    as trusted or used as authoritative legal text.
+    """
 
     jurisdiction: str = "CA-FED"
     source: str = "Justice Laws"
@@ -46,6 +51,7 @@ class LawSection:
     source_url: str = ""
     consolidation_date: date | None = None
     raw_hash: str = ""
+    is_stub: bool = True  # True for hard-coded, False for fetched from source
 
 
 class JusticeLawsAdapter:
@@ -110,8 +116,10 @@ class JusticeLawsAdapter:
         """
         sections = []
 
-        # Example section structure
-        # In production, parse actual XML from Justice Laws
+        # STUB CONTENT: Hard-coded examples for development only.
+        # In production, parse actual XML from Justice Laws.
+        # These sections are marked is_stub=True and must NOT be used
+        # as authoritative legal text.
         if act_name == "Criminal Code":
             # s. 515 - Judicial interim release / bail
             sections.append(
@@ -123,11 +131,12 @@ class JusticeLawsAdapter:
                     chapter=chapter or "R.S.C., 1985, c. C-46",
                     section_number="515",
                     section_heading="Judicial interim release",
-                    section_text="Order of release / Order of detention...",
+                    section_text="[STUB] Order of release / Order of detention...",
                     language="en",
                     source_url=f"{self.BASE_URL}/eng/acts/C-46/section-515.html",
                     consolidation_date=date.today(),
-                    raw_hash="",  # Would compute from actual content
+                    raw_hash="",  # Empty hash indicates stub content
+                    is_stub=True,  # Explicitly marked as stub
                 )
             )
 
@@ -141,11 +150,12 @@ class JusticeLawsAdapter:
                     chapter=chapter or "R.S.C., 1985, c. C-46",
                     section_number="718",
                     section_heading="Purpose and principles of sentencing",
-                    section_text="The fundamental purpose of sentencing...",
+                    section_text="[STUB] The fundamental purpose of sentencing...",
                     language="en",
                     source_url=f"{self.BASE_URL}/eng/acts/C-46/section-718.html",
                     consolidation_date=date.today(),
                     raw_hash="",
+                    is_stub=True,
                 )
             )
 
@@ -159,11 +169,12 @@ class JusticeLawsAdapter:
                     chapter=chapter or "R.S.C., 1985, c. C-46",
                     section_number="753",
                     section_heading="Dangerous offenders and long-term offenders",
-                    section_text="Finding of dangerous offender...",
+                    section_text="[STUB] Finding of dangerous offender...",
                     language="en",
                     source_url=f"{self.BASE_URL}/eng/acts/C-46/section-753.html",
                     consolidation_date=date.today(),
                     raw_hash="",
+                    is_stub=True,
                 )
             )
 
@@ -187,11 +198,12 @@ class JusticeLawsAdapter:
                 chapter="S.C. 2002, c. 1",
                 section_number="3",
                 section_heading="Declaration of principles",
-                section_text="The youth criminal justice system...",
+                section_text="[STUB] The youth criminal justice system...",
                 language="en",
                 source_url=f"{self.BASE_URL}/eng/acts/Y-1.5/section-3.html",
                 consolidation_date=date.today(),
                 raw_hash="",
+                is_stub=True,
             )
         )
 

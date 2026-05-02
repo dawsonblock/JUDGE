@@ -157,7 +157,10 @@ export default function AdminReviewPage() {
     setAiMessage("");
     try {
       const response = await fetch(`${apiBase(false)}/api/admin/review/items?limit=100`, {
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "X-JTA-Admin-Token": token,
+        },
       });
       if (!response.ok) {
         throw new Error(response.status === 403 ? "AI review queue unavailable: admin imports are disabled." : `AI review queue failed: ${response.status}`);

@@ -38,7 +38,12 @@ import httpx
 
 @dataclass
 class SaskatchewanLawSection:
-    """A section of Saskatchewan provincial law."""
+    """A section of Saskatchewan provincial law.
+
+    IMPORTANT: When is_stub=True, this is placeholder/hard-coded content,
+    NOT fetched from official sources. Stub content must never be marked
+    as trusted or used as authoritative legal text.
+    """
 
     jurisdiction: str = "CA-SK"
     source: str = "Saskatchewan King's Printer"
@@ -52,6 +57,7 @@ class SaskatchewanLawSection:
     source_url: str = ""
     consolidation_date: date | None = None
     raw_hash: str = ""
+    is_stub: bool = True  # True for hard-coded, False for fetched from source
 
 
 class SaskatchewanLawAdapter:
@@ -85,6 +91,11 @@ class SaskatchewanLawAdapter:
         """
         sections = []
 
+        # STUB CONTENT: Hard-coded examples for development only.
+        # In production, fetch from Saskatchewan King's Printer API.
+        # These sections are marked is_stub=True and must NOT be used
+        # as authoritative legal text.
+
         # s. 2 - Definitions
         sections.append(
             SaskatchewanLawSection(
@@ -95,11 +106,12 @@ class SaskatchewanLawAdapter:
                 chapter="S.S. 2018, c. P-15.2",
                 section_number="2",
                 section_heading="Definitions",
-                section_text="In this Act...",
+                section_text="[STUB] In this Act...",
                 language="en",
                 source_url=f"{self.BASE_URL}/api/v1/products/10314/formats/10976",
                 consolidation_date=date.today(),
-                raw_hash="",
+                raw_hash="",  # Empty hash indicates stub content
+                is_stub=True,  # Explicitly marked as stub
             )
         )
 
@@ -113,11 +125,12 @@ class SaskatchewanLawAdapter:
                 chapter="S.S. 2018, c. P-15.2",
                 section_number="5",
                 section_heading="Policing standards",
-                section_text="The minister shall establish policing standards...",
+                section_text="[STUB] The minister shall establish policing standards...",
                 language="en",
                 source_url=f"{self.BASE_URL}/api/v1/products/10314/formats/10976",
                 consolidation_date=date.today(),
                 raw_hash="",
+                is_stub=True,
             )
         )
 
@@ -141,11 +154,12 @@ class SaskatchewanLawAdapter:
                 chapter="S.S. 2012, c. C-37.1",
                 section_number="3",
                 section_heading="Purpose of Act",
-                section_text="The purpose of this Act is to...",
+                section_text="[STUB] The purpose of this Act is to...",
                 language="en",
                 source_url=f"{self.BASE_URL}/api/v1/products/9568/formats/9697",
                 consolidation_date=date.today(),
                 raw_hash="",
+                is_stub=True,
             )
         )
 
@@ -169,11 +183,12 @@ class SaskatchewanLawAdapter:
                 chapter="S.S. 1995, c. V-6",
                 section_number="2",
                 section_heading="Interpretation",
-                section_text="In this Act...",
+                section_text="[STUB] In this Act...",
                 language="en",
                 source_url=f"{self.BASE_URL}/api/v1/products/10902/formats/11149",
                 consolidation_date=date.today(),
                 raw_hash="",
+                is_stub=True,
             )
         )
 
