@@ -5,6 +5,13 @@ Provides URL fetching with:
 - Content hash storage
 - SourceSnapshot persistence for provenance
 - Size limits and timeout enforcement
+- Content-type allowlist enforcement
+
+NOTE: DNS Rebinding Limitation — This fetcher performs a DNS check before the
+request, but the HTTP library may re-resolve DNS during the actual connection.
+True DNS rebinding resistance requires routing fetches through a locked-down
+egress proxy or sandboxed fetch worker. For production deployments, configure
+JTA_FETCH_EGRESS_PROXY or use a dedicated sandboxed fetch worker.
 """
 
 from __future__ import annotations
@@ -28,6 +35,22 @@ log = logging.getLogger(__name__)
 
 # Max download size (bytes)
 _DEFAULT_MAX_BYTES = 512_000
+
+# Allowed content types for fetched sources
+ALLOWED_CONTENT_TYPES = {
+    "text/html",
+    "text/plain",
+    "application/json",
+    "application/pdf",
+    "application/xml",
+    "text/xml",
+}
+
+
+def _is_allowed_content_type(content_type: str) -> bool:
+    """Return True if content_type starts with an allowed MIME type."""
+    base = content_type.split(";")[0].strip().lower()
+    return base in ALLOWED_CONTENT_TYPES
 
 # Private/reserved IP ranges to block
 _PRIVATE_NETWORKS = (
@@ -119,7 +142,7 @@ def _is_safe_url(url: str, check_dns: bool = True) -> tuple[bool, str]:
             except Exception:
                 pass  # Continue if DNS check fails
 
-        return True, "ok"
+        return True, ""
     except Exception as exc:
         return False, f"URL parse error: {exc}"
 
@@ -253,23 +276,32 @@ def fetch_source(
                 if key.lower() not in ("set-cookie", "authorization"):
                     result.headers[key] = value
 
-            # Read with size limit
-            result.raw_content = resp.read(max_bytes + 1)
-            if len(result.raw_content) > max_bytes:
-                result.error = f"Content exceeds max_bytes: {max_bytes}"
-                result.raw_content = result.raw_content[:max_bytes]
-
-            # Compute hash
-            if result.raw_content:
-                result.raw_content_hash = _sha256(result.raw_content)
-
-            # Extract text for HTML content
-            if "text/html" in result.content_type and result.raw_content:
-                result.extracted_text = _extract_text_from_html(
-                    result.raw_content, result.content_type
+            # Enforce content-type allowlist before reading body
+            if result.content_type and not _is_allowed_content_type(result.content_type):
+                result.error = f"Rejected: unsupported content type: {result.content_type}"
+                result.raw_content = None  # Don't store unsafe content
+                log.warning(
+                    "source_fetcher: rejected unsupported content type %s for %s",
+                    result.content_type, url,
                 )
-                if result.extracted_text:
-                    result.extracted_text_hash = _sha256(result.extracted_text)
+            else:
+                # Read with size limit
+                result.raw_content = resp.read(max_bytes + 1)
+                if len(result.raw_content) > max_bytes:
+                    result.error = f"Content exceeds max_bytes: {max_bytes}"
+                    result.raw_content = result.raw_content[:max_bytes]
+
+                # Compute hash
+                if result.raw_content:
+                    result.raw_content_hash = _sha256(result.raw_content)
+
+                # Extract text for HTML content
+                if "text/html" in result.content_type and result.raw_content:
+                    result.extracted_text = _extract_text_from_html(
+                        result.raw_content, result.content_type
+                    )
+                    if result.extracted_text:
+                        result.extracted_text_hash = _sha256(result.extracted_text)
 
         log.info("source_fetcher: fetched %s (%s bytes)", url, len(result.raw_content or b""))
 

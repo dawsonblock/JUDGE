@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.services.graph_queries import GraphQueryService
 
@@ -96,7 +97,7 @@ def get_entity_edges(
     predicate: str | None = Query(None, description="Filter by predicate"),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
     """Get all graph edges connected to an entity."""
     service = GraphQueryService(db)
@@ -138,7 +139,7 @@ def get_related_entities(
     predicate: str | None = Query(None, description="Filter by relationship type"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
     """Get entities directly related to the given entity."""
     service = GraphQueryService(db)
@@ -162,7 +163,7 @@ def get_case_timeline(
     case_id: int,
     include_documents: bool = Query(True, description="Include document references"),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
     """Get chronological timeline for a case."""
     service = GraphQueryService(db)
@@ -197,7 +198,7 @@ def find_path(
     to_id: int = Query(..., description="Target entity ID"),
     max_depth: int = Query(3, ge=1, le=5, description="Maximum path length"),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> PathResponse:
     """Find paths between two entities."""
     service = GraphQueryService(db)
@@ -240,7 +241,7 @@ def find_path(
 def create_edge(
     request: EdgeCreateRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> EdgeResponse:
     """Create a new graph edge (admin only)."""
     service = GraphQueryService(db)

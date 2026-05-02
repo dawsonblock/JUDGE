@@ -30,8 +30,8 @@ def _setup_test_data(db, unique_id: str = "1"):
         location_type="courthouse",
         city="New York",
         state="NY",
-        latitude=40.7128 + float(unique_id) * 0.001,
-        longitude=-74.0060 - float(unique_id) * 0.001,
+        latitude=40.7128 + (hash(str(unique_id)) % 1000) * 0.001,
+        longitude=-74.0060 - (hash(str(unique_id)) % 1000) * 0.001,
     )
     db.add(location)
     db.flush()

@@ -145,3 +145,28 @@ alembic upgrade head
 ## Disclaimer
 
 > ⚠️ **Research Alpha**: This is a hardened prototype for research and development. It is not production legal infrastructure. Do not deploy to public-facing production without completing the hardening items listed above.
+
+---
+
+## Release Status
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Alpha | ✅ **Implemented** | Core API, models, migrations, review gates, map endpoints |
+| Hardened | 🔄 **Partially Implemented** | Evidence integrity (Phase 1), admin identity (Phase 2), content-type gating (Phase 5), Redis rate limiting (Phase 7) |
+| Production | ❌ **Not Yet** | Requires: real Postgres/PostGIS, JWT auth, Redis rate limiting, full audit logging, pentest |
+
+### Hardening Phases (2026-05-02)
+
+- **Phase 0** ✅ Repo cleanup (.gitignore updates)
+- **Phase 1** ✅ Evidence snapshot integrity (fixed hash mismatch, no silent truncation)
+- **Phase 2** ✅ Admin identity safety (AdminActor, no raw token in audit logs)
+- **Phase 3** ✅ Postgres/PostGIS proof script
+- **Phase 4** ✅ PDF extraction (pypdf, extractors.py)
+- **Phase 5** ✅ Content-type allowlist enforcement
+- **Phase 6** ✅ Public visibility gates (pre-existing tests pass)
+- **Phase 7** ✅ Rate limiting Redis option + trusted proxy IP support
+- **Phase 8** ✅ Environment and docs truth cleanup
+- **Phase 9** — Frontend dependency audit (run manually)
+- **Phase 10** ✅ Docker Compose smoke proof script
+- **Phase 12** ✅ Final acceptance proof script

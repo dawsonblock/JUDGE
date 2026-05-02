@@ -2,6 +2,11 @@
 
 This module provides a simple in-memory rate limiter that enforces per-IP limits.
 Rate limiting is enabled by default but can be disabled via JTA_RATE_LIMIT_ENABLED=false.
+
+Supports:
+- In-memory backend (default, single-process)
+- Redis backend when JTA_RATE_LIMIT_BACKEND=redis and JTA_REDIS_URL is set
+- Trusted proxy IP list: X-Forwarded-For is only trusted from IPs in JTA_TRUSTED_PROXY_IPS
 """
 
 from __future__ import annotations
@@ -60,16 +65,86 @@ class SimpleRateLimiter:
             self.requests.clear()
 
 
+class RedisRateLimiter:
+    """Redis-backed sliding window rate limiter.
+
+    Uses a sorted set per bucket key with timestamps as scores.
+    Falls back silently to allowing the request if Redis is unavailable.
+    """
+
+    def __init__(self, redis_url: str):
+        import redis as redis_lib
+        self._client = redis_lib.from_url(redis_url, decode_responses=True)
+
+    def check(self, key: str, limit: int, window: int = 60) -> bool:
+        try:
+            import time as time_mod
+            now = time_mod.time()
+            window_start = now - window
+            pipe = self._client.pipeline()
+            pipe.zremrangebyscore(key, "-inf", window_start)
+            pipe.zcard(key)
+            pipe.zadd(key, {str(now): now})
+            pipe.expire(key, window + 1)
+            results = pipe.execute()
+            if not results or len(results) < 2 or not isinstance(results[1], int):
+                # Pipeline result unexpected; fail open
+                return True
+            count_before_add = results[1]
+            if count_before_add >= limit:
+                # Undo the add since we're over limit
+                self._client.zrem(key, str(now))
+                return False
+            return True
+        except Exception:
+            # On Redis error, allow the request (fail open for availability)
+            return True
+
+    def reset(self, key: str | None = None) -> None:
+        try:
+            if key:
+                self._client.delete(key)
+            # Global reset not implemented for Redis (would need key scanning)
+        except Exception:
+            pass
+
+
 # Shared limiter instance
-_limiter: SimpleRateLimiter | None = None
+_limiter: SimpleRateLimiter | RedisRateLimiter | None = None
 
 
-def get_rate_limiter() -> SimpleRateLimiter:
+def get_rate_limiter() -> SimpleRateLimiter | RedisRateLimiter:
     """Get or create the shared rate limiter instance."""
     global _limiter
     if _limiter is None:
-        _limiter = SimpleRateLimiter()
+        settings = get_settings()
+        if settings.rate_limit_backend == "redis" and settings.redis_url:
+            try:
+                _limiter = RedisRateLimiter(settings.redis_url)
+            except Exception:
+                # Fall back to in-memory if Redis init fails
+                _limiter = SimpleRateLimiter()
+        else:
+            _limiter = SimpleRateLimiter()
     return _limiter
+
+
+def _get_client_ip(request: Request) -> str:
+    """Determine the real client IP, trusting X-Forwarded-For only from trusted proxies."""
+    settings = get_settings()
+    trusted_ips = {ip.strip() for ip in settings.trusted_proxy_ips.split(",") if ip.strip()}
+
+    direct_ip = (request.client.host if request.client else None) or "unknown"
+
+    if trusted_ips and direct_ip in trusted_ips:
+        # Direct connection is from a trusted proxy — use X-Forwarded-For
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Use the leftmost IP (original client)
+            return forwarded_for.split(",")[0].strip()
+
+    # Not from a trusted proxy — use direct connection IP
+    return direct_ip
 
 
 def _check_rate_limit(request: Request, limit_key: str) -> None:
@@ -90,12 +165,7 @@ def _check_rate_limit(request: Request, limit_key: str) -> None:
     # Get limit from settings
     limit = getattr(settings, f"rate_limit_{limit_key}", 60)
     
-    # Get IP address as key
-    # Use X-Forwarded-For if present (behind proxy), otherwise use client
-    ip = request.headers.get("X-Forwarded-For") or (request.client.host if request.client else None) or "unknown"
-    # If X-Forwarded-For contains multiple IPs, use the first one
-    if "," in ip:
-        ip = ip.split(",")[0].strip()
+    ip = _get_client_ip(request)
     
     # Check limit with separate buckets per limit_key
     bucket_key = f"{limit_key}:{ip}"
@@ -126,3 +196,4 @@ async def rate_limit_map(request: Request):
 async def rate_limit_ingestion(request: Request):
     """Enforce ingestion endpoint rate limit (10/min default)."""
     _check_rate_limit(request, "ingestion")
+

@@ -1,4 +1,5 @@
 .env
+.env.local
 __pycache__/
 *.py[cod]
 *.pyo
@@ -18,3 +19,6 @@ build/
 coverage/
 *.tsbuildinfo
 .DS_Store
+*.egg-info/
+/backend/judgetracker_atlas_backend.egg-info/
+artifacts/proof/*.log

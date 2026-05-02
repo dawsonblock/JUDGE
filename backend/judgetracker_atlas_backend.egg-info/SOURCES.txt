@@ -92,6 +92,7 @@ app/services/source_verifier.py
 app/services/text.py
 app/tests/conftest.py
 app/tests/test_admin_ingestion.py
+app/tests/test_admin_security.py
 app/tests/test_ai_correctness.py
 app/tests/test_ai_pipeline.py
 app/tests/test_api.py
@@ -115,6 +116,7 @@ app/tests/test_publication_policy.py
 app/tests/test_publish_rules.py
 app/tests/test_rate_limit.py
 app/tests/test_review_gates.py
+app/tests/test_source_fetcher_ssrf.py
 app/tests/test_source_verifier.py
 app/tests/test_web_monitor_integration.py
 app/workers/__init__.py

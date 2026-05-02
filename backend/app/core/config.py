@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     rate_limit_map: int = 60  # Map endpoints
     rate_limit_ingestion: int = 10  # Ingestion endpoints
     rate_limit_enabled: bool = True
+    rate_limit_backend: str = "memory"  # "memory" or "redis"
+    redis_url: str | None = None
+    # Comma-separated list of trusted proxy IPs whose X-Forwarded-For is trusted
+    trusted_proxy_ips: str = ""
 
     # Request size limits (bytes)
     max_request_size: int = 10 * 1024 * 1024  # 10MB for regular API

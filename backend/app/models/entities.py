@@ -390,6 +390,12 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # --- Actor identity fields (Phase 2 hardening) ---
+    actor_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    actor_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    actor_role: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class CrimeIncidentSource(Base):
@@ -617,6 +623,21 @@ class SourceSnapshot(Base):
         ForeignKey("ingestion_runs.id"), nullable=True, index=True
     )
     ingestion_run: Mapped["IngestionRun"] = relationship()
+
+    # --- Evidence integrity fields (Phase 1 hardening) ---
+    # original_content_hash: hash of full original content, never truncated.
+    # Semantically equivalent to content_hash; kept separate for clarity.
+    original_content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # stored_content_hash: hash of what is actually stored. Must equal
+    # original_content_hash after a successful write (no partial evidence).
+    stored_content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stored_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # is_truncated MUST always be False after a successful write.
+    # The field is kept for schema compatibility only.
+    is_truncated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    extractor_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    extractor_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
 
 class SourceRegistry(Base, TimestampMixin):

@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.auth.actor import AdminActor, AdminRole
 from app.core.config import Settings, get_settings
 from app.db.session import SessionLocal
 from app.models.entities import (
@@ -73,10 +74,11 @@ def require_admin_review(
 
 def require_admin_token(
     x_jta_admin_token: str | None = Header(default=None),
-) -> str:
+) -> AdminActor:
     """Require a valid admin token for general admin operations.
 
-    Returns the token value for audit logging purposes.
+    Returns an AdminActor with a stable, non-secret actor_id. The raw
+    token value is NEVER returned or stored.
     """
     settings = get_settings()
     token = settings.admin_token or settings.admin_review_token
@@ -89,7 +91,60 @@ def require_admin_token(
     if not _compare_token(x_jta_admin_token, token):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
-    return x_jta_admin_token or "system"
+    # Shared-token mode: all valid tokens get system_admin role.
+    # actor_id is a stable label — never the raw token value.
+    return AdminActor(
+        actor_id="shared-admin-token",
+        actor_type="shared_token",
+        role="system_admin",
+        auth_method="shared_token",
+    )
+
+
+def require_viewer(
+    x_jta_admin_token: str | None = Header(default=None),
+) -> AdminActor:
+    """Require valid admin token; returns actor with viewer role."""
+    actor = require_admin_token(x_jta_admin_token)
+    return AdminActor(
+        actor_id=actor.actor_id,
+        actor_type=actor.actor_type,
+        role="viewer",
+        auth_method=actor.auth_method,
+    )
+
+
+def require_reviewer(
+    x_jta_admin_token: str | None = Header(default=None),
+) -> AdminActor:
+    """Require valid admin token; returns actor with reviewer role."""
+    actor = require_admin_token(x_jta_admin_token)
+    return AdminActor(
+        actor_id=actor.actor_id,
+        actor_type=actor.actor_type,
+        role="reviewer",
+        auth_method=actor.auth_method,
+    )
+
+
+def require_source_admin(
+    x_jta_admin_token: str | None = Header(default=None),
+) -> AdminActor:
+    """Require valid admin token; returns actor with source_admin role."""
+    actor = require_admin_token(x_jta_admin_token)
+    return AdminActor(
+        actor_id=actor.actor_id,
+        actor_type=actor.actor_type,
+        role="source_admin",
+        auth_method=actor.auth_method,
+    )
+
+
+def require_system_admin(
+    x_jta_admin_token: str | None = Header(default=None),
+) -> AdminActor:
+    """Require valid admin token; returns actor with system_admin role."""
+    return require_admin_token(x_jta_admin_token)
 
 
 def require_public_event_post(
@@ -111,13 +166,26 @@ def log_mutation(
     payload: dict[str, Any] | None = None,
     request: Request | None = None,
     token_role: str | None = None,
+    actor: AdminActor | None = None,
+    user_agent: str | None = None,
+    request_id: str | None = None,
 ) -> None:
-    """Log a mutation action to the audit log."""
+    """Log a mutation action to the audit log.
+
+    Raw token values must never appear in the payload or actor fields.
+    Pass an AdminActor to populate actor identity fields safely.
+    """
     db: Session = SessionLocal()
     try:
         full_payload: dict[str, Any] = payload or {}
         if token_role:
             full_payload = {**full_payload, "token_role": token_role}
+
+        # Resolve user_agent from request if not explicitly provided
+        resolved_user_agent = user_agent
+        if resolved_user_agent is None and request is not None:
+            resolved_user_agent = request.headers.get("user-agent")
+
         log_entry = AuditLog(
             action=action,
             entity_type=entity_type,
@@ -129,6 +197,12 @@ def log_mutation(
                 else None
             ),
             created_at=datetime.now(timezone.utc),
+            # Actor identity — never store raw token values
+            actor_id=actor.actor_id if actor else None,
+            actor_type=actor.actor_type if actor else None,
+            actor_role=actor.role if actor else None,
+            user_agent=resolved_user_agent,
+            request_id=request_id,
         )
         db.add(log_entry)
         db.commit()
@@ -137,3 +211,4 @@ def log_mutation(
         db.rollback()
     finally:
         db.close()
+

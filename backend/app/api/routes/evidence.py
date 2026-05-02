@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
+from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.services.relationship_evidence import RelationshipEvidenceService
 
@@ -144,7 +145,7 @@ def get_unverified_evidence(
     max_confidence: float = Query(1.0, ge=0.0, le=1.0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> EvidenceListResponse:
     """Get unverified evidence within a confidence range (admin only)."""
     service = RelationshipEvidenceService(db)
@@ -178,7 +179,7 @@ def get_unverified_evidence(
 def create_evidence(
     request: EvidenceCreateRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> EvidenceResponse:
     """Create new relationship evidence (admin only)."""
     service = RelationshipEvidenceService(db)
@@ -226,14 +227,14 @@ def verify_evidence(
     evidence_id: int,
     request: EvidenceVerifyRequest,
     db: Session = Depends(get_db),
-    admin_id: str = Depends(require_admin_token),
+    admin_actor: AdminActor = Depends(require_admin_token),
 ) -> EvidenceResponse:
     """Verify relationship evidence (admin only)."""
     service = RelationshipEvidenceService(db)
 
     evidence = service.verify_evidence(
         evidence_id=evidence_id,
-        verified_by=admin_id,
+        verified_by=admin_actor.actor_id,
         notes=request.notes,
     )
 
@@ -265,7 +266,7 @@ def unverify_evidence(
     evidence_id: int,
     request: EvidenceUnverifyRequest,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin_token),
+    _: AdminActor = Depends(require_admin_token),
 ) -> EvidenceResponse:
     """Remove verification from evidence (admin only)."""
     service = RelationshipEvidenceService(db)
