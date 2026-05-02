@@ -109,6 +109,8 @@ return 1
     def check(self, key: str, limit: int, window: int = 60) -> bool:
         import os as _os
         import time as time_mod
+        from app.core.config import get_settings
+        
         now = time_mod.time()
         window_start = now - window
         # Generate the unique member ID *outside* the Redis try-block so that
@@ -122,7 +124,14 @@ return 1
             )
             return bool(result)
         except Exception:
-            # On Redis error, allow the request (fail open for availability)
+            # On Redis error, fail closed in production, fail open in development
+            settings = get_settings()
+            if settings.app_env == "production":
+                raise HTTPException(
+                    status_code=503,
+                    detail="Rate limiter unavailable",
+                )
+            # In development, allow the request
             return True
 
     def reset(self, key: str | None = None) -> None:

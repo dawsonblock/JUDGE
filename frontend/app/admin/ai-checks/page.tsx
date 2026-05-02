@@ -231,10 +231,10 @@ export default function AIChecksPage() {
       <div className="page-header">
         <div>
           <div className="kicker">Prototype admin</div>
-          <h1>AI Correctness Checks</h1>
+          <h1>Automated Validation Checks</h1>
           <p className="meta">
-            Checks map accuracy only — source, location, date, status, duplicates.
-            No guilt scores. No judge scores. No danger scores.
+            Rule-based validation of map accuracy — source, location, date, status, duplicates.
+            These are automated checks only, not AI proof of legal truth.
           </p>
         </div>
       </div>

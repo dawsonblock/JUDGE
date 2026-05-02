@@ -654,7 +654,7 @@ class SourceRegistry(Base, TimestampMixin):
     province_state: Mapped[str | None] = mapped_column(String(80))
     city: Mapped[str | None] = mapped_column(String(120))
     source_type: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="unknown"
+        String(80), nullable=False, default="unknown"
     )
     source_tier: Mapped[str] = mapped_column(
         String(80), nullable=False, default="news_only_context", server_default="news_only_context", index=True

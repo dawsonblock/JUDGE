@@ -9,6 +9,31 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 
+_ALLOWED_SCHEMES = {"http", "https"}
+
+
+def _parsed_allowed_host(url: str) -> str:
+    """Parse URL and validate scheme, hostname, and credentials.
+    
+    Args:
+        url: URL to parse
+        
+    Returns:
+        Lowercased hostname with trailing dot stripped
+        
+    Raises:
+        ValueError: If scheme is not http/https, hostname is missing, or credentials present
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        raise ValueError(f"Unsupported URL scheme for {url}")
+    if not parsed.hostname:
+        raise ValueError(f"URL must include a hostname: {url}")
+    if parsed.username or parsed.password:
+        raise ValueError(f"URL must not include credentials: {url}")
+    return parsed.hostname.lower().rstrip(".")
+
+
 class WebMonitorTarget(BaseModel):
     """Configuration for a monitored web source target.
 
@@ -85,10 +110,10 @@ class WebMonitorTarget(BaseModel):
         """Ensure all start URLs match allowed domains."""
         allowed_domains = info.data.get("allowed_domains", [])
         for url in v:
-            domain = urlparse(url).netloc
-            # Remove port if present
-            if ":" in domain:
-                domain = domain.split(":")[0]
+            try:
+                domain = _parsed_allowed_host(url)
+            except ValueError as e:
+                raise ValueError(str(e))
             # Check if domain or its parent is in allowlist
             if not any(
                 domain == allowed or domain.endswith(f".{allowed}")
@@ -108,10 +133,10 @@ class WebMonitorTarget(BaseModel):
         Returns:
             True if URL domain is in allowlist, False otherwise
         """
-        domain = urlparse(url).netloc
-        # Remove port if present
-        if ":" in domain:
-            domain = domain.split(":")[0]
+        try:
+            domain = _parsed_allowed_host(url)
+        except ValueError:
+            return False
 
         # Check exact match or subdomain
         return any(

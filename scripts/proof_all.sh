@@ -38,10 +38,13 @@ run_step() {
 
 cd "$REPO_ROOT"
 
-run_step "backend_compile" "python3 -m py_compile backend/app/main.py"
-run_step "backend_tests" "cd backend && python -m pytest app/tests/ -v --tb=short -q"
+run_step "backend_install" "cd backend && python -m pip install -e '.[test]'"
+run_step "backend_compile" "cd backend && python -m compileall -q app"
+run_step "backend_tests" "cd backend && python -m pytest -q"
 run_step "alembic_sqlite" "cd backend && DATABASE_URL=sqlite:///./proof_test.db alembic upgrade head && rm -f proof_test.db"
+run_step "frontend_install" "cd frontend && npm ci"
 run_step "frontend_lint" "cd frontend && npm run lint"
+run_step "frontend_typecheck" "cd frontend && npm run typecheck"
 run_step "frontend_build" "cd frontend && npm run build"
 
 if command -v docker &>/dev/null; then

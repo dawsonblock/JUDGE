@@ -6,15 +6,15 @@ view health status, and control trust tiers.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.auth.admin import require_admin_token
+from app.auth.admin import require_admin_token, log_mutation
 from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
@@ -133,8 +133,9 @@ def get_source(
 def update_source(
     source_key: str,
     update: SourceUpdateRequest,
+    request: Request,
     db: Session = Depends(get_db),
-    _: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Update source configuration (enable/disable, rate limit, tier, notes)."""
     source = db.query(SourceRegistry).filter(
@@ -160,14 +161,25 @@ def update_source(
     db.commit()
     db.refresh(source)
 
+    # Log the mutation
+    log_mutation(
+        action="source.update",
+        entity_type="source_registry",
+        entity_id=source.source_key,
+        payload=update.model_dump(exclude_unset=True),
+        request=request,
+        actor=actor,
+    )
+
     return source
 
 
 @router.post("/{source_key}/enable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
 def enable_source(
     source_key: str,
+    request: Request,
     db: Session = Depends(get_db),
-    _: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Enable a source for ingestion."""
     source = db.query(SourceRegistry).filter(
@@ -182,14 +194,25 @@ def enable_source(
     db.commit()
     db.refresh(source)
 
+    # Log the mutation
+    log_mutation(
+        action="source.enable",
+        entity_type="source_registry",
+        entity_id=source.source_key,
+        payload={"is_active": True},
+        request=request,
+        actor=actor,
+    )
+
     return source
 
 
 @router.post("/{source_key}/disable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
 def disable_source(
     source_key: str,
+    request: Request,
     db: Session = Depends(get_db),
-    _: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Disable a source (stops active crawls)."""
     source = db.query(SourceRegistry).filter(
@@ -203,6 +226,16 @@ def disable_source(
     source.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(source)
+
+    # Log the mutation
+    log_mutation(
+        action="source.disable",
+        entity_type="source_registry",
+        entity_id=source.source_key,
+        payload={"is_active": False},
+        request=request,
+        actor=actor,
+    )
 
     return source
 
@@ -223,8 +256,6 @@ def get_source_health(
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
 
     # Calculate recent run metrics
-    from datetime import timedelta
-
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     run_stats = db.query(

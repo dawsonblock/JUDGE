@@ -15,6 +15,11 @@ services:
       timeout: 5s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   backend:
     build:
       context: ./backend
@@ -30,11 +35,15 @@ services:
       JTA_ENABLE_ADMIN_REVIEW: ${JTA_ENABLE_ADMIN_REVIEW:-true}
       JTA_ADMIN_TOKEN: ${JTA_ADMIN_TOKEN:-dev-token-change-in-production}
       JTA_ADMIN_REVIEW_TOKEN: ${JTA_ADMIN_REVIEW_TOKEN:-dev-token-change-in-production}
+      JTA_RATE_LIMIT_BACKEND: redis
+      JTA_REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   frontend:
     build:
@@ -50,4 +59,3 @@ services:
 
 volumes:
   postgres-data:
-

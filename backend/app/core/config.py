@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     courtlistener_max_dockets_per_run: int = 100
     courtlistener_timeout_seconds: int = 60
     app_env: str = "production"
-    auto_seed: bool = True
+    auto_seed: bool = False
     cors_origins: str = "https://localhost:3000"
     enable_admin_imports: bool = False
     enable_admin_review: bool = False
