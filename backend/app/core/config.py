@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # Comma-separated list of trusted proxy IPs whose X-Forwarded-For is trusted
     trusted_proxy_ips: str = ""
 
+    # Evidence store configuration
+    evidence_store_root: str | None = None
+    evidence_store_required: bool = False
+    evidence_store_probe_write: bool = True
+
     # Request size limits (bytes)
     max_request_size: int = 10 * 1024 * 1024  # 10MB for regular API
     max_csv_upload_size: int = 50 * 1024 * 1024  # 50MB for CSV uploads
