@@ -1,6 +1,6 @@
 # Phases 4–6 Implementation Roadmap
 
-**Status:** Phase 4 Complete, Phase 5–6 Designed
+**Status:** Phase 4 Complete, Phase 5 Partially Complete (config + validation route done), Phase 6 Designed
 
 ## Phase 4: Source Registry Admin UI ✅ COMPLETE
 
@@ -32,7 +32,7 @@
 
 **Specification Design:**
 
-### 5.1: Configuration (✅ STARTED)
+### 5.1: Configuration (✅ COMPLETE)
 
 Added to `backend/app/core/config.py`:
 ```python
@@ -46,35 +46,11 @@ Env vars:
 - `JTA_EVIDENCE_STORE_REQUIRED` — if true, startup fails if path missing
 - `JTA_EVIDENCE_STORE_PROBE_WRITE` — if true, writes/deletes probe file on startup to verify write access
 
-### 5.2: Validation Service (TODO)
+### 5.2: Validation Service (✅ COMPLETE)
 
-Create `backend/app/services/evidence_store_validation.py`:
-
-```python
-def validate_evidence_store_root(
-    root: str | None,
-    *,
-    required: bool,
-    probe_write: bool = True,
-    repo_root: str | None = None,
-) -> dict:
-    """Validate evidence store root.
-    
-    Checks:
-    - Path exists and is directory
-    - Path is not inside repo
-    - Path is readable/writable/searchable
-    - Probe write succeeds (if enabled)
-    
-    Returns: {"enabled": bool, "root": str, "snapshots_dir": str}
-    Raises: RuntimeError if invalid
-    """
-```
-
-Key validations:
-- `Path.resolve()` and reject if inside repo
-- `os.access(path, os.R_OK | os.W_OK | os.X_OK)`
-- Probe write/hash/delete cycle if `probe_write=True`
+`backend/app/services/evidence_store_validation.py` exists with `validate_evidence_store_root()`.
+`/api/admin/evidence-store/status` endpoint wired in `backend/app/api/routes/evidence_store.py`
+(uses `get_settings().evidence_store_root` and `repo_root=` correctly as of JUDGE-22).
 
 ### 5.3: Startup Integration (TODO)
 

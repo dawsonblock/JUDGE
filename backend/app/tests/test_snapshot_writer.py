@@ -20,6 +20,7 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import Base
 from app.models.entities import SourceSnapshot
 from app.services.snapshot_writer import MAX_DB_SIZE, write_snapshot
@@ -136,10 +137,18 @@ class TestOversizedWithoutEvidenceStore:
 class TestOversizedWithEvidenceStore:
     """Oversized content with evidence store stores in filesystem and hash verifies."""
 
+    @pytest.fixture(autouse=True)
+    def _reset_settings_cache(self):
+        """Clear the lru_cache before and after each test so env patches are visible."""
+        get_settings.cache_clear()
+        yield
+        get_settings.cache_clear()
+
     def test_oversized_with_store_succeeds(self, db):
         with tempfile.TemporaryDirectory() as tmpdir:
             oversized = b"E" * (MAX_DB_SIZE + 1)
             with patch.dict(os.environ, {"JTA_EVIDENCE_STORE_ROOT": tmpdir}):
+                get_settings.cache_clear()
                 snap = write_snapshot(db, "http://example.com/big", _ts(), oversized)
             assert snap.storage_backend == "filesystem"
             assert snap.storage_path is not None
@@ -150,6 +159,7 @@ class TestOversizedWithEvidenceStore:
             oversized = b"F" * (MAX_DB_SIZE + 1)
             expected_hash = hashlib.sha256(oversized).hexdigest()
             with patch.dict(os.environ, {"JTA_EVIDENCE_STORE_ROOT": tmpdir}):
+                get_settings.cache_clear()
                 snap = write_snapshot(db, "http://example.com/big", _ts(), oversized)
             assert snap.content_hash == expected_hash
             assert snap.original_content_hash == expected_hash
@@ -159,6 +169,7 @@ class TestOversizedWithEvidenceStore:
         with tempfile.TemporaryDirectory() as tmpdir:
             oversized = b"G" * (MAX_DB_SIZE + 1)
             with patch.dict(os.environ, {"JTA_EVIDENCE_STORE_ROOT": tmpdir}):
+                get_settings.cache_clear()
                 snap = write_snapshot(db, "http://example.com/big", _ts(), oversized)
             assert snap.is_truncated is False
 
@@ -167,6 +178,7 @@ class TestOversizedWithEvidenceStore:
             size = MAX_DB_SIZE + 500
             oversized = b"H" * size
             with patch.dict(os.environ, {"JTA_EVIDENCE_STORE_ROOT": tmpdir}):
+                get_settings.cache_clear()
                 snap = write_snapshot(db, "http://example.com/big", _ts(), oversized)
             assert snap.content_size_bytes == size
             assert snap.stored_size_bytes == size
@@ -176,6 +188,7 @@ class TestOversizedWithEvidenceStore:
             oversized = b"I" * (MAX_DB_SIZE + 1)
             expected_hash = hashlib.sha256(oversized).hexdigest()
             with patch.dict(os.environ, {"JTA_EVIDENCE_STORE_ROOT": tmpdir}):
+                get_settings.cache_clear()
                 snap = write_snapshot(db, "http://example.com/big", _ts(), oversized)
             # Verify file on disk
             from app.services.evidence_store import EvidenceStore

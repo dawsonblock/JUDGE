@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.memory import entity_summary_checksum
 from app.memory.extract_claims import extract_claims
+from app.memory.invalidation import invalidate_claim
 from app.models.entities import (
     CanonicalEntity,
     EntityEvidenceLink,
@@ -24,6 +25,11 @@ from app.models.entities import (
     MemoryEvidenceLink,
     MemoryRebuildRun,
     SourceSnapshot,
+)
+
+# Claims with these reasons are never overwritten by stale-rebuild invalidation.
+_HARD_REASONS: frozenset[str] = frozenset(
+    {"manual_reject", "source_rejected", "privacy_violation"}
 )
 
 
@@ -71,7 +77,7 @@ def _upsert_claims(
     extracted: list[dict],
     snapshot: SourceSnapshot,
     run_id: int | None = None,
-) -> tuple[int, int]:
+) -> tuple[int, int, set[str]]:
     """Insert new claims, skip existing (by claim_key).
 
     Accepts either fully-formed claim dicts (with claim_key and entity_id) or
@@ -79,10 +85,13 @@ def _upsert_claims(
     auto-generated so that both extract_claims output and bare test fixtures work.
 
     Returns:
-        (created, skipped) counts.
+        (created, skipped, produced_keys) where produced_keys contains every
+        claim_key visited (new and existing), used by run_rebuild() to detect
+        stale claims.
     """
     created = 0
     skipped = 0
+    produced_keys: set[str] = set()
     for c in extracted:
         # Auto-fill entity_id and claim_key when not provided (e.g. bare test fixtures).
         eid = c.get("entity_id") or entity_id
@@ -119,12 +128,12 @@ def _upsert_claims(
                 )
                 db.flush()
             # Refresh last_seen_at and reactivate unless the claim was hard-rejected.
-            _HARD_REASONS = {"manual_reject", "source_rejected", "privacy_violation"}
             if existing.invalidation_reason not in _HARD_REASONS:
                 now = datetime.now(timezone.utc)
                 existing.last_seen_at = now
                 existing.status = "active"
                 existing.is_active = True
+            produced_keys.add(key)
             skipped += 1
             continue
 
@@ -157,8 +166,9 @@ def _upsert_claims(
             )
         )
         db.flush()
+        produced_keys.add(key)
         created += 1
-    return created, skipped
+    return created, skipped, produced_keys
 
 
 def _rebuild_entity_state(
@@ -283,10 +293,29 @@ def run_rebuild(
             if not snapshots:
                 continue
 
+            entity_produced_keys: set[str] = set()
             for snapshot in snapshots:
                 extracted = extract_claims(snapshot, entity, db)
-                created, _ = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
+                created, _, snapshot_keys = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
                 run.claims_created += created
+                entity_produced_keys |= snapshot_keys
+
+            # Invalidate claims whose key is no longer produced by any current snapshot.
+            active_claims = (
+                db.query(MemoryClaim)
+                .filter(
+                    MemoryClaim.entity_id == entity.id,
+                    MemoryClaim.is_active.is_(True),
+                )
+                .all()
+            )
+            for claim in active_claims:
+                if (
+                    claim.claim_key not in entity_produced_keys
+                    and claim.invalidation_reason not in _HARD_REASONS
+                ):
+                    invalidate_claim(claim.id, "stale_rebuild", db, run.id)
+                    run.claims_invalidated += 1
 
             if _rebuild_entity_state(entity, run, db):
                 run.states_updated += 1

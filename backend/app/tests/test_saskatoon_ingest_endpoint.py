@@ -143,4 +143,5 @@ class TestSaskatoonIngestEndpoint:
             )
 
         assert response.status_code == 403
-        assert "disabled" in response.json().get("detail", "").lower()
+        detail = response.json().get("detail", "")
+        assert "circuit breaker" in detail.lower() or "jta_local_feeds_enabled" in detail.lower()

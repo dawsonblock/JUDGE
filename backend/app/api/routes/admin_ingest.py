@@ -48,7 +48,7 @@ def ingest_gdelt(db: Session = Depends(_require_imports)):
     """Fetch and import GDELT news articles."""
     settings = get_settings()
     if not settings.gdelt_enabled:
-        raise HTTPException(status_code=403, detail="GDELT feed disabled")
+        raise HTTPException(status_code=403, detail="GDELT global circuit breaker off (set JTA_GDELT_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("gdelt", "GDELT News Feed", db)
     articles = fetch_gdelt_articles()
     if articles is None:
@@ -65,7 +65,7 @@ async def ingest_chicago(
     """Import Chicago Data Portal crime CSV upload."""
     settings = get_settings()
     if not settings.local_feeds_enabled:
-        raise HTTPException(status_code=403, detail="Local feeds disabled")
+        raise HTTPException(status_code=403, detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("chicago_crime", "Chicago Data Portal", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -81,7 +81,7 @@ async def ingest_toronto(
     """Import Toronto Police CSV upload."""
     settings = get_settings()
     if not settings.local_feeds_enabled:
-        raise HTTPException(status_code=403, detail="Local feeds disabled")
+        raise HTTPException(status_code=403, detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("toronto_crime", "Toronto Police Service", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -97,7 +97,7 @@ async def ingest_saskatoon(
     """Import Saskatoon Police CSV upload."""
     settings = get_settings()
     if not settings.local_feeds_enabled:
-        raise HTTPException(status_code=403, detail="Local feeds disabled")
+        raise HTTPException(status_code=403, detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("saskatoon_crime", "Saskatoon Police Service", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -113,7 +113,7 @@ async def ingest_los_angeles(
     """Import LA Open Data crime CSV upload."""
     settings = get_settings()
     if not settings.local_feeds_enabled:
-        raise HTTPException(status_code=403, detail="Local feeds disabled")
+        raise HTTPException(status_code=403, detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("la_crime", "LA Open Data", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -129,7 +129,7 @@ async def ingest_statscan(
     """Import Statistics Canada CSV upload."""
     settings = get_settings()
     if not settings.statscan_enabled:
-        raise HTTPException(status_code=403, detail="StatsCan feed disabled")
+        raise HTTPException(status_code=403, detail="StatsCan global circuit breaker off (set JTA_STATSCAN_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("statscan", "Statistics Canada", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     csv_text = extract_csv_from_bytes(content)
@@ -148,7 +148,7 @@ def ingest_fbi(
     """Import FBI Crime Data JSON payload."""
     settings = get_settings()
     if not settings.fbi_crime_enabled:
-        raise HTTPException(status_code=403, detail="FBI feed disabled")
+        raise HTTPException(status_code=403, detail="FBI Crime global circuit breaker off (set JTA_FBI_CRIME_ENABLED=true). Ensure source is also active in SourceRegistry.")
     _check_source_active("fbi_crime", "FBI Crime Data", db)
     result = import_fbi_json(db, payload)
     return result.__dict__

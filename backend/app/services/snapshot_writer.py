@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.entities import SourceSnapshot
 from app.services.evidence_store import EvidenceStore
 
@@ -131,7 +132,7 @@ def write_snapshot(
     content_size = len(content_bytes)
 
     # Determine storage backend
-    evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
+    evidence_root = get_settings().evidence_store_root
 
     if content_size <= MAX_DB_SIZE:
         # Content fits in DB. Encode losslessly so read_snapshot_content()
@@ -200,7 +201,7 @@ def read_snapshot_content(db: Session, snapshot: SourceSnapshot) -> bytes | None
         Raw content as bytes, or None if unavailable
     """
     if snapshot.storage_backend == "filesystem" and snapshot.storage_path:
-        evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
+        evidence_root = get_settings().evidence_store_root
         if not evidence_root:
             raise OSError(
                 f"read_snapshot_content: JTA_EVIDENCE_STORE_ROOT not set "

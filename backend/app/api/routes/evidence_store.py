@@ -1,6 +1,7 @@
 """Admin endpoints for evidence store management."""
 
 import hashlib
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -37,6 +38,7 @@ def get_evidence_store_status(_: AdminActor = Depends(require_admin_token)) -> d
             settings.evidence_store_root,
             required=False,
             probe_write=False,  # Do not probe on every status check
+            repo_root=str(Path(__file__).resolve().parents[4]),
         )
         return {
             "enabled": result["enabled"],

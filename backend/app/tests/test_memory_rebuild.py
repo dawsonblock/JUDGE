@@ -90,6 +90,7 @@ class TestRunRebuild:
 
     def test_full_scope_processes_all_snapshots_for_entity(self):
         """run_rebuild accumulates claims across every snapshot for an entity."""
+        from app.models.entities import MemoryClaim
         db = self._make_db()
 
         entity = MagicMock(spec=CanonicalEntity)
@@ -97,9 +98,16 @@ class TestRunRebuild:
         entity.entity_type = "judge"
         entity.canonical_name = "Carol"
 
-        q = MagicMock()
-        q.filter.return_value.all.return_value = [entity]
-        db.query.return_value = q
+        entity_q = MagicMock()
+        entity_q.filter.return_value.all.return_value = [entity]
+
+        claims_q = MagicMock()
+        claims_q.filter.return_value.all.return_value = []
+
+        def _fake_query(model):
+            return claims_q if model is MemoryClaim else entity_q
+
+        db.query.side_effect = _fake_query
 
         snap_a = MagicMock()
         snap_b = MagicMock()
@@ -110,7 +118,7 @@ class TestRunRebuild:
         with (
             patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),
             patch("app.memory.rebuild.extract_claims", side_effect=fake_extract),
-            patch("app.memory.rebuild._upsert_claims", return_value=(1, 0)),
+            patch("app.memory.rebuild._upsert_claims", return_value=(1, 0, set())),
             patch("app.memory.rebuild._rebuild_entity_state", return_value=False),
         ):
             result = run_rebuild("full", db)
@@ -121,6 +129,7 @@ class TestRunRebuild:
 
     def test_multi_snapshot_single_entity_skips_no_duplicate_on_second_pass(self):
         """_upsert_claims returning (0, 1) on the second snapshot doesn't inflate claims_created."""
+        from app.models.entities import MemoryClaim
         db = self._make_db()
 
         entity = MagicMock(spec=CanonicalEntity)
@@ -128,13 +137,20 @@ class TestRunRebuild:
         entity.entity_type = "judge"
         entity.canonical_name = "Eve"
 
-        q = MagicMock()
-        q.filter.return_value.all.return_value = [entity]
-        db.query.return_value = q
+        entity_q = MagicMock()
+        entity_q.filter.return_value.all.return_value = [entity]
+
+        claims_q = MagicMock()
+        claims_q.filter.return_value.all.return_value = []
+
+        def _fake_query(model):
+            return claims_q if model is MemoryClaim else entity_q
+
+        db.query.side_effect = _fake_query
 
         snap_a = MagicMock()
         snap_b = MagicMock()
-        upsert_returns = [(2, 0), (0, 2)]
+        upsert_returns = [(2, 0, set()), (0, 2, set())]
 
         with (
             patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),

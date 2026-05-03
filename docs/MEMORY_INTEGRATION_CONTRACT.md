@@ -2,7 +2,7 @@
 
 **Version**: 1.0  
 **Date**: 2026-05-01  
-**Status**: Contract defined, implementation not yet started
+**Status**: Contract defined; stale-claim invalidation implemented in JUDGE-22 (rebuild.py)
 
 ## Purpose
 
@@ -140,7 +140,7 @@ When implementing memory:
 Before any memory feature ships:
 - [ ] All memory records include `source_snapshot_id` or `source_review_id`
 - [ ] Rebuild process documented and tested
-- [ ] Invalidation triggers connected to source table changes
+- [x] Invalidation triggers connected to source table changes — stale-claim invalidation implemented in JUDGE-22 `rebuild.py` (`run_rebuild()` diff loop)
 - [ ] Public API filters by `review_status='approved'`
 - [ ] Admin can manually invalidate with reason
 - [ ] Memory loss does not lose evidence (sources remain)
