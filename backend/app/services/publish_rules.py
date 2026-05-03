@@ -48,6 +48,20 @@ BLOCKED_PRECISION_LEVELS = {
     "private_residence",
 }
 
+# Unified set of precision levels that must NEVER appear on the public map.
+# Merges BLOCKED_PRECISION_LEVELS with additional geocoding precision labels
+# that resolve to individual rooftops, parcels, or residential addresses.
+UNSAFE_MAP_PRECISIONS: frozenset[str] = frozenset(
+    BLOCKED_PRECISION_LEVELS
+    | {
+        "rooftop",
+        "parcel",
+        "residential",
+        "exact",
+        "address_level",
+    }
+)
+
 # Review statuses that allow public visibility
 PUBLIC_REVIEW_STATUSES = {
     "verified_court_record",

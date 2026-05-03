@@ -14,6 +14,7 @@ from app.serializers.public import (
     is_public_crime_incident_mappable,
 )
 from app.services.constants import PUBLIC_REVIEW_STATUSES
+from app.services.publish_rules import UNSAFE_MAP_PRECISIONS
 
 router = APIRouter()
 
@@ -24,8 +25,21 @@ PLATFORM_DISCLAIMER = (
 )
 
 
-def _parse_bbox(bbox: str | None) -> tuple[float, float, float, float] | None:
-    """Parse 'west,south,east,north' bbox string. Returns None if not provided."""
+# Maximum bbox area (degrees² longitude × latitude) accepted per request.
+# 25° × 25° = 625 sq degrees — covers most single-country views.
+_MAX_BBOX_AREA_SQ_DEG = 625.0
+
+
+def _parse_bbox(
+    bbox: str | None,
+    max_area: float | None = _MAX_BBOX_AREA_SQ_DEG,
+) -> tuple[float, float, float, float] | None:
+    """Parse 'west,south,east,north' bbox string. Returns None if not provided.
+
+    max_area: if set, rejects bboxes larger than this many sq degrees.  Pass
+    ``None`` to disable the area cap (e.g. for public-event queries that are
+    not privacy-sensitive).
+    """
     if not bbox:
         return None
     parts = bbox.split(",")
@@ -44,6 +58,16 @@ def _parse_bbox(bbox: str | None) -> tuple[float, float, float, float] | None:
             status_code=422,
             detail="bbox west must be <= east (antimeridian crossing not supported)",
         )
+    if max_area is not None:
+        area = (east - west) * (north - south)
+        if area > max_area:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"bbox area ({area:.1f} sq degrees) exceeds maximum "
+                    f"{max_area:.0f} sq degrees per request"
+                ),
+            )
     return west, south, east, north
 
 
@@ -90,7 +114,8 @@ def map_events(
     db: Session = Depends(get_db),
 ):
     indicator_filter = repeat_offender_indicator if repeat_offender_indicator is not None else repeat_offender
-    bbox_parsed = _parse_bbox(bbox)
+    # map_events returns public court records — no privacy-based area cap needed.
+    bbox_parsed = _parse_bbox(bbox, max_area=None)
     stmt = filtered_events_query(start, end, court_id, judge_id, event_type, indicator_filter, verified_only, source_type, limit + 1, offset)
     stmt = stmt.where(
         Location.location_type.not_in(["court_placeholder", "unmapped_court"]),
@@ -158,6 +183,7 @@ def map_crime_incidents(
         CrimeIncident.longitude_public.is_not(None),
         CrimeIncident.latitude_public != 0.0,
         CrimeIncident.longitude_public != 0.0,
+        CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
     )
     if start:
         stmt = stmt.where(CrimeIncident.reported_at >= start)
@@ -241,6 +267,7 @@ def map_crime_aggregates(
         CrimeIncident.longitude_public.is_not(None),
         CrimeIncident.latitude_public != 0.0,
         CrimeIncident.longitude_public != 0.0,
+        CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
     )
     if start:
         stmt = stmt.where(CrimeIncident.reported_at >= start)

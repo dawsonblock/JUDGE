@@ -20,6 +20,7 @@ from app.models.entities import (
 )
 from app.schemas.api import EventOut
 from app.services.constants import OUTCOME_UNKNOWN, PUBLIC_REVIEW_STATUSES
+from app.services.publish_rules import UNSAFE_MAP_PRECISIONS
 
 CRIME_INCIDENT_DISCLAIMER = (
     "Reported incident; not proof of guilt or conviction. Locations represent a general public area, not an exact incident point, "
@@ -91,7 +92,16 @@ def is_public_crime_incident_mappable(incident: CrimeIncident) -> bool:
         return False
     if incident.latitude_public is None or incident.longitude_public is None:
         return False
-    return incident.latitude_public != 0.0 and incident.longitude_public != 0.0
+    if incident.latitude_public == 0.0 or incident.longitude_public == 0.0:
+        return False
+    # Block any coordinate precision that could identify a private address.
+    prec = (incident.precision_level or "").lower()
+    if prec in UNSAFE_MAP_PRECISIONS:
+        return False
+    # Secondary substring guard for unlisted labels that contain unsafe words.
+    if "exact" in prec or "address" in prec or "residence" in prec or "rooftop" in prec:
+        return False
+    return True
 
 
 def filtered_events_query(
