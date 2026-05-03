@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     courtlistener_timeout_seconds: int = 60
     app_env: str = "production"
     auto_seed: bool = False
+    # Independent gate for source registry seeding (prod-safe, defaults True)
+    seed_source_registry: bool = True
     cors_origins: str = "https://localhost:3000"
     enable_admin_imports: bool = False
     enable_admin_review: bool = False

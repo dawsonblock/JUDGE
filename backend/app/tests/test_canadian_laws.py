@@ -170,6 +170,7 @@ class TestSaskatchewanLawAdapter:
         sections = adapter.fetch_correctional_services_sections()
 
         assert len(sections) > 0
+        assert all(s.is_stub for s in sections), "All Correctional Services sections must be stubs"
         for section in sections:
             assert section.jurisdiction == "CA-SK"
             assert "Correctional Services" in section.law_title
@@ -181,6 +182,7 @@ class TestSaskatchewanLawAdapter:
         sections = adapter.fetch_victims_of_crime_sections()
 
         assert len(sections) > 0
+        assert all(s.is_stub for s in sections), "All Victims of Crime sections must be stubs"
         for section in sections:
             assert section.jurisdiction == "CA-SK"
             assert "Victims of Crime" in section.law_title

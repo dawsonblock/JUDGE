@@ -140,10 +140,13 @@ def create_app() -> FastAPI:
             sys.exit(1)
         
         initialize_postgis(engine)
+        # Source registry is seeded independently of sample data (prod-safe)
+        if settings.seed_source_registry:
+            with SessionLocal() as db:
+                seed_source_registry(db)
         if settings.auto_seed and settings.app_env == "development":
             with SessionLocal() as db:
                 seed_sample_data(db)
-                seed_source_registry(db)
         yield
 
     app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)

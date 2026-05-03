@@ -278,3 +278,28 @@ class TestEvidenceStore:
             storage_path = store.write_snapshot(content, content_hash)
             assert storage_path is not None
             assert store.read_snapshot(storage_path) == b""
+
+    # ---------------------------------------------------------------------------
+    # Path traversal protection tests
+    # ---------------------------------------------------------------------------
+
+    def test_read_snapshot_parent_traversal_raises(self):
+        """read_snapshot must reject paths that escape the evidence root."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            with pytest.raises(OSError, match="escapes evidence root"):
+                store.read_snapshot("../outside.bin")
+
+    def test_read_snapshot_absolute_path_raises(self):
+        """read_snapshot must reject absolute paths."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            with pytest.raises(OSError, match="escapes evidence root"):
+                store.read_snapshot("/etc/passwd")
+
+    def test_delete_snapshot_parent_traversal_raises(self):
+        """delete_snapshot must reject paths that escape the evidence root."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            with pytest.raises(OSError, match="escapes evidence root"):
+                store.delete_snapshot("../../parent.bin")

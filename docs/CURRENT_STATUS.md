@@ -1,6 +1,6 @@
 # Judge Atlas - Current Status & Limitations
 
-**Date:** 2026-05-03 (updated post-correctness-patches)  
+**Date:** 2026-05-03 (updated post-JUDGE-main-19 correctness patches)  
 **Release Status:** **ALPHA - Not Production Ready**
 
 ## What This Is
@@ -160,6 +160,17 @@ Recent migrations (Phase 4-6 repair):
 - [x] `_replace_known_defendant_names` uses word-boundary case-insensitive regex instead of `str.replace` (prevents partial-name leakage)
 - [x] `memory/rebuild.py` invalidates stale claims before upserting: keys absent from current extracted set are marked inactive
 - [x] `test_evidence_store.py` updated; `test_source_registry_control_plane.py` extended with runner-level block test
+
+### Phase 8 (JUDGE-main 19 — Canada-First Safety Patches)
+- [x] `resolve_publication_policy()` added to `publish_rules.py` — SourceRegistry is now THE authority; fail-closed (TIER_HOLD) if source missing/inactive/review-required
+- [x] `persist_crime_incident` accepts `source_key` and calls registry-aware policy post-block
+- [x] Source registry seed fully normalized: canonical `source_tier` values (`official_police_open_data`, `official_government_statistics`, `court_record`, `news_only_context`)
+- [x] `saskatoon_crime.is_active` tied to dev env var (`JTA_CANADA_FIRST_DEV_ENABLE_SASKATOON`); off by default in production
+- [x] `courtlistener` and `courtlistener_bulk` now have `requires_manual_review=True`
+- [x] `seed_source_registry` decoupled from sample data; runs independently with `seed_source_registry: bool = True` config gate (prod-safe, defaults on)
+- [x] `fetch_statscan_csv` now extracts CSV from ZIP response via `extract_csv_from_response()` — fixes silent garbage-text bug when StatsCan serves a ZIP archive
+- [x] `EvidenceStore.read_snapshot` and `delete_snapshot` now guard against path traversal with `.resolve()` + `.is_relative_to()`
+- [x] Saskatchewan law stub tests extended: `test_fetch_correctional_services` and `test_fetch_victims_of_crime` now assert `all(s.is_stub for s in sections)`
 
 ## Do Not Yet Claim
 

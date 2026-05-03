@@ -16,6 +16,7 @@ import csv
 import hashlib
 import io
 import logging
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -157,12 +158,41 @@ def import_statscan_csv(
     return result
 
 
-def fetch_statscan_csv(client: httpx.Client | None = None) -> str | None:
-    """Fetch the Statistics Canada CSV. Returns raw CSV text or None on error.
+def extract_csv_from_response(resp: "httpx.Response") -> str | None:
+    """Extract CSV text from an httpx response.
 
-    Note: The official download is a ZIP. In production, extract the CSV
-    from the ZIP before passing to import_statscan_csv.
-    This function returns the raw response body for flexibility.
+    Statistics Canada distributes Table 35-10-0177-01 as a ZIP archive.
+    If the response body starts with the ZIP magic bytes (``PK\\x03\\x04``)
+    the first CSV file (alphabetically) is extracted and decoded with
+    ``utf-8-sig`` (strips BOM) falling back to ``latin-1``.
+
+    Plain-text CSV responses are returned as-is.
+    Returns ``None`` if the ZIP contains no CSV files.
+    """
+    content = resp.content
+    if content[:4] == _ZIP_MAGIC:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            csv_names = sorted(
+                name for name in zf.namelist() if name.lower().endswith(".csv")
+            )
+            if not csv_names:
+                log.warning("StatsCan ZIP contained no CSV files")
+                return None
+            raw_bytes = zf.read(csv_names[0])
+            try:
+                return raw_bytes.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                return raw_bytes.decode("latin-1")
+    # Plain text response
+    return resp.text
+
+
+def fetch_statscan_csv(client: httpx.Client | None = None) -> str | None:
+    """Fetch the Statistics Canada CSV. Returns CSV text or None on error.
+
+    The official download endpoint serves a ZIP archive; this function
+    automatically extracts the first CSV from the ZIP via
+    :func:`extract_csv_from_response`.
     """
     owns = client is None
     if owns:
@@ -170,7 +200,7 @@ def fetch_statscan_csv(client: httpx.Client | None = None) -> str | None:
     try:
         resp = client.get(_DEFAULT_URL)
         resp.raise_for_status()
-        return resp.text
+        return extract_csv_from_response(resp)
     except Exception as exc:  # noqa: BLE001
         log.warning("StatsCan fetch error: %s", exc)
         return None

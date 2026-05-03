@@ -185,7 +185,12 @@ class EvidenceStore:
         if not self.root:
             return None
 
-        full_path = self.root / storage_path
+        root = self.root.resolve()
+        full_path = (self.root / storage_path).resolve()
+        if not full_path.is_relative_to(root):
+            raise OSError(
+                f"Snapshot storage path escapes evidence root: {storage_path!r}"
+            )
         if not full_path.exists():
             return None
 
@@ -221,7 +226,12 @@ class EvidenceStore:
         if not self.root:
             return False
 
-        full_path = self.root / storage_path
+        root = self.root.resolve()
+        full_path = (self.root / storage_path).resolve()
+        if not full_path.is_relative_to(root):
+            raise OSError(
+                f"Snapshot storage path escapes evidence root: {storage_path!r}"
+            )
         if not full_path.exists():
             return True
 
@@ -229,7 +239,7 @@ class EvidenceStore:
             full_path.unlink()
             # Clean up empty parent directories
             parent = full_path.parent
-            while parent != self.root:
+            while parent != root:
                 try:
                     parent.rmdir()
                     parent = parent.parent

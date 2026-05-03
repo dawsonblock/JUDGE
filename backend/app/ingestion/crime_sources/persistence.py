@@ -8,8 +8,10 @@ from app.ingestion.crime_sources.base import CrimeIncidentRecord
 from app.models.entities import CrimeIncident
 from app.services.publish_rules import (
     TIER_BLOCK,
+    TIER_HOLD,
     classify_record,
     public_visibility_for_tier,
+    resolve_publication_policy,
     review_status_for_tier,
 )
 
@@ -45,7 +47,11 @@ class CrimeIncidentValidationError(ValueError):
     """Raised when a reported crime incident is unsafe for public map storage."""
 
 
-def persist_crime_incident(db: Session, record: CrimeIncidentRecord) -> CrimeIncident:
+def persist_crime_incident(
+    db: Session,
+    record: CrimeIncidentRecord,
+    source_key: str | None = None,
+) -> CrimeIncident:
     _validate_record(record)
     external_id = record.external_id or derive_external_id(record)
     incident = db.scalar(select(CrimeIncident).where(CrimeIncident.source_name == record.source_name, CrimeIncident.external_id == external_id))
@@ -92,6 +98,15 @@ def persist_crime_incident(db: Session, record: CrimeIncidentRecord) -> CrimeInc
     tier = classify_record(record.source_name, record)
     if tier == TIER_BLOCK:
         raise CrimeIncidentValidationError("blocked_by_publish_rules")
+
+    # SourceRegistry is authoritative: can only restrict, never promote
+    registry_tier = resolve_publication_policy(
+        db,
+        source_key=source_key or record.source_name,
+        source_name=record.source_name,
+    )
+    if registry_tier == TIER_HOLD:
+        tier = TIER_HOLD
 
     # Reset to pending_review if new record, safety fields changed, or was rejected
     if incident.id is None or safety_fields_changed or prev_review_status == "rejected":

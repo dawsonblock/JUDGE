@@ -380,3 +380,59 @@ def test_check_publication_safety_reports_blocking_reasons():
     assert report["checks"]["safe_precision"] is False
     assert report["checks"]["approved_status"] is False
     assert report["checks"]["public_visibility_enabled"] is False
+
+
+# ---------------------------------------------------------------------------
+# resolve_publication_policy — registry-aware publish policy
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock  # noqa: E402 (placed near usage)
+
+from app.services.publish_rules import resolve_publication_policy  # noqa: E402
+
+
+def _make_registry_db(source_row=None):
+    """Mock DB: query().filter_by().first() returns source_row."""
+    db = MagicMock()
+    db.query.return_value.filter_by.return_value.first.return_value = source_row
+    return db
+
+
+def _make_source_row(
+    is_active=True,
+    requires_manual_review=False,
+    auto_publish_enabled=True,
+):
+    row = MagicMock()
+    row.is_active = is_active
+    row.requires_manual_review = requires_manual_review
+    row.auto_publish_enabled = auto_publish_enabled
+    return row
+
+
+def test_resolve_policy_registry_missing_returns_hold():
+    db = _make_registry_db(source_row=None)
+    assert resolve_publication_policy(db, "unknown_key", "Unknown") == TIER_HOLD
+
+
+def test_resolve_policy_inactive_source_returns_hold():
+    db = _make_registry_db(_make_source_row(is_active=False))
+    assert resolve_publication_policy(db, "toronto_police", "toronto_police") == TIER_HOLD
+
+
+def test_resolve_policy_requires_review_returns_hold():
+    db = _make_registry_db(_make_source_row(requires_manual_review=True))
+    assert resolve_publication_policy(db, "courtlistener", "courtlistener") == TIER_HOLD
+
+
+def test_resolve_policy_auto_publish_disabled_returns_hold():
+    db = _make_registry_db(_make_source_row(auto_publish_enabled=False))
+    assert resolve_publication_policy(db, "web_monitor", "web_monitor") == TIER_HOLD
+
+
+def test_resolve_policy_all_clear_delegates_to_source_tier():
+    """When registry fully permits, result should match source_tier() lookup."""
+    db = _make_registry_db(_make_source_row())
+    result = resolve_publication_policy(db, "toronto_police", "toronto_police")
+    # toronto_police is not in the static hold/block list → TIER_AUTO
+    assert result == TIER_AUTO

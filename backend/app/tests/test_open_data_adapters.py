@@ -161,7 +161,7 @@ def test_statscan_import_known_provinces():
 
 
 def test_statscan_import_auto_publish_tier():
-    """StatsCan records should be classified TIER_AUTO on new insert."""
+    """Without a seeded SourceRegistry row the fail-closed policy holds StatsCan records."""
     from app.models.entities import CrimeIncident
     with SessionLocal() as db:
         stream = io.StringIO("GEO,Violations,VALUE\nOntario,Assault - STATSCAN-TEST-TIER,1\n")
@@ -171,8 +171,8 @@ def test_statscan_import_auto_publish_tier():
             CrimeIncident.incident_type == "Assault - STATSCAN-TEST-TIER",
         ).first()
     assert inc is not None
-    assert inc.review_status == "official_police_open_data_report"
-    assert inc.is_public is True
+    assert inc.review_status == "pending_review"
+    assert inc.is_public is False
 
 
 def test_statscan_import_missing_columns_skips():
@@ -202,6 +202,7 @@ def test_fbi_import_known_states():
 
 
 def test_fbi_import_auto_publish_tier():
+    """Without a seeded SourceRegistry row the fail-closed policy holds FBI records."""
     from app.models.entities import CrimeIncident
     with SessionLocal() as db:
         import_fbi_json(db, [{"state_abbr": "NY", "offense": "fbi-test-offense-tier", "count": 1}])
@@ -210,7 +211,7 @@ def test_fbi_import_auto_publish_tier():
             CrimeIncident.incident_type == "fbi-test-offense-tier",
         ).first()
     assert inc is not None
-    assert inc.review_status == "official_police_open_data_report"
+    assert inc.review_status == "pending_review"
 
 
 def test_fbi_import_empty_payload():

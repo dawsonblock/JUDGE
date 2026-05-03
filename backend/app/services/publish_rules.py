@@ -13,7 +13,10 @@ and optional heuristic checks on the record fields.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 # ---------------------------------------------------------------------------
 # Source tier constants
@@ -314,3 +317,50 @@ def _has_exact_precision(record: Any) -> bool:
     if precision and isinstance(precision, str):
         return "exact" in precision.lower() or "address" in precision.lower()
     return False
+
+
+# ---------------------------------------------------------------------------
+# Registry-aware publish policy
+# ---------------------------------------------------------------------------
+
+
+def resolve_publication_policy(
+    db: "Session",
+    source_key: str,
+    source_name: str,
+) -> str:
+    """Return the effective publish tier for a source.
+
+    SourceRegistry is the authoritative gate.  The static ``_SOURCE_TIER_MAP``
+    acts as a fallback *only* when the registry explicitly allows it.
+
+    Rules (in order):
+    1. Registry row not found  → TIER_HOLD  (fail closed)
+    2. Registry ``is_active`` is False → TIER_HOLD
+    3. Registry ``requires_manual_review`` is True → TIER_HOLD
+    4. Registry ``auto_publish_enabled`` is False → TIER_HOLD
+    5. Registry permits → delegate to static ``source_tier()`` for final tier
+
+    The registry can only *restrict* (hold), never *promote* a TIER_HOLD/TIER_BLOCK
+    source to TIER_AUTO.
+    """
+    from app.models.entities import SourceRegistry  # local import to avoid circular
+
+    registry: SourceRegistry | None = (
+        db.query(SourceRegistry).filter_by(source_key=source_key).first()
+    )
+    if registry is None and source_key != source_name:
+        # Fallback: try matching by source_name used as key
+        registry = db.query(SourceRegistry).filter_by(source_key=source_name).first()
+
+    if registry is None:
+        return TIER_HOLD  # Fail closed – unknown source
+
+    if not registry.is_active:
+        return TIER_HOLD
+
+    if registry.requires_manual_review or not registry.auto_publish_enabled:
+        return TIER_HOLD
+
+    # Registry permits auto-publish; use static tier as final determinant.
+    return source_tier(source_name)
