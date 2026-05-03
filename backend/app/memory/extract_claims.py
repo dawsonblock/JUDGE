@@ -106,12 +106,21 @@ def extract_claims(
             )
         )
 
-    # Role keyword extraction.
+    # Role keyword extraction — scoped to ±300-char window around entity mention.
     text_lower = text.lower()
+    if first_match:
+        WINDOW = 300
+        w_start = max(0, first_match.start() - WINDOW)
+        w_end = min(len(text), first_match.end() + WINDOW)
+        window_lower = text_lower[w_start:w_end]
+    else:
+        w_start = 0
+        window_lower = text_lower
     for role, patterns in _ROLE_PATTERNS.items():
         for pat in patterns:
-            idx = text_lower.find(pat)
+            idx = window_lower.find(pat)
             if idx != -1:
+                abs_start = w_start + idx
                 claims.append(
                     _build_claim(
                         entity=entity,
@@ -119,8 +128,8 @@ def extract_claims(
                         predicate="has_role",
                         normalized_text=role,
                         confidence=0.8,
-                        span_start=idx,
-                        span_end=idx + len(pat),
+                        span_start=abs_start,
+                        span_end=abs_start + len(pat),
                         extra={"role": role, "matched_pattern": pat},
                     )
                 )

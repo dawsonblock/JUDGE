@@ -234,3 +234,39 @@ Supported review statuses:
 `POST /api/admin/ai/process-source/{source_id}`
 
 These endpoints are disabled by default through `JTA_ENABLE_ADMIN_IMPORTS=false`. AI review items are draft evidence-clerk outputs only. Publishing a safe approved legal-event draft creates a hidden `pending_review` event; it does not automatically publish high-risk legal claims.
+
+## Admin Memory
+
+All endpoints require `X-JTA-Admin-Token` header.
+
+`GET /api/admin/memory/status`
+
+Returns stats on the most recent memory rebuild run (run ID, entity count, claim count, start/end times, error count).
+
+`POST /api/admin/memory/rebuild`
+
+Triggers a synchronous memory rebuild. Body:
+
+```json
+{ "scope": "full" | "entity", "entity_id": null | <int> }
+```
+
+`entity_id` is required when `scope` is `"entity"`.
+
+`GET /api/admin/memory/claims`
+
+Returns memory claims. Query filters: `entity_id` (int), `claim_type` (str).
+
+`GET /api/admin/memory/entity/{entity_id}/state`
+
+Returns the current `MemoryEntityState` for a canonical entity. Returns `404` if no state exists.
+
+`POST /api/admin/memory/claims/{claim_id}/invalidate`
+
+Manually invalidates a specific `MemoryClaim`. Body:
+
+```json
+{ "reason": "manual_reject" }
+```
+
+Returns `{"invalidated": true, "claim_id": <int>, "reason": <str>, "audit_id": <int>}`. Returns `404` if the claim is not found.

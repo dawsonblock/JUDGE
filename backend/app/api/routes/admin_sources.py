@@ -155,6 +155,13 @@ def update_source(
     if update.admin_notes is not None:
         source.admin_notes = update.admin_notes
     if update.config_json is not None:
+        import json
+        try:
+            json.loads(update.config_json)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise HTTPException(
+                status_code=422, detail=f"config_json is not valid JSON: {exc}"
+            )
         source.config_json = update.config_json
 
     source.updated_at = datetime.now(timezone.utc)

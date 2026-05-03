@@ -91,10 +91,6 @@ class WebMonitorTarget(BaseModel):
         ...,
         description="Extractor to use: police_release_index, court_news_index, etc.",
     )
-    robots_txt_obey: bool = Field(
-        default=True,
-        description="Template metadata: intent to respect robots.txt. Not directly configurable in Crawlee.",
-    )
     source_key: str = Field(
         ...,
         description="SourceRegistry key (lowercase letters, numbers, underscores, hyphens only)",
@@ -171,7 +167,6 @@ class WebMonitorTarget(BaseModel):
             "max_requests_per_crawl": self.max_requests,
             "max_crawl_depth": self.max_depth,
             "max_concurrency": self.concurrency,
-            "respect_robots_txt": self.robots_txt_obey,  # Template metadata only
         }
 
 
@@ -190,7 +185,6 @@ SASKATOON_POLICE_NEWS_TARGET = WebMonitorTarget(
     source_tier="official_police_open_data",
     enabled=False,  # Disabled by default - must be enabled by admin
     extractor_type="police_release_index",
-    robots_txt_obey=True,
     source_key="web_monitor_saskatoon_police_news",
 )
 
@@ -207,7 +201,6 @@ COURT_NEWS_EXAMPLE_TARGET = WebMonitorTarget(
     source_tier="news_only_context",
     enabled=False,
     extractor_type="court_news_index",
-    robots_txt_obey=True,
     source_key="web_monitor_court_news_example",
 )
 
@@ -223,7 +216,6 @@ CITY_OPEN_DATA_EXAMPLE_TARGET = WebMonitorTarget(
     source_tier="official_government_statistics",
     enabled=False,
     extractor_type="city_open_data_landing_page",
-    robots_txt_obey=True,
     source_key="web_monitor_city_open_data_example",
 )
 

@@ -23,11 +23,16 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+# Strict SHA-256 format: exactly 64 lowercase hex characters.
+_SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
 
 
 class EvidenceStore:
@@ -91,8 +96,10 @@ class EvidenceStore:
         if not self.root:
             return None
 
-        if len(content_hash) != 64:
-            raise ValueError(f"Invalid hash length: {len(content_hash)}, expected 64")
+        if not _SHA256_RE.match(content_hash):
+            raise ValueError(
+                f"Invalid SHA-256 hash (must be 64 lowercase hex chars): {content_hash!r}"
+            )
 
         aa = content_hash[:2]
         bb = content_hash[2:4]
@@ -109,8 +116,10 @@ class EvidenceStore:
         Returns:
             Relative path string like "snapshots/sha256/aa/bb/hash.bin"
         """
-        if len(content_hash) < 4:
-            raise ValueError(f"Invalid hash length: {len(content_hash)}")
+        if not _SHA256_RE.match(content_hash):
+            raise ValueError(
+                f"Invalid SHA-256 hash (must be 64 lowercase hex chars): {content_hash!r}"
+            )
 
         aa = content_hash[:2]
         bb = content_hash[2:4]
@@ -136,9 +145,11 @@ class EvidenceStore:
         if not self.root:
             return None
 
-        # Validate hash length (must be 64 hex chars for SHA256)
-        if len(content_hash) != 64:
-            raise ValueError(f"Invalid hash length: {len(content_hash)}, expected 64")
+        # Validate SHA-256 format (64 lowercase hex chars)
+        if not _SHA256_RE.match(content_hash):
+            raise ValueError(
+                f"Invalid SHA-256 hash (must be 64 lowercase hex chars): {content_hash!r}"
+            )
 
         # Verify hash matches content
         computed_hash = hashlib.sha256(content).hexdigest()
@@ -153,22 +164,24 @@ class EvidenceStore:
             # Content already stored, return existing path
             return self._get_relative_path(content_hash)
 
-        # Create directory structure and write
+        # Create directory structure and write atomically via temp file + rename
         if storage_path:
             storage_path.parent.mkdir(parents=True, exist_ok=True)
-            storage_path.write_bytes(content)
-            # Post-write integrity check
-            if not storage_path.exists():
-                raise OSError(
-                    f"write_snapshot: file not found after write: {storage_path}"
-                )
-            stored = storage_path.read_bytes()
-            verify_hash = hashlib.sha256(stored).hexdigest()
-            if verify_hash != content_hash:
-                raise OSError(
-                    f"write_snapshot: post-write hash mismatch for {storage_path}: "
-                    f"expected {content_hash}, got {verify_hash}"
-                )
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(storage_path.parent), prefix='.tmp_', suffix='.bin'
+            )
+            try:
+                os.write(fd, content)
+                os.fsync(fd)
+                os.close(fd)
+                os.replace(tmp_path, storage_path)
+            except BaseException:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                Path(tmp_path).unlink(missing_ok=True)
+                raise
 
         return self._get_relative_path(content_hash)
 

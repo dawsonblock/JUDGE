@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 
+from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from app.memory import entity_summary_checksum
@@ -67,6 +68,39 @@ def _get_all_snapshots_for_entity(
         .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
         .filter(EntityEvidenceLink.entity_id == entity_id)
         .order_by(SourceSnapshot.fetched_at.asc())
+        .all()
+    )
+
+
+def _get_current_snapshots_for_entity(
+    db: Session,
+    entity_id: int,
+) -> list[SourceSnapshot]:
+    """Return the latest SourceSnapshot per source_key for this entity.
+
+    Prevents stale claims from old fetches from persisting across rebuild runs
+    by selecting only the most-recently-fetched snapshot for each distinct
+    source_key rather than accumulating all historical snapshots.
+    """
+    subq = (
+        db.query(
+            SourceSnapshot.source_key,
+            sqlfunc.max(SourceSnapshot.fetched_at).label("max_fetched_at"),
+        )
+        .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
+        .filter(EntityEvidenceLink.entity_id == entity_id)
+        .group_by(SourceSnapshot.source_key)
+        .subquery()
+    )
+    return (
+        db.query(SourceSnapshot)
+        .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
+        .filter(EntityEvidenceLink.entity_id == entity_id)
+        .join(
+            subq,
+            (SourceSnapshot.source_key == subq.c.source_key)
+            & (SourceSnapshot.fetched_at == subq.c.max_fetched_at),
+        )
         .all()
     )
 
@@ -289,7 +323,7 @@ def run_rebuild(
         )
         for entity in entities:
             run.entities_processed += 1
-            snapshots = _get_all_snapshots_for_entity(db, entity.id)
+            snapshots = _get_current_snapshots_for_entity(db, entity.id)
             if not snapshots:
                 continue
 

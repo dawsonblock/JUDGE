@@ -99,6 +99,14 @@ def _validate_production_safety(settings) -> None:
             )
             sys.exit(1)
 
+    # Require evidence vault in production
+    if not settings.evidence_store_required:
+        print(
+            "ERROR: JTA_EVIDENCE_STORE_REQUIRED must be true in production. "
+            "Set JTA_EVIDENCE_STORE_REQUIRED=true and configure JTA_EVIDENCE_STORE_ROOT."
+        )
+        sys.exit(1)
+
     print("[STARTUP] Production safety checks passed")
 
 
@@ -110,6 +118,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         self.max_size = max_size
 
     async def dispatch(self, request: Request, call_next):
+        limit_exceeded = False
         if request.method in ("POST", "PUT", "PATCH"):
             # Check Content-Length header first (cheaper path)
             content_length = request.headers.get("content-length")
@@ -135,23 +144,27 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                 bytes_seen = 0
 
                 async def capped_receive():
-                    nonlocal bytes_seen
+                    nonlocal bytes_seen, limit_exceeded
                     message = await original_receive()
                     if message.get("type") == "http.request":
                         chunk = message.get("body", b"")
                         bytes_seen += len(chunk)
                         if bytes_seen > self.max_size:
-                            return JSONResponse(
-                                status_code=413,
-                                content={
-                                    "error": "Request too large",
-                                    "max_size_bytes": self.max_size,
-                                },
-                            )
+                            limit_exceeded = True
+                            return {"type": "http.request", "body": b"", "more_body": False}
                     return message
 
                 request._receive = capped_receive
-        return await call_next(request)
+        response = await call_next(request)
+        if limit_exceeded:
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "error": "Request too large",
+                    "max_size_bytes": self.max_size,
+                },
+            )
+        return response
 
 
 def create_app() -> FastAPI:

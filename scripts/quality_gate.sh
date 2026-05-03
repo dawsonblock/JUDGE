@@ -108,11 +108,11 @@ fi
 
 # Lint
 echo "Running lint..."
-if npm run lint --silent 2>/dev/null || npx next lint --quiet 2>/dev/null; then
+if npm run lint --silent 2>/dev/null; then
     echo -e "${GREEN}✓ Frontend lint passed${NC}"
 else
-    echo -e "${YELLOW}⚠ Frontend lint had warnings${NC}"
-    # Don't fail on lint warnings for now
+    echo -e "${RED}✗ Frontend lint failed${NC}"
+    FAILURES=$((FAILURES + 1))
 fi
 
 # Type check

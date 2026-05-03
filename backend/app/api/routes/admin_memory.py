@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.auth.admin import require_admin_token
 from app.auth.actor import AdminActor
 from app.db.session import get_db
+from app.memory.invalidation import invalidate_claim
 from app.memory.rebuild import run_rebuild
 from app.memory.retrieval import get_active_claims, get_entity_state, list_claims
 from app.models.entities import MemoryRebuildRun
@@ -129,4 +130,29 @@ def get_entity_memory_state(
         "active_claim_count": state.active_claim_count,
         "rebuilt_at": state.rebuilt_at,
         "last_rebuild_run_id": state.last_rebuild_run_id,
+    }
+
+
+class InvalidateClaimRequest(BaseModel):
+    reason: str = "manual_reject"
+
+
+@router.post("/claims/{claim_id}/invalidate")
+def invalidate_claim_endpoint(
+    claim_id: int,
+    body: InvalidateClaimRequest,
+    _: AdminActor = Depends(require_admin_token),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Manually invalidate a specific MemoryClaim."""
+    try:
+        audit = invalidate_claim(claim_id, body.reason, db)
+        db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {
+        "invalidated": True,
+        "claim_id": claim_id,
+        "reason": body.reason,
+        "audit_id": audit.id,
     }

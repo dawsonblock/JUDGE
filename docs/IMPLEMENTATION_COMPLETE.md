@@ -162,11 +162,10 @@ state_checksum(state)               # Any state object checksum
 **6.6: Admin API (Designed)**
 ```
 GET  /api/admin/memory/status
-POST /api/admin/memory/rebuild/stale
-POST /api/admin/memory/rebuild/snapshot/{snapshot_id}
-POST /api/admin/memory/invalidate/snapshot/{snapshot_id}
-GET  /api/admin/memory/entities/{entity_type}/{entity_id}
-GET  /api/admin/memory/claims?status=active
+POST /api/admin/memory/rebuild
+GET  /api/admin/memory/claims
+GET  /api/admin/memory/entity/{entity_id}/state
+POST /api/admin/memory/claims/{claim_id}/invalidate
 ```
 
 **6.7: Tests (Designed)**

@@ -77,31 +77,25 @@ def validate_evidence_store_root(
     except OSError as e:
         raise RuntimeError(f"Failed to create snapshots directory: {snapshots_dir}, {e}")
 
-    # Probe write if requested
+    # Probe write if requested — use a unique temp file to avoid concurrent-startup collisions
     if probe_write:
-        probe_file = path / ".jta_evidence_store_probe"
-        probe_payload = b"judge-atlas-evidence-store-probe"
-        probe_hash = hashlib.sha256(probe_payload).hexdigest()
-
+        probe_path = None
         try:
-            # Write
-            probe_file.write_bytes(probe_payload)
-
-            # Verify
-            read_data = probe_file.read_bytes()
-            read_hash = hashlib.sha256(read_data).hexdigest()
-
-            if read_hash != probe_hash:
-                raise RuntimeError(
-                    f"Evidence store probe hash mismatch. "
-                    f"Expected {probe_hash}, got {read_hash}"
-                )
-
-            # Clean up
-            probe_file.unlink(missing_ok=True)
-
+            fd, tmp = tempfile.mkstemp(dir=str(path), prefix='.jta_probe_', suffix='.tmp')
+            probe_path = Path(tmp)
+            probe_payload = b"judge-atlas-evidence-store-probe"
+            probe_hash = hashlib.sha256(probe_payload).hexdigest()
+            os.write(fd, probe_payload)
+            os.fsync(fd)
+            os.close(fd)
+            read_data = probe_path.read_bytes()
+            if hashlib.sha256(read_data).hexdigest() != probe_hash:
+                raise RuntimeError("Evidence store probe hash mismatch")
         except OSError as e:
             raise RuntimeError(f"Evidence store probe write failed: {e}")
+        finally:
+            if probe_path is not None:
+                probe_path.unlink(missing_ok=True)
 
     return {
         "enabled": True,
