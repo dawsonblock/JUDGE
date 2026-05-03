@@ -30,3 +30,10 @@ with SessionLocal() as db:
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture
+def db_session():
+    with SessionLocal() as session:
+        yield session
+        session.rollback()

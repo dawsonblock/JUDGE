@@ -60,8 +60,9 @@ def _make_entity(db: Session, label: str) -> CanonicalEntity:
 def _make_snapshot(db: Session, source_key: str, offset: int = 0) -> SourceSnapshot:
     snap = SourceSnapshot(
         source_key=source_key,
-        url=f"https://example.com/{source_key}/{offset}",
+        source_url=f"https://example.com/{source_key}/{offset}",
         fetched_at=datetime.datetime.utcnow() + datetime.timedelta(seconds=offset),
+        content_hash="deadbeef",
         http_status=200,
         is_truncated=False,
         storage_backend="memory",

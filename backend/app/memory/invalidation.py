@@ -73,7 +73,8 @@ def invalidate_entity_state(
 
     active_claims = (
         db.query(MemoryClaim)
-        .filter(MemoryClaim.entity_id == entity_id, MemoryClaim.is_active.is_(True))
+        .filter(MemoryClaim.entity_id == entity_id)
+        .filter(MemoryClaim.is_active.is_(True))
         .all()
     )
 

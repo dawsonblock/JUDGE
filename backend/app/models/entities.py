@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
@@ -305,6 +306,7 @@ class ReviewItem(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     privacy_status: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     publish_recommendation: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    public_visibility: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     status: Mapped[str] = mapped_column(String(80), default="pending", nullable=False, index=True)
     reviewer_id: Mapped[str | None] = mapped_column(String(120))
     reviewer_notes: Mapped[str | None] = mapped_column(Text)
@@ -596,6 +598,9 @@ class SourceSnapshot(Base):
     __tablename__ = "source_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_key: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, index=True
+    )  # FK-like reference to SourceRegistry.source_key
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -810,6 +815,10 @@ class CanonicalEntity(Base):
         Float, default=1.0, nullable=False
     )  # 0.0-1.0, confidence in this canonical identity
 
+    confidence_score: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )  # 0.0-1.0, per-entity confidence score used by memory pipeline
+
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active", index=True
     )  # "active", "merged_into", "deprecated"
@@ -988,6 +997,7 @@ class MemoryRebuildRun(Base, TimestampMixin):
     claims_invalidated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
     states_updated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rebuild_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class MemoryClaim(Base, TimestampMixin):
@@ -996,7 +1006,7 @@ class MemoryClaim(Base, TimestampMixin):
     __tablename__ = "memory_claims"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    claim_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    claim_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True, default=lambda: uuid4().hex)
     claim_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     entity_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True

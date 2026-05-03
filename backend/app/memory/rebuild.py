@@ -9,6 +9,7 @@ Does NOT import from map_record, graph edge, or public event tables.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -27,8 +28,8 @@ from app.models.entities import (
 
 
 def _get_latest_snapshot_for_entity(
-    entity: CanonicalEntity,
     db: Session,
+    entity_id: int,
 ) -> SourceSnapshot | None:
     """Return the most recent SourceSnapshot linked to this entity.
 
@@ -40,19 +41,24 @@ def _get_latest_snapshot_for_entity(
     return (
         db.query(SourceSnapshot)
         .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
-        .filter(EntityEvidenceLink.entity_id == entity.id)
+        .filter(EntityEvidenceLink.entity_id == entity_id)
         .order_by(SourceSnapshot.fetched_at.desc())
         .first()
     )
 
 
 def _upsert_claims(
-    entity: CanonicalEntity,
-    snapshot: SourceSnapshot,
-    extracted: list[dict],
     db: Session,
+    entity_id: int,
+    extracted: list[dict],
+    snapshot: SourceSnapshot,
+    run_id: int | None = None,
 ) -> tuple[int, int]:
     """Insert new claims, skip existing (by claim_key).
+
+    Accepts either fully-formed claim dicts (with claim_key and entity_id) or
+    minimal dicts (claim_type + claim_value + confidence); missing fields are
+    auto-generated so that both extract_claims output and bare test fixtures work.
 
     Returns:
         (created, skipped) counts.
@@ -60,7 +66,13 @@ def _upsert_claims(
     created = 0
     skipped = 0
     for c in extracted:
-        key = c["claim_key"]
+        # Auto-fill entity_id and claim_key when not provided (e.g. bare test fixtures).
+        eid = c.get("entity_id") or entity_id
+        if "claim_key" in c:
+            key = c["claim_key"]
+        else:
+            raw = f"{eid}:{c['claim_type']}:{c['claim_value']}"
+            key = hashlib.sha256(raw.encode()).hexdigest()
         existing = db.query(MemoryClaim).filter(MemoryClaim.claim_key == key).first()
         if existing is not None:
             # Accumulate new evidence for the existing claim instead of silently skipping.
@@ -87,13 +99,14 @@ def _upsert_claims(
                         span_text=ev_span,
                     )
                 )
+                db.flush()
             skipped += 1
             continue
 
         claim = MemoryClaim(
             claim_key=key,
             claim_type=c["claim_type"],
-            entity_id=c["entity_id"],
+            entity_id=eid,
             claim_value=c["claim_value"],
             claim_value_json=c.get("claim_value_json"),
             confidence=c.get("confidence", 0.0),
@@ -118,6 +131,7 @@ def _upsert_claims(
                 span_text=span_text,
             )
         )
+        db.flush()
         created += 1
     return created, skipped
 
@@ -210,36 +224,42 @@ def run_rebuild(
     if scope == "entity" and entity_id is None:
         raise ValueError("entity_id is required for scope='entity'")
 
+    # Resolve entities before creating the run record — ValueError from here propagates to caller
+    if scope == "entity":
+        entity = db.get(CanonicalEntity, entity_id)
+        if entity is None:
+            raise ValueError(f"CanonicalEntity {entity_id} does not exist")
+        pre_entities: list[CanonicalEntity] | None = [entity]
+    else:
+        pre_entities = None  # fetched inside try so errors are captured on the run
+
     run = MemoryRebuildRun(
         rebuild_scope=scope,
         scope_entity_id=entity_id,
         status="running",
         started_at=datetime.now(timezone.utc),
+        entities_processed=0,
+        claims_created=0,
+        claims_invalidated=0,
+        states_updated=0,
     )
     db.add(run)
     db.flush()
 
     try:
-        if scope == "entity":
-            entity = db.get(CanonicalEntity, entity_id)
-            if entity is None:
-                raise ValueError(f"CanonicalEntity {entity_id} does not exist")
-            entities: list[CanonicalEntity] = [entity]
-        else:
-            entities = (
-                db.query(CanonicalEntity)
-                .filter(CanonicalEntity.status == "active")
-                .all()
-            )
-
+        entities: list[CanonicalEntity] = pre_entities if pre_entities is not None else (
+            db.query(CanonicalEntity)
+            .filter(CanonicalEntity.status == "active")
+            .all()
+        )
         for entity in entities:
             run.entities_processed += 1
-            snapshot = _get_latest_snapshot_for_entity(entity, db)
+            snapshot = _get_latest_snapshot_for_entity(db, entity.id)
             if snapshot is None:
                 continue
 
             extracted = extract_claims(snapshot, entity, db)
-            created, _ = _upsert_claims(entity, snapshot, extracted, db)
+            created, _ = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
             run.claims_created += created
 
             if _rebuild_entity_state(entity, run, db):

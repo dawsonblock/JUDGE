@@ -44,8 +44,9 @@ def _make_snapshot(db, source_key: str, content: bytes) -> SourceSnapshot:
     digest = hashlib.sha256(content).hexdigest()
     snap = SourceSnapshot(
         source_key=source_key,
-        url=f"https://example.com/verify/{source_key}",
+        source_url=f"https://example.com/verify/{source_key}",
         fetched_at=datetime.datetime.utcnow(),
+        content_hash=digest,
         http_status=200,
         is_truncated=False,
         storage_backend="memory",

@@ -187,7 +187,7 @@ class CrawleeRunner:
             source_quality=self.target.source_tier,
             confidence=min(candidate.confidence, 0.5),  # Hard cap at 0.5
             privacy_status=privacy_status,
-            publish_recommendation="review_required",  # Never auto-publish crawled content
+            publish_recommendation="hold",  # Never auto-publish crawled content
             status="pending",  # Always requires admin review
             ingestion_run_id=ingestion_run_id,
         )

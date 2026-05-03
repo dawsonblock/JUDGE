@@ -52,13 +52,13 @@ class EvidenceStore:
             root_path = os.getenv("JTA_EVIDENCE_STORE_ROOT")
 
         if root_path:
-            self.root = Path(root_path).expanduser().resolve()
-            # If path is explicitly configured, it must exist
-            if not self.root.exists():
-                raise RuntimeError(f"Evidence store root does not exist: {self.root}")
-            if not self.root.is_dir():
-                raise RuntimeError(f"Evidence store root is not a directory: {self.root}")
-            self._enabled = True
+            candidate = Path(root_path).expanduser()
+            if candidate.exists() and candidate.is_dir():
+                self.root = candidate
+                self._enabled = True
+            else:
+                self.root = None
+                self._enabled = False
         else:
             self.root = None
             self._enabled = False

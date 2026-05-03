@@ -35,14 +35,14 @@ def test_single_alembic_head() -> None:
     )
 
 
-def test_latest_migration_is_0007() -> None:
-    """The single head revision must be 20260502_0007 (latest migration)."""
+def test_latest_migration_is_0009() -> None:
+    """The single head revision must be 20260502_0009 (latest migration)."""
     result = _run_alembic(["heads"])
     assert result.returncode == 0
     head_lines = [line for line in result.stdout.splitlines() if "(head)" in line]
     assert len(head_lines) == 1
-    assert "20260502_0007" in head_lines[0], (
-        f"Expected head to be 20260502_0007, got:\n{head_lines[0]}"
+    assert "20260502_0009" in head_lines[0], (
+        f"Expected head to be 20260502_0009, got:\n{head_lines[0]}"
     )
 
 
@@ -53,5 +53,5 @@ def test_alembic_history_parses() -> None:
         f"alembic history failed:\nstdout={result.stdout}\nstderr={result.stderr}"
     )
     # Spot check a few revision ids
-    for rev in ("20260502_0007", "20260502_0006", "20260502_0005"):
+    for rev in ("20260502_0009", "20260502_0006", "20260502_0005"):
         assert rev in result.stdout, f"Missing revision {rev} in alembic history"

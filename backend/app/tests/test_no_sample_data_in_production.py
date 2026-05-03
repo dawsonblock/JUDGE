@@ -3,8 +3,9 @@ import pytest
 from app.core.config import Settings
 
 
-def test_auto_seed_defaults_false():
+def test_auto_seed_defaults_false(monkeypatch):
     """Verify that auto_seed defaults to False (not auto-enabled)."""
+    monkeypatch.delenv("JTA_AUTO_SEED", raising=False)
     settings = Settings()
     assert settings.auto_seed is False
 

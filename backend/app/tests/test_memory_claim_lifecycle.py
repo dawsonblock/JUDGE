@@ -60,8 +60,9 @@ def _make_entity(db, label: str) -> CanonicalEntity:
 def _make_snapshot(db, source_key: str) -> SourceSnapshot:
     snap = SourceSnapshot(
         source_key=source_key,
-        url=f"https://example.com/{source_key}",
+        source_url=f"https://example.com/{source_key}",
         fetched_at=datetime.datetime.utcnow(),
+        content_hash="abcdef01",
         http_status=200,
         is_truncated=False,
         storage_backend="memory",
@@ -89,7 +90,7 @@ def _make_claim(db, entity_id: int, *, status: str = "active") -> MemoryClaim:
 def _make_entity_state(db, entity_id: int, run_id: int) -> MemoryEntityState:
     state = MemoryEntityState(
         entity_id=entity_id,
-        full_name="Test Entity",
+        display_name="Test Entity",
         state_checksum="abc123",
         last_rebuild_run_id=run_id,
         rebuilt_at=datetime.datetime.utcnow(),
@@ -158,7 +159,7 @@ class TestInvalidateClaim:
             db.commit()
             claim_id = claim.id
 
-            invalidate_claim(db, claim_id, "unit test invalidation")
+            invalidate_claim(claim_id, "unit test invalidation", db)
             db.commit()
 
             refreshed = db.get(MemoryClaim, claim_id)
@@ -171,7 +172,7 @@ class TestInvalidateClaim:
             db.commit()
             claim_id = claim.id
 
-            invalidate_claim(db, claim_id, "status field test")
+            invalidate_claim(claim_id, "status field test", db)
             db.commit()
 
             refreshed = db.get(MemoryClaim, claim_id)
@@ -184,7 +185,7 @@ class TestInvalidateClaim:
             db.commit()
             claim_id = claim.id
 
-            invalidate_claim(db, claim_id, "reason_probe_xyz")
+            invalidate_claim(claim_id, "reason_probe_xyz", db)
             db.commit()
 
             refreshed = db.get(MemoryClaim, claim_id)
@@ -206,7 +207,7 @@ class TestInvalidateEntityState:
             db.commit()
             e_id = entity.id
 
-            invalidate_entity_state(db, e_id, "bulk invalidation test")
+            invalidate_entity_state(e_id, "bulk invalidation test", db)
             db.commit()
 
             claims = db.query(MemoryClaim).filter_by(entity_id=e_id).all()
@@ -229,12 +230,14 @@ class TestGetActiveClaims:
             inactive_claim.is_active = False
             db.commit()
             e_id = entity.id
+            active_id = active_claim.id
+            inactive_id = inactive_claim.id
 
-            results = get_active_claims(db, e_id)
+            results = get_active_claims(e_id, db)
             result_ids = [r.id for r in results]
 
-        assert active_claim.id in result_ids
-        assert inactive_claim.id not in result_ids
+        assert active_id in result_ids
+        assert inactive_id not in result_ids
 
     def test_excludes_is_active_false(self) -> None:
         """Claim with is_active=False but status='active' should still be excluded."""
@@ -251,8 +254,9 @@ class TestGetActiveClaims:
             db.add(inconsistent)
             db.commit()
             e_id = entity.id
+            inconsistent_id = inconsistent.id
 
-            results = get_active_claims(db, e_id)
+            results = get_active_claims(e_id, db)
             result_ids = [r.id for r in results]
 
-        assert inconsistent.id not in result_ids
+        assert inconsistent_id not in result_ids

@@ -28,8 +28,8 @@ def test_crawlee_review_items_safety_defaults(db_session):
     snapshot = SourceSnapshot(
         source_url="https://saskatoonpolice.ca/test",
         fetched_at=datetime.now(timezone.utc),
-        raw_content=b"test content",
-        raw_content_hash="test_hash",
+        raw_content="test content",
+        content_hash="test_hash",
         extracted_text="extracted test",
         http_status=200,
         content_type="text/html",
@@ -66,7 +66,7 @@ def test_crawlee_review_items_safety_defaults(db_session):
     assert review_item.status == "pending", "All crawled items must be pending review"
     assert review_item.public_visibility != True, "Crawled items must not be public by default"
     assert review_item.confidence <= 0.5, f"Confidence must be capped at 0.5, got {review_item.confidence}"
-    assert review_item.publish_recommendation == "review_required", "Must require human review"
+    assert review_item.publish_recommendation == "hold", "Must require human review"
     assert review_item.privacy_status == "needs_review", "Address warning triggers privacy review"
     assert review_item.source_snapshot_id == snapshot.id, "Must link to source snapshot"
 
@@ -84,8 +84,8 @@ def test_crawlee_review_item_confidence_capped(db_session):
     snapshot = SourceSnapshot(
         source_url="https://example.com/test",
         fetched_at=datetime.now(timezone.utc),
-        raw_content=b"test",
-        raw_content_hash="hash",
+        raw_content="test",
+        content_hash="hash",
         extracted_text="extracted",
         http_status=200,
         content_type="text/html",

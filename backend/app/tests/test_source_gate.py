@@ -108,8 +108,11 @@ class TestGdeltIngestGate:
     def test_gdelt_not_blocked_when_source_active(self) -> None:
         """When source is active, should not get 403 (may fail for other reasons)."""
         import os
+        from app.core.config import get_settings
+        get_settings.cache_clear()  # force re-read so env var changes take effect
         os.environ["JTA_GDELT_ENABLED"] = "false"  # keep GDELT itself off after gate check
         os.environ["JTA_ENABLE_ADMIN_IMPORTS"] = "true"
+        get_settings.cache_clear()  # clear again after env is set
 
         with SessionLocal() as db:
             _get_or_create_registry(db, "gdelt", is_active=True)
