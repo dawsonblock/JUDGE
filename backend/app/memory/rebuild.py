@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 
-from sqlalchemy import func as sqlfunc
+from sqlalchemy import and_, func as sqlfunc, or_
 from sqlalchemy.orm import Session
 
 from app.memory import entity_summary_checksum
@@ -98,8 +98,16 @@ def _get_current_snapshots_for_entity(
         .filter(EntityEvidenceLink.entity_id == entity_id)
         .join(
             subq,
-            (SourceSnapshot.source_key == subq.c.source_key)
-            & (SourceSnapshot.fetched_at == subq.c.max_fetched_at),
+            (
+                or_(
+                    SourceSnapshot.source_key == subq.c.source_key,
+                    and_(
+                        SourceSnapshot.source_key.is_(None),
+                        subq.c.source_key.is_(None),
+                    ),
+                )
+                & (SourceSnapshot.fetched_at == subq.c.max_fetched_at)
+            ),
         )
         .all()
     )
@@ -316,10 +324,14 @@ def run_rebuild(
     db.flush()
 
     try:
-        entities: list[CanonicalEntity] = pre_entities if pre_entities is not None else (
-            db.query(CanonicalEntity)
-            .filter(CanonicalEntity.status == "active")
-            .all()
+        entities: list[CanonicalEntity] = (
+            pre_entities
+            if pre_entities is not None
+            else (
+                db.query(CanonicalEntity)
+                .filter(CanonicalEntity.status == "active")
+                .all()
+            )
         )
         for entity in entities:
             run.entities_processed += 1
@@ -330,7 +342,9 @@ def run_rebuild(
             entity_produced_keys: set[str] = set()
             for snapshot in snapshots:
                 extracted = extract_claims(snapshot, entity, db)
-                created, _, snapshot_keys = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
+                created, _, snapshot_keys = _upsert_claims(
+                    db, entity.id, extracted, snapshot, run.id
+                )
                 run.claims_created += created
                 entity_produced_keys |= snapshot_keys
 

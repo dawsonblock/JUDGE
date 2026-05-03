@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # Strict SHA-256 format: exactly 64 lowercase hex characters.
-_SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class EvidenceStore:
@@ -49,7 +49,7 @@ class EvidenceStore:
         Args:
             root_path: Root directory for storage. If None, reads from
                 JTA_EVIDENCE_STORE_ROOT env var.
-        
+
         Raises:
             RuntimeError: If root_path is explicitly configured but does not exist
         """
@@ -168,13 +168,27 @@ class EvidenceStore:
         if storage_path:
             storage_path.parent.mkdir(parents=True, exist_ok=True)
             fd, tmp_path = tempfile.mkstemp(
-                dir=str(storage_path.parent), prefix='.tmp_', suffix='.bin'
+                dir=str(storage_path.parent), prefix=".tmp_", suffix=".bin"
             )
             try:
                 os.write(fd, content)
                 os.fsync(fd)
                 os.close(fd)
                 os.replace(tmp_path, storage_path)
+                # Post-write integrity verification
+                if not storage_path.exists():
+                    raise IOError(
+                        f"Write verification failed: file missing after atomic rename: {storage_path}"
+                    )
+                if storage_path.stat().st_size == 0:
+                    raise IOError(
+                        f"Write verification failed: zero-byte file after atomic rename: {storage_path}"
+                    )
+                written = storage_path.read_bytes()
+                if hashlib.sha256(written).hexdigest() != content_hash:
+                    raise IOError(
+                        f"Write verification failed: SHA-256 mismatch after write for {content_hash}"
+                    )
             except BaseException:
                 try:
                     os.close(fd)

@@ -38,7 +38,9 @@ def event_options():
     return (
         selectinload(Event.court).selectinload(Court.location),
         selectinload(Event.judge),
-        selectinload(Event.case).selectinload(Case.parties).selectinload(CaseParty.defendant),
+        selectinload(Event.case)
+        .selectinload(Case.parties)
+        .selectinload(CaseParty.defendant),
         selectinload(Event.primary_location),
         selectinload(Event.defendant_links).selectinload(EventDefendant.defendant),
         selectinload(Event.source_links).selectinload(EventSource.source),
@@ -61,15 +63,27 @@ def is_mappable(location: Location | None) -> bool:
 
 
 def is_public_event(event: Event | None) -> bool:
-    return bool(event and event.public_visibility and event.review_status in PUBLIC_REVIEW_STATUSES)
+    return bool(
+        event
+        and event.public_visibility
+        and event.review_status in PUBLIC_REVIEW_STATUSES
+    )
 
 
 def is_public_source(source: LegalSource | None) -> bool:
-    return bool(source and source.public_visibility and source.review_status in PUBLIC_REVIEW_STATUSES)
+    return bool(
+        source
+        and source.public_visibility
+        and source.review_status in PUBLIC_REVIEW_STATUSES
+    )
 
 
 def is_public_crime_incident(incident: CrimeIncident | None) -> bool:
-    return bool(incident and incident.is_public and incident.review_status in PUBLIC_REVIEW_STATUSES)
+    return bool(
+        incident
+        and incident.is_public
+        and incident.review_status in PUBLIC_REVIEW_STATUSES
+    )
 
 
 def is_public_crime_incident_mappable(incident: CrimeIncident) -> bool:
@@ -98,7 +112,15 @@ def filtered_events_query(
         Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
     )
     if source_type:
-        stmt = stmt.join(Event.source_links).join(LegalSource).where(LegalSource.source_type == source_type)
+        stmt = (
+            stmt.join(Event.source_links)
+            .join(LegalSource)
+            .where(
+                LegalSource.source_type == source_type,
+                LegalSource.public_visibility.is_(True),
+                LegalSource.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            )
+        )
     if start:
         stmt = stmt.where(Event.decision_date >= start)
     if end:
@@ -123,16 +145,22 @@ def filtered_events_query(
 
 def entity_by_type(db: Session, entity_type: str, entity_id: str):
     if entity_type == "event":
-        return db.scalar(select(Event).options(*event_options()).where(Event.event_id == entity_id)) or (db.get(Event, int(entity_id)) if entity_id.isdigit() else None)
+        return db.scalar(
+            select(Event).options(*event_options()).where(Event.event_id == entity_id)
+        ) or (db.get(Event, int(entity_id)) if entity_id.isdigit() else None)
     if entity_type == "crime_incident":
         return db.get(CrimeIncident, int(entity_id)) if entity_id.isdigit() else None
     if entity_type == "source":
-        return db.scalar(select(LegalSource).where(LegalSource.source_id == entity_id)) or (db.get(LegalSource, int(entity_id)) if entity_id.isdigit() else None)
+        return db.scalar(
+            select(LegalSource).where(LegalSource.source_id == entity_id)
+        ) or (db.get(LegalSource, int(entity_id)) if entity_id.isdigit() else None)
     return None
 
 
 def entity_public_visibility(entity) -> bool:
-    return bool(getattr(entity, "is_public", getattr(entity, "public_visibility", False)))
+    return bool(
+        getattr(entity, "is_public", getattr(entity, "public_visibility", False))
+    )
 
 
 def set_entity_public_visibility(entity, visible: bool) -> None:
@@ -157,10 +185,13 @@ def serialize_event(event: Event) -> EventOut:
         decision_date=event.decision_date,
         posted_date=event.posted_date,
         title=sanitize_event_text(event.title, event, "Reviewed legal event"),
-        summary=sanitize_event_text(event.summary, event, "Reviewed public legal summary."),
+        summary=sanitize_event_text(
+            event.summary, event, "Reviewed public legal summary."
+        ),
         repeat_offender_indicator=event.repeat_offender_indicator,
         repeat_offender_indicators=metadata.get("repeat_offender_indicators") or [],
-        verification_status=metadata.get("verification_status") or ("indicator_only" if event.repeat_offender_indicator else "not_indicated"),
+        verification_status=metadata.get("verification_status")
+        or ("indicator_only" if event.repeat_offender_indicator else "not_indicated"),
         source_excerpt=sanitize_source_excerpt(metadata.get("source_excerpt"), event),
         is_mappable=is_location_mappable,
         location_status="mapped" if is_location_mappable else "court_location_pending",
@@ -171,10 +202,18 @@ def serialize_event(event: Event) -> EventOut:
         court=event.court,
         judge=event.judge,
         defendants=[
-            {"id": link.defendant.id, "anonymized_id": link.defendant.anonymized_id, "display_label": link.defendant.anonymized_id}
+            {
+                "id": link.defendant.id,
+                "anonymized_id": link.defendant.anonymized_id,
+                "display_label": link.defendant.anonymized_id,
+            }
             for link in event.defendant_links
         ],
-        sources=[source_to_public_dict(link.source, event) for link in event.source_links if is_public_source(link.source)],
+        sources=[
+            source_to_public_dict(link.source, event)
+            for link in event.source_links
+            if is_public_source(link.source)
+        ],
         outcomes=event.outcomes,
         outcome_status=None if event.outcomes else OUTCOME_UNKNOWN,
     )
@@ -185,8 +224,12 @@ def event_to_geojson_feature(event: Event) -> dict:
     judge = event.judge
     court = event.court
     case = event.case
-    public_sources = [link for link in event.source_links if is_public_source(link.source)]
-    news_sources = [s for s in public_sources if s.source.source_type in {"news", "news_article"}]
+    public_sources = [
+        link for link in event.source_links if is_public_source(link.source)
+    ]
+    news_sources = [
+        s for s in public_sources if s.source.source_type in {"news", "news_article"}
+    ]
     return {
         "type": "Feature",
         "geometry": {"type": "Point", "coordinates": [loc.longitude, loc.latitude]},
@@ -200,7 +243,9 @@ def event_to_geojson_feature(event: Event) -> dict:
             "location_id": loc.id,
             "location_name": loc.name,
             "event_type": event.event_type,
-            "event_date": event.decision_date.isoformat() if event.decision_date else None,
+            "event_date": (
+                event.decision_date.isoformat() if event.decision_date else None
+            ),
             "case_id": case.id if case else None,
             "case_name": sanitize_case_caption(case, event) if case else None,
             "case_number": case.docket_number if case else None,
@@ -210,11 +255,15 @@ def event_to_geojson_feature(event: Event) -> dict:
             "location_status": "mapped",
             "is_mappable": True,
             "title": sanitize_event_text(event.title, event, "Reviewed legal event"),
-            "decision_date": event.decision_date.isoformat() if event.decision_date else None,
+            "decision_date": (
+                event.decision_date.isoformat() if event.decision_date else None
+            ),
             "court": court.name if court else None,
             "judge": judge.name if judge else None,
             "source_quality": event.source_quality,
-            "defendants": [link.defendant.anonymized_id for link in event.defendant_links],
+            "defendants": [
+                link.defendant.anonymized_id for link in event.defendant_links
+            ],
             "source_count": len(public_sources),
             "has_news": bool(news_sources),
             "has_incident_links": False,
@@ -224,31 +273,56 @@ def event_to_geojson_feature(event: Event) -> dict:
 
 
 def crime_incident_to_geojson_feature(incident: CrimeIncident) -> dict:
-    public_struct_sources = [
-        link for link in incident.source_links
-        if is_public_source(link.source)
-    ] if hasattr(incident, "source_links") else []
-    verified_court_links = [
-        link for link in incident.event_links
-        if link.relationship_status == "verified_source_link"
-    ] if hasattr(incident, "event_links") else []
-    source_count = len(public_struct_sources) if public_struct_sources else (1 if incident.source_url else 0)
+    public_struct_sources = (
+        [link for link in incident.source_links if is_public_source(link.source)]
+        if hasattr(incident, "source_links")
+        else []
+    )
+    verified_court_links = (
+        [
+            link
+            for link in incident.event_links
+            if link.relationship_status == "verified_source_link"
+        ]
+        if hasattr(incident, "event_links")
+        else []
+    )
+    source_count = (
+        len(public_struct_sources)
+        if public_struct_sources
+        else (1 if incident.source_url else 0)
+    )
     return {
         "type": "Feature",
-        "geometry": {"type": "Point", "coordinates": [incident.longitude_public, incident.latitude_public]},
+        "geometry": {
+            "type": "Point",
+            "coordinates": [incident.longitude_public, incident.latitude_public],
+        },
         "properties": {
             "record_type": "reported_incident",
             "incident_id": incident.id,
-            "incident_type": sanitize_public_text(incident.incident_type, "Reported incident"),
+            "incident_type": sanitize_public_text(
+                incident.incident_type, "Reported incident"
+            ),
             "incident_category": incident.incident_category,
-            "reported_at": incident.reported_at.isoformat() if incident.reported_at else None,
-            "occurred_at": incident.occurred_at.isoformat() if incident.occurred_at else None,
+            "reported_at": (
+                incident.reported_at.isoformat() if incident.reported_at else None
+            ),
+            "occurred_at": (
+                incident.occurred_at.isoformat() if incident.occurred_at else None
+            ),
             "city": incident.city,
             "province_state": incident.province_state,
             "country": incident.country,
-            "area_label": sanitize_public_text(incident.public_area_label, "General area") if incident.public_area_label else None,
+            "area_label": (
+                sanitize_public_text(incident.public_area_label, "General area")
+                if incident.public_area_label
+                else None
+            ),
             "precision_level": incident.precision_level,
-            "source_name": sanitize_public_text(incident.source_name, "Official open data source"),
+            "source_name": sanitize_public_text(
+                incident.source_name, "Official open data source"
+            ),
             "source_url": incident.source_url,
             "verification_status": incident.verification_status,
             "review_status": incident.review_status,
@@ -294,25 +368,39 @@ def source_panel_payload(entity_type: str, entity) -> dict:
                 "source_name": sanitize_source_title(link.source, entity),
                 "source_type": link.source.source_type,
                 "source_url": link.source.url,
-                "retrieved_at": link.source.retrieved_at.isoformat() if link.source.retrieved_at else None,
+                "retrieved_at": (
+                    link.source.retrieved_at.isoformat()
+                    if link.source.retrieved_at
+                    else None
+                ),
                 "published_at": None,
-                "quoted_excerpt": sanitize_source_excerpt((entity.classifier_metadata or {}).get("source_excerpt"), entity),
+                "quoted_excerpt": sanitize_source_excerpt(
+                    (entity.classifier_metadata or {}).get("source_excerpt"), entity
+                ),
                 "verification_status": link.source.review_status,
                 "trust_reason": "Linked court/legal source for this event.",
                 "reviewed_by": entity.reviewed_by,
-                "reviewed_at": entity.reviewed_at.isoformat() if entity.reviewed_at else None,
+                "reviewed_at": (
+                    entity.reviewed_at.isoformat() if entity.reviewed_at else None
+                ),
                 "review_status": entity.review_status,
             }
             for link in entity.source_links
             if is_public_source(link.source)
         ]
-        return {"entity_type": "event", "entity_id": entity.event_id, "review_status": entity.review_status, "sources": sources}
+        return {
+            "entity_type": "event",
+            "entity_id": entity.event_id,
+            "review_status": entity.review_status,
+            "sources": sources,
+        }
     if isinstance(entity, CrimeIncident):
         # Prefer structured source_links where linked source is public
-        public_struct_sources = [
-            link for link in entity.source_links
-            if is_public_source(link.source)
-        ] if hasattr(entity, "source_links") else []
+        public_struct_sources = (
+            [link for link in entity.source_links if is_public_source(link.source)]
+            if hasattr(entity, "source_links")
+            else []
+        )
 
         if public_struct_sources:
             # Use CrimeIncidentSource links when available
@@ -321,13 +409,21 @@ def source_panel_payload(entity_type: str, entity) -> dict:
                     "source_name": sanitize_source_title(link.source, None),
                     "source_type": link.source.source_type,
                     "source_url": link.source.url,
-                    "retrieved_at": link.source.retrieved_at.isoformat() if link.source.retrieved_at else None,
+                    "retrieved_at": (
+                        link.source.retrieved_at.isoformat()
+                        if link.source.retrieved_at
+                        else None
+                    ),
                     "published_at": None,
                     "quoted_excerpt": None,
                     "verification_status": link.source.review_status,
                     "trust_reason": "Linked public source for this incident.",
                     "reviewed_by": link.source.reviewed_by,
-                    "reviewed_at": link.source.reviewed_at.isoformat() if link.source.reviewed_at else None,
+                    "reviewed_at": (
+                        link.source.reviewed_at.isoformat()
+                        if link.source.reviewed_at
+                        else None
+                    ),
                     "review_status": link.source.review_status,
                 }
                 for link in public_struct_sources
@@ -336,16 +432,26 @@ def source_panel_payload(entity_type: str, entity) -> dict:
             # Fall back to top-level source fields only if no structured links exist
             sources = [
                 {
-                    "source_name": sanitize_public_text(entity.source_name, "Official open data source"),
+                    "source_name": sanitize_public_text(
+                        entity.source_name, "Official open data source"
+                    ),
                     "source_type": "official_police_open_data",
                     "source_url": entity.source_url,
-                    "retrieved_at": entity.data_last_seen_at.isoformat() if entity.data_last_seen_at else None,
-                    "published_at": entity.reported_at.isoformat() if entity.reported_at else None,
+                    "retrieved_at": (
+                        entity.data_last_seen_at.isoformat()
+                        if entity.data_last_seen_at
+                        else None
+                    ),
+                    "published_at": (
+                        entity.reported_at.isoformat() if entity.reported_at else None
+                    ),
                     "quoted_excerpt": None,
                     "verification_status": entity.verification_status,
                     "trust_reason": "Official reported-incident source; not proof of guilt or conviction.",
                     "reviewed_by": entity.reviewed_by,
-                    "reviewed_at": entity.reviewed_at.isoformat() if entity.reviewed_at else None,
+                    "reviewed_at": (
+                        entity.reviewed_at.isoformat() if entity.reviewed_at else None
+                    ),
                     "review_status": entity.review_status,
                 }
             ]
@@ -362,16 +468,22 @@ def source_panel_payload(entity_type: str, entity) -> dict:
         "review_status": entity.review_status,
         "sources": [
             {
-                "source_name": sanitize_source_title(entity, _first_linked_event(entity)),
+                "source_name": sanitize_source_title(
+                    entity, _first_linked_event(entity)
+                ),
                 "source_type": entity.source_type,
                 "source_url": entity.url,
-                "retrieved_at": entity.retrieved_at.isoformat() if entity.retrieved_at else None,
+                "retrieved_at": (
+                    entity.retrieved_at.isoformat() if entity.retrieved_at else None
+                ),
                 "published_at": None,
                 "quoted_excerpt": None,
                 "verification_status": entity.review_status,
                 "trust_reason": "Reviewed source record.",
                 "reviewed_by": entity.reviewed_by,
-                "reviewed_at": entity.reviewed_at.isoformat() if entity.reviewed_at else None,
+                "reviewed_at": (
+                    entity.reviewed_at.isoformat() if entity.reviewed_at else None
+                ),
                 "review_status": entity.review_status,
             }
         ],
@@ -379,14 +491,20 @@ def source_panel_payload(entity_type: str, entity) -> dict:
 
 
 def sanitize_event_text(text: str | None, event: Event, fallback: str) -> str:
-    return sanitize_public_text(_replace_known_defendant_names(text, _event_name_pairs(event)), fallback)
+    return sanitize_public_text(
+        _replace_known_defendant_names(text, _event_name_pairs(event)), fallback
+    )
 
 
 def sanitize_source_excerpt(text: str | None, event: Event | None = None) -> str | None:
     if not text:
         return None
-    safe_text = _replace_known_defendant_names(text, _event_name_pairs(event) if event else [])
-    return sanitize_public_text(safe_text, "Reviewed source excerpt redacted for privacy.")
+    safe_text = _replace_known_defendant_names(
+        text, _event_name_pairs(event) if event else []
+    )
+    return sanitize_public_text(
+        safe_text, "Reviewed source excerpt redacted for privacy."
+    )
 
 
 def sanitize_case_caption(case: Case, event: Event | None = None) -> str:
@@ -484,12 +602,16 @@ def _dedupe_pairs(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
     return result
 
 
-def _replace_known_defendant_names(text: str | None, pairs: list[tuple[str, str]]) -> str:
+def _replace_known_defendant_names(
+    text: str | None, pairs: list[tuple[str, str]]
+) -> str:
     safe = text or ""
     for original, replacement in pairs:
         if not original:
             continue
-        safe = re.sub(rf"\b{re.escape(original)}\b", replacement, safe, flags=re.IGNORECASE)
+        safe = re.sub(
+            rf"\b{re.escape(original)}\b", replacement, safe, flags=re.IGNORECASE
+        )
     return safe
 
 
