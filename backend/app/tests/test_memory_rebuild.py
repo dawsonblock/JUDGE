@@ -52,7 +52,7 @@ class TestRunRebuild:
         db.query.return_value = q
 
         with patch(
-            "app.memory.rebuild._get_all_snapshots_for_entity", return_value=[]
+            "app.memory.rebuild._get_current_snapshots_for_entity", return_value=[]
         ):
             result = run_rebuild("full", db)
 
@@ -80,7 +80,7 @@ class TestRunRebuild:
         db.get.return_value = entity
 
         with patch(
-            "app.memory.rebuild._get_all_snapshots_for_entity", return_value=[]
+            "app.memory.rebuild._get_current_snapshots_for_entity", return_value=[]
         ):
             result = run_rebuild("entity", db, entity_id=7)
 
@@ -116,7 +116,7 @@ class TestRunRebuild:
             return [{"claim_type": "appointment", "claim_value": "district", "confidence": 0.9}]
 
         with (
-            patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),
+            patch("app.memory.rebuild._get_current_snapshots_for_entity", return_value=[snap_a, snap_b]),
             patch("app.memory.rebuild.extract_claims", side_effect=fake_extract),
             patch("app.memory.rebuild._upsert_claims", return_value=(1, 0, set())),
             patch("app.memory.rebuild._rebuild_entity_state", return_value=False),
@@ -153,7 +153,7 @@ class TestRunRebuild:
         upsert_returns = [(2, 0, set()), (0, 2, set())]
 
         with (
-            patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),
+            patch("app.memory.rebuild._get_current_snapshots_for_entity", return_value=[snap_a, snap_b]),
             patch("app.memory.rebuild.extract_claims", return_value=[]),
             patch("app.memory.rebuild._upsert_claims", side_effect=upsert_returns),
             patch("app.memory.rebuild._rebuild_entity_state", return_value=False),

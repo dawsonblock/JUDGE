@@ -180,7 +180,7 @@ class EvidenceStore:
                     raise IOError(
                         f"Write verification failed: file missing after atomic rename: {storage_path}"
                     )
-                if storage_path.stat().st_size == 0:
+                if content and storage_path.stat().st_size == 0:
                     raise IOError(
                         f"Write verification failed: zero-byte file after atomic rename: {storage_path}"
                     )

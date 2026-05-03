@@ -252,7 +252,7 @@ class TestEvidenceStore:
                 return b"corrupted data on disk"
 
             with patch.object(pathlib.Path, "read_bytes", patched_read):
-                with pytest.raises(OSError, match="post-write hash mismatch"):
+                with pytest.raises(OSError, match="SHA-256 mismatch after write"):
                     store.write_snapshot(content, content_hash)
 
     def test_write_snapshot_raises_oserror_on_zero_byte_read_after_write(self):
@@ -266,7 +266,7 @@ class TestEvidenceStore:
             content_hash = hashlib.sha256(content).hexdigest()
 
             with patch.object(pathlib.Path, "read_bytes", return_value=b""):
-                with pytest.raises(OSError, match="post-write hash mismatch"):
+                with pytest.raises(OSError, match="SHA-256 mismatch after write"):
                     store.write_snapshot(content, content_hash)
 
     def test_write_snapshot_accepts_empty_content(self):
