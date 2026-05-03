@@ -21,7 +21,15 @@ async def import_crime_incidents_manual_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """Import crime incidents from CSV with size limits."""
+    """Import crime incidents from CSV with size limits.
+
+    This is an explicit admin-only override that intentionally bypasses SourceRegistry.
+    Manual CSV imports are direct admin actions, not automated ingestion pipelines,
+    so runtime gating via SourceRegistry is not applicable here.
+    All imported records start with public_visibility=False (or equivalent default)
+    and require human review before any public-facing exposure.
+    Access is restricted to admin tokens via require_admin_imports.
+    """
     settings = get_settings()
 
     # Read file with size limit enforcement

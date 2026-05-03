@@ -20,6 +20,7 @@ class TestCandidateReviewBridge:
     def test_candidate_creates_review_item(self, db):
         """ExtractedCandidate should create ReviewItem."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -63,6 +64,7 @@ class TestCandidateReviewBridge:
     def test_review_item_status_is_pending(self, db):
         """ReviewItem should always have status='pending'."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -97,9 +99,10 @@ class TestCandidateReviewBridge:
 
         assert review_item.status == "pending"
 
-    def test_publish_recommendation_is_hold(self, db):
-        """ReviewItem should always have publish_recommendation='hold'."""
+    def test_publish_recommendation_is_review_required(self, db):
+        """ReviewItem should always have publish_recommendation='review_required'."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -132,11 +135,12 @@ class TestCandidateReviewBridge:
 
         review_item = runner._create_review_item(candidate, snapshot)
 
-        assert review_item.publish_recommendation == "hold"
+        assert review_item.publish_recommendation == "review_required"
 
     def test_confidence_capped_at_0_5(self, db):
         """ReviewItem confidence should be capped at 0.5."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -175,6 +179,7 @@ class TestCandidateReviewBridge:
     def test_low_confidence_preserved(self, db):
         """Low confidence values should be preserved."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -212,6 +217,7 @@ class TestCandidateReviewBridge:
     def test_private_address_warning_sets_needs_review(self, db):
         """Address warnings should set privacy_status='needs_review'."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -249,6 +255,7 @@ class TestCandidateReviewBridge:
     def test_person_name_warning_sets_needs_review(self, db):
         """Person name warnings should set privacy_status='needs_review'."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -286,6 +293,7 @@ class TestCandidateReviewBridge:
     def test_no_warnings_sets_safe(self, db):
         """No warnings should set privacy_status='safe'."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -323,6 +331,7 @@ class TestCandidateReviewBridge:
     def test_source_snapshot_id_populated(self, db):
         """ReviewItem should have source_snapshot_id from snapshot."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -362,6 +371,7 @@ class TestCandidateReviewBridge:
     def test_suggested_payload_contains_candidate_data(self, db):
         """ReviewItem payload should contain extracted candidate data."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -407,6 +417,7 @@ class TestCandidateReviewBridge:
     def test_source_quality_from_target(self, db):
         """ReviewItem source_quality should come from target source_tier."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="official_police_open_data",
             base_url="https://police.example.com",
@@ -444,6 +455,7 @@ class TestCandidateReviewBridge:
     def test_source_url_from_candidate(self, db):
         """ReviewItem source_url should come from candidate."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",

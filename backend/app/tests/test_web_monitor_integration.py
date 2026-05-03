@@ -83,6 +83,7 @@ class TestWebMonitorSafetyPipeline:
     def test_snapshot_stores_provenance(self):
         """Snapshots should store full provenance info."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -108,12 +109,13 @@ class TestWebMonitorSafetyPipeline:
             assert snapshot.http_status == 200
             assert snapshot.content_hash is not None
             assert len(snapshot.content_hash) == 64
-            # Target info in raw_content
-            assert "Test Target" in (snapshot.raw_content or "")
+            # Target name is stored in extractor_name, not prepended to raw content
+            assert snapshot.extractor_name == "Test Target"
 
     def test_runner_respects_concurrency_limits(self):
         """Runner should use configured concurrency limits."""
         target = WebMonitorTarget(
+            source_key="low_concurrency_test",
             name="Low Concurrency Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -131,6 +133,7 @@ class TestWebMonitorSafetyPipeline:
     def test_runner_respects_depth_limits(self):
         """Runner should use configured depth limits."""
         target = WebMonitorTarget(
+            source_key="shallow_test",
             name="Shallow Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -191,6 +194,7 @@ class TestWebMonitorSafetyPipeline:
         """Max requests must be capped at safety limit."""
         with pytest.raises(ValueError):
             WebMonitorTarget(
+                source_key="too_many_requests",
                 name="Too Many Requests",
                 source_type="news_only_context",
                 base_url="https://example.com",
@@ -203,6 +207,7 @@ class TestWebMonitorSafetyPipeline:
     def test_allowlist_rejects_subdomain_hijacking(self):
         """Allowlist should not match malicious subdomains."""
         target = WebMonitorTarget(
+            source_key="test",
             name="Test",
             source_type="news_only_context",
             base_url="https://example.com",

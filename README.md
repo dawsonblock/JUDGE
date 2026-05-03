@@ -180,7 +180,7 @@ docker compose up --build
 <details>
 <summary><b>Prerequisites</b></summary>
 
-- Python 3.12+
+- Python 3.11+ (project uses 3.11.7 via pyenv; see `backend/pyproject.toml`)
 - Node.js 20
 - PostgreSQL 16 with PostGIS extension
 
@@ -194,7 +194,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[test]"
 createdb judgetracker  # If database doesn't exist
 python -m alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+JTA_APP_ENV=development uvicorn app.main:app --reload --port 8000
 ```
 
 **Frontend (Terminal 2):**

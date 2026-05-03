@@ -83,7 +83,7 @@ def run_target(
     # Check if target is enabled
     if not target.enabled:
         print(f"WARNING: Target '{target_key}' is disabled.")
-        print(f"Enable the source in the admin panel (source key: web_monitor_{target_key}).")
+        print(f"Enable the source in the admin panel (source key: {target.source_key}).")
 
     with SessionLocal() as db:
         print(f"Starting crawl at {datetime.now(timezone.utc).isoformat()}...")

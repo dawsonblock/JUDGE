@@ -97,34 +97,22 @@ class CrawleeRunner:
         Returns:
             SourceSnapshot entity
         """
-        # Convert content to string for metadata prep
-        if isinstance(content, str):
-            raw_content = content
-        else:
-            raw_content = content.decode("utf-8", errors="replace")
-
-        # Build metadata string with target info
         from app.services.snapshot_writer import write_snapshot
-        
-        # Use canonical snapshot writer
-        metadata = f"[Target: {self.target.name}]"
-        if title:
-            metadata += f" [Title: {title}]"
-        
-        # Prepend metadata to content
-        full_content = f"{metadata}\n\n{raw_content}".encode("utf-8")
-        
+
+        # Pass raw content bytes unchanged — metadata belongs in extractor_name,
+        # not prepended to the evidence bytes (which would corrupt the hash).
         snapshot = write_snapshot(
             db=self.db,
             source_url=source_url,
             fetched_at=datetime.now(timezone.utc),
-            content=full_content,
+            content=content,
             extracted_text=text_excerpt[:2000] if text_excerpt else None,
             http_status=http_status,
             content_type=content_type or "unknown",
             headers=None,  # Not captured in current implementation
             error_message=None,
             ingestion_run_id=ingestion_run_id,
+            extractor_name=self.target.name,
         )
         self.db.flush()  # Get snapshot.id assigned
         return snapshot
@@ -187,7 +175,7 @@ class CrawleeRunner:
             source_quality=self.target.source_tier,
             confidence=min(candidate.confidence, 0.5),  # Hard cap at 0.5
             privacy_status=privacy_status,
-            publish_recommendation="hold",  # Never auto-publish crawled content
+            publish_recommendation="review_required",  # Never auto-publish crawled content
             status="pending",  # Always requires admin review
             ingestion_run_id=ingestion_run_id,
         )
@@ -205,17 +193,16 @@ class CrawleeRunner:
         # Check SourceRegistry control plane
         # Note: WebMonitorTarget.enabled is template metadata only;
         # SourceRegistry.is_active is the only runtime authority
-        registry_key = f"web_monitor_{self.target.name.lower().replace(' ', '_')}"
         registry = require_source_registry(
             self.db,
-            source_key=registry_key,
+            source_key=self.target.source_key,
             source_name=self.target.name,
         )
 
         allowed, reason = check_ingestion_allowed(registry)
         if not allowed:
             run = IngestionRun(
-                source_name=registry_key,
+                source_name=self.target.source_key,
                 started_at=datetime.now(timezone.utc),
                 status="failed",
                 errors=[f"Ingestion blocked: {reason}"],
@@ -231,7 +218,7 @@ class CrawleeRunner:
 
         # Initialize run tracking
         run = IngestionRun(
-            source_name=registry_key,
+            source_name=self.target.source_key,
             started_at=datetime.now(timezone.utc),
             status="running",
             errors=[],
@@ -360,7 +347,7 @@ class CrawleeRunner:
             self.db.commit()
 
             # Update source registry health
-            update_source_health(self.db, registry_key, run)
+            update_source_health(self.db, self.target.source_key, run)
 
         except Exception as e:
             # Handle fatal errors

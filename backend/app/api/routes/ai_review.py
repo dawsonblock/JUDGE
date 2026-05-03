@@ -211,6 +211,13 @@ def block_ai_review_item(item_id: int, payload: dict | None = None, db: Session 
 
 @router.post("/api/admin/review/items/{item_id}/publish", dependencies=[Depends(require_admin_review)])
 def publish_ai_review_item(item_id: int, payload: dict | None = None, db: Session = Depends(get_db)):
+    """Promote an approved ReviewItem to an Event draft.
+
+    Despite the route name, this does NOT make anything publicly visible.
+    The created Event has public_visibility=False and review_status='pending_review',
+    making it an internal draft that requires a separate visibility promotion step
+    before it appears in public-facing queries.
+    """
     item = db.get(ReviewItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Review item not found")

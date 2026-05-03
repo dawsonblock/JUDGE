@@ -27,6 +27,7 @@ def test_target_allowlist_validation():
 
     # Valid target with proper allowlist
     target = WebMonitorTarget(
+        source_key="saskatoon_police_news",
         name="Saskatoon Police News",
         source_type="official_police_media",
         base_url="https://saskatoonpolice.ca",
@@ -54,6 +55,7 @@ def test_target_disabled_by_default():
     from app.ingestion.web_monitor.source_targets import WebMonitorTarget
 
     target = WebMonitorTarget(
+        source_key="test_target",
         name="Test Target",
         source_type="news_only_context",
         base_url="https://example.com",
@@ -71,6 +73,7 @@ def test_target_max_requests_enforced():
     from app.ingestion.web_monitor.source_targets import WebMonitorTarget
 
     target = WebMonitorTarget(
+        source_key="test_target",
         name="Test Target",
         source_type="news_only_context",
         base_url="https://example.com",
@@ -89,6 +92,7 @@ def test_target_source_tier_defaults():
     from app.ingestion.web_monitor.source_targets import WebMonitorTarget
 
     target = WebMonitorTarget(
+        source_key="test_target",
         name="Test Target",
         source_type="news_only_context",
         base_url="https://example.com",

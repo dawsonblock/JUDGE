@@ -39,7 +39,7 @@ configured target (disabled by default)
 -> ExtractedCandidate (confidence ≤ 0.5, warnings added)
 -> source_verifier.py checks
 -> public_safety.py screens for private data
--> publish_rules.py assigns HOLD tier
+-> publish_rules.py assigns review_required tier
 -> pending_review queue
 -> admin approve → public map
 ```

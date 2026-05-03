@@ -20,6 +20,7 @@ class TestCrawleeRunnerSafety:
     def test_runner_enforces_allowlist(self):
         """Runner should reject URLs not in allowlist."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -43,6 +44,7 @@ class TestCrawleeRunnerSafety:
     def test_runner_enforces_max_requests(self):
         """Runner should stop when max_requests is reached."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -69,6 +71,7 @@ class TestCrawleeRunnerSafety:
     def test_runner_creates_snapshots_with_required_fields(self):
         """Snapshot should include all required provenance fields."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -97,14 +100,15 @@ class TestCrawleeRunnerSafety:
             assert snapshot.content_hash is not None
             assert len(snapshot.content_hash) == 64  # SHA256 hex
             assert snapshot.extracted_text == "Test excerpt content..."
-            # Target info is stored in raw_content as metadata
-            assert "Test Target" in (snapshot.raw_content or "")
-            assert "Test Article" in (snapshot.raw_content or "")
+            # Target name is stored as extractor_name, not prepended to raw content
+            assert snapshot.extractor_name == "Test Target"
+            assert snapshot.raw_content == "Test HTML content"
             assert snapshot.fetched_at is not None
 
     def test_runner_snapshot_hash_is_deterministic(self):
         """Same content should produce same hash."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -136,6 +140,7 @@ class TestCrawleeRunnerSafety:
     def test_runner_snapshot_handles_string_content(self):
         """Snapshot should handle both string and bytes content."""
         target = WebMonitorTarget(
+            source_key="test_target",
             name="Test Target",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -173,6 +178,7 @@ class TestCrawleeRunnerIntegration:
     def test_runner_checks_source_registry(self):
         """Runner should check source registry before running."""
         target = WebMonitorTarget(
+            source_key="test_registry_check",
             name="Test Registry Check",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -194,6 +200,7 @@ class TestCrawleeRunnerIntegration:
     def test_runner_respects_disabled_target(self):
         """Disabled target should not create public records."""
         target = WebMonitorTarget(
+            source_key="disabled_target_test",
             name="Disabled Target Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -222,6 +229,7 @@ class TestCrawleeRunnerLimits:
     def test_target_has_sensible_defaults(self):
         """Target should have safe defaults."""
         target = WebMonitorTarget(
+            source_key="defaults_test",
             name="Defaults Test",
             source_type="news_only_context",
             base_url="https://example.com",
@@ -242,6 +250,7 @@ class TestCrawleeRunnerLimits:
         """Target should enforce max_depth <= 3."""
         with pytest.raises(ValueError):
             WebMonitorTarget(
+                source_key="too_deep",
                 name="Too Deep",
                 source_type="news_only_context",
                 base_url="https://example.com",
@@ -255,6 +264,7 @@ class TestCrawleeRunnerLimits:
         """Target should enforce max_requests <= 100."""
         with pytest.raises(ValueError):
             WebMonitorTarget(
+                source_key="too_many_requests",
                 name="Too Many Requests",
                 source_type="news_only_context",
                 base_url="https://example.com",
@@ -268,6 +278,7 @@ class TestCrawleeRunnerLimits:
         """Target should enforce concurrency <= 5."""
         with pytest.raises(ValueError):
             WebMonitorTarget(
+                source_key="too_concurrent",
                 name="Too Concurrent",
                 source_type="news_only_context",
                 base_url="https://example.com",
@@ -281,6 +292,7 @@ class TestCrawleeRunnerLimits:
         """Target should require at least one allowed domain."""
         with pytest.raises(ValueError):
             WebMonitorTarget(
+                source_key="no_allowlist",
                 name="No Allowlist",
                 source_type="news_only_context",
                 base_url="https://example.com",

@@ -66,7 +66,7 @@ def test_crawlee_review_items_safety_defaults(db_session):
     assert review_item.status == "pending", "All crawled items must be pending review"
     assert review_item.public_visibility != True, "Crawled items must not be public by default"
     assert review_item.confidence <= 0.5, f"Confidence must be capped at 0.5, got {review_item.confidence}"
-    assert review_item.publish_recommendation == "hold", "Must require human review"
+    assert review_item.publish_recommendation == "review_required", "Must require human review"
     assert review_item.privacy_status == "needs_review", "Address warning triggers privacy review"
     assert review_item.source_snapshot_id == snapshot.id, "Must link to source snapshot"
 
@@ -114,3 +114,52 @@ def test_crawlee_review_item_confidence_capped(db_session):
     review_item = runner._create_review_item(candidate, snapshot, run.id)
     
     assert review_item.confidence == 0.5, "Confidence must be capped at 0.5, regardless of input"
+
+
+def test_crawlee_publish_recommendation_in_constants(db_session):
+    """Test that publish_recommendation value is a valid member of AI_PUBLISH_RECOMMENDATIONS."""
+    from app.services.constants import AI_PUBLISH_RECOMMENDATIONS
+
+    run = IngestionRun(
+        source_name="test_constants_check",
+        started_at=datetime.now(timezone.utc),
+        status="running",
+    )
+    db_session.add(run)
+    db_session.flush()
+
+    snapshot = SourceSnapshot(
+        source_url="https://example.com/constants-check",
+        fetched_at=datetime.now(timezone.utc),
+        raw_content="test",
+        content_hash="hash_constants",
+        extracted_text="extracted",
+        http_status=200,
+        content_type="text/html",
+        ingestion_run_id=run.id,
+    )
+    db_session.add(snapshot)
+    db_session.flush()
+
+    runner = CrawleeRunner(SASKATOON_POLICE_NEWS_TARGET, db_session)
+
+    from app.ingestion.web_monitor.extractors import ExtractedCandidate
+
+    candidate = ExtractedCandidate(
+        candidate_type="crime_incident",
+        title="Constants Test",
+        summary="Test",
+        source_url="https://example.com/constants-check",
+        location_text="Test Location",
+        published_at=datetime.now(timezone.utc),
+        confidence=0.4,
+        entities=[],
+        warnings=[],
+    )
+
+    review_item = runner._create_review_item(candidate, snapshot, run.id)
+
+    assert review_item.publish_recommendation in AI_PUBLISH_RECOMMENDATIONS, (
+        f"publish_recommendation '{review_item.publish_recommendation}' "
+        f"must be a member of AI_PUBLISH_RECOMMENDATIONS {AI_PUBLISH_RECOMMENDATIONS}"
+    )

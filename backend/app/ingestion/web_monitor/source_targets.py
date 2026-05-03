@@ -95,6 +95,21 @@ class WebMonitorTarget(BaseModel):
         default=True,
         description="Template metadata: intent to respect robots.txt. Not directly configurable in Crawlee.",
     )
+    source_key: str = Field(
+        ...,
+        description="SourceRegistry key (lowercase letters, numbers, underscores, hyphens only)",
+    )
+
+    @field_validator("source_key")
+    @classmethod
+    def validate_source_key_format(cls, v: str) -> str:
+        """Ensure source_key uses only safe identifier characters."""
+        import re
+        if not re.match(r"^[a-z0-9_-]+$", v):
+            raise ValueError(
+                "source_key must contain only lowercase letters, numbers, underscores, and hyphens"
+            )
+        return v
 
     @field_validator("allowed_domains")
     @classmethod
@@ -176,6 +191,7 @@ SASKATOON_POLICE_NEWS_TARGET = WebMonitorTarget(
     enabled=False,  # Disabled by default - must be enabled by admin
     extractor_type="police_release_index",
     robots_txt_obey=True,
+    source_key="web_monitor_saskatoon_police_news",
 )
 
 # Additional example targets (all disabled)
@@ -192,6 +208,7 @@ COURT_NEWS_EXAMPLE_TARGET = WebMonitorTarget(
     enabled=False,
     extractor_type="court_news_index",
     robots_txt_obey=True,
+    source_key="web_monitor_court_news_example",
 )
 
 CITY_OPEN_DATA_EXAMPLE_TARGET = WebMonitorTarget(
@@ -207,6 +224,7 @@ CITY_OPEN_DATA_EXAMPLE_TARGET = WebMonitorTarget(
     enabled=False,
     extractor_type="city_open_data_landing_page",
     robots_txt_obey=True,
+    source_key="web_monitor_city_open_data_example",
 )
 
 
