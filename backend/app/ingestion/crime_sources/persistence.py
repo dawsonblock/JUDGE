@@ -6,13 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.ingestion.crime_sources.base import CrimeIncidentRecord
 from app.models.entities import CrimeIncident
+from app.services.auto_review import auto_review
 from app.services.publish_rules import (
     TIER_BLOCK,
-    TIER_HOLD,
-    classify_record,
-    public_visibility_for_tier,
     resolve_publication_policy,
-    review_status_for_tier,
 )
 
 GENERALIZED_PRECISION_LEVELS = {
@@ -94,30 +91,31 @@ def persist_crime_incident(
     incident.is_aggregate = bool(record.is_aggregate)
     incident.notes = _clean(record.notes)
 
-    # Apply publish-rules classification
-    tier = classify_record(record.source_name, record)
-    if tier == TIER_BLOCK:
-        raise CrimeIncidentValidationError("blocked_by_publish_rules")
-
-    # SourceRegistry is authoritative: can only restrict, never promote
-    registry_tier = resolve_publication_policy(
+    # Apply auto-review — consolidates classify_record + resolve_publication_policy
+    # + evidence/identifier confidence gates into one result.
+    db_tier = resolve_publication_policy(
         db,
         source_key=source_key or record.source_name,
         source_name=record.source_name,
     )
-    if registry_tier == TIER_HOLD:
-        tier = TIER_HOLD
+    review = auto_review(
+        record,
+        record.source_name,
+        has_snapshot_hash=False,  # crime incidents don't carry snapshots
+        db_tier=db_tier,
+    )
+    if review.action == "block":
+        raise CrimeIncidentValidationError("blocked_by_publish_rules")
 
-    # Reset to pending_review if new record, safety fields changed, or was rejected
+    # Reset to auto-review decision if new, safety-changed, or previously rejected
     if incident.id is None or safety_fields_changed or prev_review_status == "rejected":
-        incident.review_status = review_status_for_tier(tier)
-        incident.is_public = public_visibility_for_tier(tier)
+        incident.review_status = review.review_status
+        incident.is_public = review.public_visibility
     else:
         incident.review_status = prev_review_status
 
-    # Unconditional hold: registry TIER_HOLD always revokes public visibility.
-    # Also demote auto-published status so the record re-enters the review queue.
-    if tier == TIER_HOLD:
+    # Unconditional: quarantine/context_only action always revokes public visibility.
+    if review.action in ("quarantine", "context_only"):
         incident.is_public = False
         if incident.review_status == "official_police_open_data_report":
             incident.review_status = "pending_review"

@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -34,6 +34,8 @@ class SourceUpdateRequest(BaseModel):
     )
     admin_notes: str | None = None
     config_json: str | None = None
+    auto_publish_enabled: bool | None = None
+    requires_manual_review: bool | None = None
 
 
 class SourceHealthMetrics(BaseModel):
@@ -65,11 +67,12 @@ class SourceResponse(BaseModel):
     last_successful_fetch: datetime | None
     last_ingested_at: datetime | None
     admin_notes: str | None
+    auto_publish_enabled: bool
+    requires_manual_review: bool
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IngestionRunSummary(BaseModel):
@@ -84,8 +87,7 @@ class IngestionRunSummary(BaseModel):
     persisted_count: int
     error_count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get("", response_model=list[SourceResponse])
@@ -163,6 +165,10 @@ def update_source(
                 status_code=422, detail=f"config_json is not valid JSON: {exc}"
             )
         source.config_json = update.config_json
+    if update.auto_publish_enabled is not None:
+        source.auto_publish_enabled = update.auto_publish_enabled
+    if update.requires_manual_review is not None:
+        source.requires_manual_review = update.requires_manual_review
 
     source.updated_at = datetime.now(timezone.utc)
     db.commit()
