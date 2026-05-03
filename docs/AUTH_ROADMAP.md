@@ -58,6 +58,46 @@ Replace shared-token auth with one of these options:
 3. **Phase 3 (Q4 2026)**: Default to real auth, keep shared-token as development-only option
 4. **Phase 4 (2027)**: Remove shared-token auth entirely
 
+---
+
+## Specific Gaps for External Audit (JUDGE-main 22)
+
+The following gaps were identified in the external audit of JUDGE-main 22.  
+These are documented here to establish a precise upgrade checklist for Phase 2.
+
+### Identity & Attribution Gaps
+
+| Gap | Current Behaviour | Fix in Phase 2 |
+|-----|------------------|----------------|
+| No per-user identity | `actor_id = "shared-admin-token"` for all callers | Extract OIDC `sub` claim as `actor_id`; store as user UUID |
+| No role-based access control | Role is enforced by endpoint, not by credential | Issue scoped tokens: `source-admin`, `review-admin`, `system-admin` |
+| Audit log non-attributable | Multiple operators indistinguishable in `audit_logs` | Each token maps to a user row; `actor_id` is the user UUID |
+| No separate reviewer vs. importer identity | Single `JTA_ADMIN_TOKEN` covers both | `reviewer` and `importer` roles issued as separate OIDC scopes |
+
+### Session & Token Lifecycle Gaps
+
+| Gap | Current Behaviour | Fix in Phase 2 |
+|-----|------------------|----------------|
+| Tokens never expire | Leaked token valid until redeploy | OIDC short-lived access tokens + refresh tokens |
+| No revocation | Revocation requires environment variable change + redeploy | OIDC token revocation endpoint; DB-level session invalidation |
+| No MFA / second factor | Not supported | OIDC provider handles MFA transparently |
+| No token rotation | Same static secret forever | OIDC providers rotate signing keys; tokens are time-bounded |
+
+### Operational Gaps
+
+| Gap | Current Behaviour | Fix in Phase 2 |
+|-----|------------------|----------------|
+| Shared secret in env var | `JTA_ADMIN_TOKEN` in `.env` / K8s secret | OIDC: secret is the provider's client_secret, never the user credential |
+| No session management | Request is stateless token check only | OIDC session with configurable expiry |
+| No concurrent session visibility | Cannot see who is logged in | OIDC provider surfaces active sessions; DB can record last-seen |
+
+### Code locations that change in Phase 2
+
+- `backend/app/auth/admin.py` — replace `_compare_token()` with JWT verification; update `require_admin_token()` to extract `sub` and `scope` claims
+- `backend/app/auth/actor.py` — add `user_id: str | None` field to `AdminActor`
+- `backend/app/models/entities.py` — add `User` model with id, email, roles, last_seen
+- `backend/app/core/config.py` — add `JTA_OIDC_ISSUER`, `JTA_OIDC_CLIENT_ID`, `JTA_OIDC_CLIENT_SECRET` settings
+
 ### Implementation Checklist
 
 When ready to implement real auth:

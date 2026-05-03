@@ -18,10 +18,11 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import SourceRegistry
 
-# Activate saskatoon_crime only in explicit dev mode
+# Activate saskatoon_crime only in explicit dev mode.
+# Check JTA_APP_ENV first (canonical pydantic env_prefix), fall back to bare APP_ENV.
 _SASKATOON_ACTIVE: bool = (
     os.environ.get("JTA_CANADA_FIRST_DEV_ENABLE_SASKATOON", "").lower() in ("1", "true", "yes")
-    and os.environ.get("APP_ENV", "production").lower() == "development"
+    and (os.environ.get("JTA_APP_ENV") or os.environ.get("APP_ENV", "production")).lower() == "development"
 )
 
 _SOURCES: list[dict] = [

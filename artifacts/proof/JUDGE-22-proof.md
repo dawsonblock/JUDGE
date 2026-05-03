@@ -1,8 +1,26 @@
 # JUDGE-main 22 — Proof of Work
 
-**Date:** 2025-07-14  
+**Date:** 2026-05-03  
 **Base commit:** `04844ea` (JUDGE-main 21)  
+**Result commit:** `d13be28` (JUDGE-main 22)  
 **Status:** All phases complete; 621 tests pass (0 failures, 2 skipped)
+
+## Proof Metadata
+
+| Field | Value |
+|-------|-------|
+| Python | 3.12 |
+| Node | 20+ |
+| OS (local) | macOS |
+| OS (CI) | ubuntu-latest |
+| Backend command | `cd backend && python -m pytest -q` |
+| Backend exit code | 0 |
+| Backend result | 621 passed, 2 skipped, 0 failed |
+| Frontend command | `npm run lint && npm run typecheck && npm run build` |
+| Frontend result | lint pass, typecheck pass, build pass |
+| Database (tests) | SQLite (in-memory via `DATABASE_URL=sqlite:///./test.db`) |
+| Database (CI) | SQLite only — no PostgreSQL/PostGIS job yet (see postgres-gate roadmap) |
+| Test count discrepancy note | 394 in older `docs/REPAIR_PROOF.md` snapshot; 621 reflects post-JUDGE-22 state. Both are accurate for their respective runs. |
 
 ---
 

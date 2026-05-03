@@ -1,3 +1,4 @@
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -70,6 +71,21 @@ def _validate_production_safety(settings) -> None:
             )
             sys.exit(1)
 
+    # Reject in-memory rate limiting in production (not safe across multiple workers/replicas)
+    # unless the operator explicitly opts in with JTA_ALLOW_IN_MEMORY_RATE_LIMIT_PRODUCTION=true.
+    if settings.rate_limit_backend != "redis":
+        allow_override = os.environ.get(
+            "JTA_ALLOW_IN_MEMORY_RATE_LIMIT_PRODUCTION", ""
+        ).lower()
+        if allow_override not in ("1", "true", "yes"):
+            print(
+                "ERROR: JTA_RATE_LIMIT_BACKEND=memory is unsafe in production with "
+                "multiple workers or replicas. Set JTA_RATE_LIMIT_BACKEND=redis, or "
+                "set JTA_ALLOW_IN_MEMORY_RATE_LIMIT_PRODUCTION=true only for "
+                "verified single-node deployments."
+            )
+            sys.exit(1)
+
     # Check Redis availability if configured
     if settings.rate_limit_backend == "redis":
         import redis
@@ -95,7 +111,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if request.method in ("POST", "PUT", "PATCH"):
-            # Check Content-Length header first (safer than reading body)
+            # Check Content-Length header first (cheaper path)
             content_length = request.headers.get("content-length")
             if content_length:
                 try:
@@ -110,8 +126,31 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                             },
                         )
                 except ValueError:
-                    # Invalid Content-Length, let request proceed
+                    # Invalid Content-Length value — fall through to streaming check
                     pass
+            else:
+                # No Content-Length (chunked / streaming upload): wrap receive to
+                # enforce byte cap without buffering the whole body at once.
+                original_receive = request._receive
+                bytes_seen = 0
+
+                async def capped_receive():
+                    nonlocal bytes_seen
+                    message = await original_receive()
+                    if message.get("type") == "http.request":
+                        chunk = message.get("body", b"")
+                        bytes_seen += len(chunk)
+                        if bytes_seen > self.max_size:
+                            return JSONResponse(
+                                status_code=413,
+                                content={
+                                    "error": "Request too large",
+                                    "max_size_bytes": self.max_size,
+                                },
+                            )
+                    return message
+
+                request._receive = capped_receive
         return await call_next(request)
 
 

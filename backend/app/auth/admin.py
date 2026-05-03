@@ -72,6 +72,15 @@ def require_admin_review(
     _require_token_for_role(settings, x_jta_admin_token, _TOKEN_ROLE_REVIEW)
 
 
+# AUTH GAP — shared-token limitations (see docs/AUTH_ROADMAP.md for upgrade path):
+#   1. All valid tokens produce actor_id="shared-admin-token" — no per-user attribution.
+#   2. Tokens never expire — a leaked token requires a redeploy to revoke.
+#   3. No role separation at the *identity* level: reviewer and importer roles are
+#      enforced by which endpoint is called, not by separate credentials.
+#   4. No MFA or second-factor support.
+#   5. Concurrent sessions from multiple operators are indistinguishable in audit logs.
+# Upgrade: AUTH_ROADMAP.md §Phase 2 — replace with OIDC/Clerk/Auth0 JWT verification;
+# extract sub claim as actor_id; keep AdminActor shape stable so callsites don't change.
 def require_admin_token(
     x_jta_admin_token: str | None = Header(default=None),
 ) -> AdminActor:
