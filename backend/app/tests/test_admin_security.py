@@ -123,6 +123,7 @@ class TestAdminActorIdentity:
         class FakeSettings:
             admin_token = "test-secret-token"
             admin_review_token = None
+            jwt_auth_enabled = False
 
         with patch("app.auth.admin.get_settings", return_value=FakeSettings()):
             from app.auth.admin import require_admin_token
@@ -142,6 +143,7 @@ class TestAdminActorIdentity:
         class FakeSettings:
             admin_token = "super-secret-value-12345"
             admin_review_token = None
+            jwt_auth_enabled = False
 
         with patch("app.auth.admin.get_settings", return_value=FakeSettings()):
             from app.auth.admin import require_admin_token
@@ -209,6 +211,7 @@ class TestAdminActorIdentity:
         class FakeSettings:
             admin_token = "token-abc"
             admin_review_token = None
+            jwt_auth_enabled = False
 
         with patch("app.auth.admin.get_settings", return_value=FakeSettings()):
             from app.auth.admin import require_admin_token

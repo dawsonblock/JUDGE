@@ -8,6 +8,7 @@ from app.api.routes import (
     admin_sources,
     ai_correctness,
     ai_review,
+    auth,
     boundaries,
     evidence,
     evidence_store,
@@ -21,6 +22,7 @@ from app.api.routes import (
 from app.serializers.public import is_mappable as _is_mappable
 
 router = APIRouter()
+router.include_router(auth.router)
 router.include_router(public_events.router)
 router.include_router(map.router)
 router.include_router(map_record.router)

@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     max_request_size: int = 10 * 1024 * 1024  # 10MB for regular API
     max_csv_upload_size: int = 50 * 1024 * 1024  # 50MB for CSV uploads
 
+    # JWT authentication
+    jwt_secret_key: str = "CHANGE-ME-BEFORE-PRODUCTION"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+    # Set to True once at least one admin user has been created via POST /api/auth/register
+    jwt_auth_enabled: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="JTA_",

@@ -7,6 +7,7 @@ from fastapi import Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth.actor import AdminActor
+from app.auth.jwt_handler import decode_token
 from app.core.config import Settings, get_settings
 from app.db.session import SessionLocal
 from app.models.entities import (
@@ -83,13 +84,37 @@ def require_admin_review(
 # extract sub claim as actor_id; keep AdminActor shape stable so callsites don't change.
 def require_admin_token(
     x_jta_admin_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> AdminActor:
     """Require a valid admin token for general admin operations.
+
+    When ``jwt_auth_enabled=True`` in config, a ``Authorization: Bearer <jwt>``
+    header with a valid access token is accepted in addition to the legacy
+    ``X-JTA-Admin-Token`` header.  The Bearer JWT path takes precedence.
 
     Returns an AdminActor with a stable, non-secret actor_id. The raw
     token value is NEVER returned or stored.
     """
     settings = get_settings()
+
+    # --- JWT path (preferred when jwt_auth_enabled) ---------------------------
+    if settings.jwt_auth_enabled and authorization and authorization.startswith("Bearer "):
+        raw_token = authorization.removeprefix("Bearer ").strip()
+        try:
+            payload = decode_token(raw_token)
+        except ValueError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+        if payload.token_type != "access":
+            raise HTTPException(status_code=401, detail="Access token required")
+        return AdminActor(
+            actor_id=payload.email,
+            actor_type="user",
+            role=payload.role,  # type: ignore[arg-type]
+            auth_method="jwt",
+            email=payload.email,
+        )
+
+    # --- Legacy shared-token path ---------------------------------------------
     token = settings.admin_token or settings.admin_review_token
 
     if not token:
@@ -112,48 +137,55 @@ def require_admin_token(
 
 def require_viewer(
     x_jta_admin_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> AdminActor:
     """Require valid admin token; returns actor with viewer role."""
-    actor = require_admin_token(x_jta_admin_token)
+    actor = require_admin_token(x_jta_admin_token, authorization)
     return AdminActor(
         actor_id=actor.actor_id,
         actor_type=actor.actor_type,
         role="viewer",
         auth_method=actor.auth_method,
+        email=actor.email,
     )
 
 
 def require_reviewer(
     x_jta_admin_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> AdminActor:
     """Require valid admin token; returns actor with reviewer role."""
-    actor = require_admin_token(x_jta_admin_token)
+    actor = require_admin_token(x_jta_admin_token, authorization)
     return AdminActor(
         actor_id=actor.actor_id,
         actor_type=actor.actor_type,
         role="reviewer",
         auth_method=actor.auth_method,
+        email=actor.email,
     )
 
 
 def require_source_admin(
     x_jta_admin_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> AdminActor:
     """Require valid admin token; returns actor with source_admin role."""
-    actor = require_admin_token(x_jta_admin_token)
+    actor = require_admin_token(x_jta_admin_token, authorization)
     return AdminActor(
         actor_id=actor.actor_id,
         actor_type=actor.actor_type,
         role="source_admin",
         auth_method=actor.auth_method,
+        email=actor.email,
     )
 
 
 def require_system_admin(
     x_jta_admin_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> AdminActor:
     """Require valid admin token; returns actor with system_admin role."""
-    return require_admin_token(x_jta_admin_token)
+    return require_admin_token(x_jta_admin_token, authorization)
 
 
 def require_public_event_post(

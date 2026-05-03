@@ -87,6 +87,15 @@ class WebMonitorTarget(BaseModel):
         default=False,
         description="Whether this target is enabled (disabled by default)",
     )
+    robots_txt_obey: bool = Field(
+        default=True,
+        description=(
+            "Policy flag: whether robots.txt should be respected for this target. "
+            "Always True for externally-hosted sources. "
+            "Note: Crawlee HttpCrawler does not expose per-crawl robots.txt enforcement; "
+            "this field records intent and is checked before enabling a target."
+        ),
+    )
     extractor_type: str = Field(
         ...,
         description="Extractor to use: police_release_index, court_news_index, etc.",

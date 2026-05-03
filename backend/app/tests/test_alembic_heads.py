@@ -36,13 +36,13 @@ def test_single_alembic_head() -> None:
 
 
 def test_latest_migration_is_0009() -> None:
-    """The single head revision must be 20260502_0009 (latest migration)."""
+    """The single head revision must be 20260503_0001 (latest migration)."""
     result = _run_alembic(["heads"])
     assert result.returncode == 0
     head_lines = [line for line in result.stdout.splitlines() if "(head)" in line]
     assert len(head_lines) == 1
-    assert "20260502_0009" in head_lines[0], (
-        f"Expected head to be 20260502_0009, got:\n{head_lines[0]}"
+    assert "20260503_0001" in head_lines[0], (
+        f"Expected head to be 20260503_0001, got:\n{head_lines[0]}"
     )
 
 

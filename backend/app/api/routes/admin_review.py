@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth.admin import require_admin_review
+from app.auth.admin import require_admin_review, require_admin_token
+from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
 from app.models.entities import CrimeIncident, Event, EvidenceReview, LegalSource
@@ -213,3 +214,50 @@ async def admin_review_decision(
     )
     db.commit()
     return _serialize_review_item(entity_type, entity)
+
+
+@router.post(
+    "/api/admin/legal-sources/{source_id}/retract",
+    dependencies=[Depends(rate_limit_admin)],
+)
+def retract_legal_source(
+    source_id: str,
+    reason: str | None = Query(None, max_length=1000, description="Reason for retraction"),
+    db: Session = Depends(get_db),
+    actor: AdminActor = Depends(require_admin_token),
+) -> dict:
+    """Permanently retract a legal source from public visibility.
+
+    Sets review_status to 'removed_from_public', clears public_visibility,
+    and writes an EvidenceReview audit record. Requires system_admin or
+    source_admin role via JWT Bearer or shared admin token.
+    """
+    source = db.scalar(select(LegalSource).where(LegalSource.source_id == source_id))
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Legal source '{source_id}' not found")
+
+    _RETRACTION_STATUS = "removed_from_public"
+    previous_status = source.review_status
+    now = datetime.now(timezone.utc)
+
+    source.review_status = _RETRACTION_STATUS
+    source.public_visibility = False
+    source.reviewed_by = actor.actor_id
+    source.reviewed_at = now
+    if reason:
+        source.review_notes = reason
+
+    db.add(
+        EvidenceReview(
+            entity_type="source",
+            entity_id=source.id,
+            previous_status=previous_status,
+            new_status=_RETRACTION_STATUS,
+            reviewed_by=actor.actor_id,
+            reviewed_at=now,
+            notes=reason,
+            public_visibility=False,
+        )
+    )
+    db.commit()
+    return _serialize_review_item("source", source)

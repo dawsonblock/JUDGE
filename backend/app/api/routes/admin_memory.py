@@ -8,13 +8,13 @@ Does NOT import from map_record, graph edge, or public event tables.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth.admin import require_admin_token
 from app.auth.actor import AdminActor
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.memory.invalidation import invalidate_claim
 from app.memory.rebuild import run_rebuild
 from app.memory.retrieval import get_active_claims, get_entity_state, list_claims
@@ -54,13 +54,19 @@ def get_status(
     }
 
 
-@router.post("/rebuild")
+@router.post("/rebuild", status_code=202)
 def trigger_rebuild(
     body: RebuildRequest,
+    background_tasks: BackgroundTasks,
     _: AdminActor = Depends(require_admin_token),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Trigger a synchronous memory rebuild run."""
+    """Enqueue an async memory rebuild run.
+
+    Returns 202 Accepted immediately and runs the rebuild in a background task
+    so that the HTTP connection is not held open during long rebuilds.
+    Poll GET /rebuild/status to check progress.
+    """
     if body.scope not in {"full", "entity"}:
         raise HTTPException(status_code=400, detail=f"Unknown scope: {body.scope!r}")
     if body.scope == "entity" and body.entity_id is None:
@@ -68,16 +74,17 @@ def trigger_rebuild(
             status_code=400, detail="entity_id required for scope='entity'"
         )
 
-    run = run_rebuild(scope=body.scope, db=db, entity_id=body.entity_id)
-    db.commit()
-    return {
-        "id": run.id,
-        "status": run.status,
-        "entities_processed": run.entities_processed,
-        "claims_created": run.claims_created,
-        "states_updated": run.states_updated,
-        "error_message": run.error_message,
-    }
+    def _run_in_background() -> None:
+        with SessionLocal() as bg_db:
+            try:
+                run_rebuild(scope=body.scope, db=bg_db, entity_id=body.entity_id)
+                bg_db.commit()
+            except Exception:
+                bg_db.rollback()
+                raise
+
+    background_tasks.add_task(_run_in_background)
+    return {"status": "accepted", "message": "Rebuild enqueued. Poll /status for progress."}
 
 
 @router.get("/claims")
