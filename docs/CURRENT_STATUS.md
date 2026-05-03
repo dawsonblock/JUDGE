@@ -1,6 +1,6 @@
 # Judge Atlas - Current Status & Limitations
 
-**Date:** 2026-05-02 (updated post-repair)  
+**Date:** 2026-05-03 (updated post-correctness-patches)  
 **Release Status:** **ALPHA - Not Production Ready**
 
 ## What This Is
@@ -32,6 +32,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 - `get_active_claims` filters on both fields (belt-and-suspenders)
 - `_get_latest_snapshot_for_entity` scoped to entity via `EntityEvidenceLink` — no cross-entity contamination
 - `_upsert_claims` accumulates `MemoryEvidenceLink` rows for existing claims instead of silently skipping
+- `run_rebuild()` now performs diff-based stale claim invalidation: claims whose key is no longer produced by the current snapshot are marked `is_active=False, status=inactive` before upserting new ones
 - Memory is still a derivative layer: no public API, no embeddings, no semantic retrieval
 - **Do not claim the app uses production-grade memory**
 
@@ -150,6 +151,15 @@ Recent migrations (Phase 4-6 repair):
 - [x] `get_active_claims` filters both `is_active` and `status == "active"`
 - [x] `test_memory_rebuild_accumulation.py` + `test_memory_claim_lifecycle.py` added
 - [ ] Embeddings, summaries, semantic retrieval — not yet implemented
+
+### Phase 7 (Correctness Patches)
+- [x] `EvidenceStore.__init__` raises `RuntimeError` on non-existent/non-directory/non-writable path instead of silently disabling
+- [x] `EvidenceStore.write_snapshot` asserts file exists and is non-zero after write
+- [x] `snapshots.py GET /api/admin/snapshots/{id}/raw` hashes raw bytes (not base64 wrapper); returns 409 on mismatch; sets `encoding="base64"` correctly
+- [x] `map_record.py` detail endpoints expose top-level `review_status`, `source_quality`/`verification_status`, `source_count` alongside nested `audit` dict
+- [x] `_replace_known_defendant_names` uses word-boundary case-insensitive regex instead of `str.replace` (prevents partial-name leakage)
+- [x] `memory/rebuild.py` invalidates stale claims before upserting: keys absent from current extracted set are marked inactive
+- [x] `test_evidence_store.py` updated; `test_source_registry_control_plane.py` extended with runner-level block test
 
 ## Do Not Yet Claim
 

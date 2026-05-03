@@ -487,7 +487,9 @@ def _dedupe_pairs(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
 def _replace_known_defendant_names(text: str | None, pairs: list[tuple[str, str]]) -> str:
     safe = text or ""
     for original, replacement in pairs:
-        safe = safe.replace(original, replacement)
+        if not original:
+            continue
+        safe = re.sub(rf"\b{re.escape(original)}\b", replacement, safe, flags=re.IGNORECASE)
     return safe
 
 

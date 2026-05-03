@@ -124,6 +124,9 @@ def _court_event_detail(record_id: str, db: Session) -> dict:
         "source_links": source_links,
         "news_articles": news_articles,
         "related_reported_incidents": related_incidents,
+        "review_status": event.review_status,
+        "source_quality": event.source_quality,
+        "source_count": len(source_links),
         "audit": {
             "review_status": event.review_status,
             "reviewed_by": event.reviewed_by,
@@ -210,6 +213,9 @@ def _incident_detail(record_id: str, db: Session) -> dict:
         "source_links": source_links,
         "news_articles": news_articles,
         "related_court_records": related_court_records,
+        "review_status": incident.review_status,
+        "verification_status": incident.verification_status,
+        "source_count": len(source_links),
         "audit": {
             "review_status": incident.review_status,
             "reviewed_by": incident.reviewed_by,

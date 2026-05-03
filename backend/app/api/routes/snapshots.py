@@ -17,6 +17,7 @@ from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.models.entities import RelationshipEvidence, ReviewItem, SourceSnapshot
 from app.services.evidence_store import EvidenceStore
+from app.services.snapshot_writer import _decode_from_db
 
 router = APIRouter(prefix="/api/admin/snapshots", tags=["snapshots"])
 
@@ -220,47 +221,43 @@ def get_snapshot_raw(
                 status_code=404,
                 detail="External storage file not found",
             )
-    # Fall back to DB storage
+    # Fall back to DB storage — decode the stored representation back to original bytes
     elif snapshot.raw_content:
-        content = snapshot.raw_content
+        content_bytes = _decode_from_db(snapshot.raw_content)
 
-    if content is None and content_bytes is None:
+    if content_bytes is None:
         raise HTTPException(status_code=404, detail="No raw content available")
 
-    # Verify hash using original bytes (before any encoding/decoding)
+    # Verify hash against original bytes
     hash_verified = True
-    bytes_for_hash: bytes | None = None
-
     if verify_hash:
         import hashlib
-        if content_bytes:
-            # Filesystem storage: use original bytes
-            bytes_for_hash = content_bytes
-        elif content:
-            # DB storage: encode stored string exactly as written
-            bytes_for_hash = content.encode("utf-8")
-        
-        if bytes_for_hash:
-            computed_hash = hashlib.sha256(bytes_for_hash).hexdigest()
-            hash_verified = computed_hash == snapshot.content_hash
+        computed_hash = hashlib.sha256(content_bytes).hexdigest()
+        hash_verified = computed_hash == snapshot.content_hash
+        if not hash_verified:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Content hash mismatch: stored {snapshot.content_hash!r}, "
+                    f"computed {computed_hash!r}"
+                ),
+            )
 
-    # Track original size before any encoding
-    original_size_bytes = len(bytes_for_hash) if bytes_for_hash else 0
+    original_size_bytes = len(content_bytes)
 
-    # Convert bytes to string for response
-    if content_bytes:
-        try:
-            content = content_bytes.decode("utf-8")
-        except UnicodeDecodeError:
-            # Return as base64 if not valid UTF-8
-            import base64
-            content = base64.b64encode(content_bytes).decode("ascii")
-
-    assert content is not None
+    # Convert bytes to string for JSON response; detect encoding for caller
+    encoding = "utf-8"
+    try:
+        content = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        import base64
+        content = base64.b64encode(content_bytes).decode("ascii")
+        encoding = "base64"
 
     return SnapshotContentResponse(
         content=content,
         content_type=snapshot.content_type,
+        encoding=encoding,
         size_bytes=original_size_bytes,
         hash_verified=hash_verified,
     )

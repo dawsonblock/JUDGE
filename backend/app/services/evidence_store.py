@@ -52,13 +52,21 @@ class EvidenceStore:
             root_path = os.getenv("JTA_EVIDENCE_STORE_ROOT")
 
         if root_path:
-            candidate = Path(root_path).expanduser()
-            if candidate.exists() and candidate.is_dir():
-                self.root = candidate
-                self._enabled = True
-            else:
-                self.root = None
-                self._enabled = False
+            candidate = Path(root_path).expanduser().resolve()
+            if not candidate.exists():
+                raise RuntimeError(
+                    f"JTA_EVIDENCE_STORE_ROOT does not exist: {candidate}"
+                )
+            if not candidate.is_dir():
+                raise RuntimeError(
+                    f"JTA_EVIDENCE_STORE_ROOT is not a directory: {candidate}"
+                )
+            if not os.access(candidate, os.W_OK):
+                raise RuntimeError(
+                    f"JTA_EVIDENCE_STORE_ROOT is not writable: {candidate}"
+                )
+            self.root = candidate
+            self._enabled = True
         else:
             self.root = None
             self._enabled = False
@@ -145,10 +153,17 @@ class EvidenceStore:
             # Content already stored, return existing path
             return self._get_relative_path(content_hash)
 
-        # Create directory structure
+        # Create directory structure and write
         if storage_path:
             storage_path.parent.mkdir(parents=True, exist_ok=True)
             storage_path.write_bytes(content)
+            # Post-write integrity assertion
+            assert storage_path.exists(), (
+                f"write_snapshot: file not found after write: {storage_path}"
+            )
+            assert storage_path.stat().st_size > 0, (
+                f"write_snapshot: zero-byte file after write: {storage_path}"
+            )
 
         return self._get_relative_path(content_hash)
 

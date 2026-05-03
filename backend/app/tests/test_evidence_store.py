@@ -28,17 +28,24 @@ class TestEvidenceStore:
             if old_env:
                 os.environ["JTA_EVIDENCE_STORE_ROOT"] = old_env
 
-    def test_store_disabled_with_nonexistent_path(self):
-        """Store should be disabled when path doesn't exist."""
-        store = EvidenceStore("/nonexistent/path/to/store")
-        assert not store.enabled
+    def test_store_raises_on_nonexistent_path(self):
+        """Store should raise RuntimeError when root path does not exist."""
+        with pytest.raises(RuntimeError, match="does not exist"):
+            EvidenceStore("/nonexistent/path/to/store")
+
+    def test_store_raises_on_file_path(self):
+        """Store should raise RuntimeError when path is a file, not a directory."""
+        import tempfile
+        with tempfile.NamedTemporaryFile() as f:
+            with pytest.raises(RuntimeError, match="not a directory"):
+                EvidenceStore(f.name)
 
     def test_store_enabled_with_existing_path(self):
         """Store should be enabled when path exists."""
         with tempfile.TemporaryDirectory() as tmpdir:
             store = EvidenceStore(tmpdir)
             assert store.enabled
-            assert store.root == Path(tmpdir)
+            assert store.root == Path(tmpdir).resolve()
 
     def test_write_snapshot_creates_correct_path(self):
         """Write should create content-addressed path."""
@@ -199,7 +206,7 @@ class TestEvidenceStore:
             try:
                 store = EvidenceStore()  # No arg, reads from env
                 assert store.enabled
-                assert store.root == Path(tmpdir)
+                assert store.root == Path(tmpdir).resolve()
             finally:
                 if old_env:
                     os.environ["JTA_EVIDENCE_STORE_ROOT"] = old_env

@@ -180,3 +180,33 @@ def test_source_registry_is_only_runtime_switch(db_session):
 
     allowed, _ = check_ingestion_allowed(source)
     assert allowed, "is_active=True must allow again"
+
+
+def test_runner_blocks_when_source_disabled(db_session):
+    """run_courtlistener_ingestion must fail closed when source is disabled.
+
+    require_source_registry auto-creates a disabled entry for unknown source keys,
+    so calling the runner against a clean DB must return a failed IngestionRun
+    without ever invoking the external adapter.
+    """
+    from app.ingestion.runner import run_courtlistener_ingestion
+
+    # Use a unique source key so require_source_registry auto-creates a disabled entry.
+    # We patch the runner's registry lookup by pre-inserting a disabled "courtlistener" row.
+    registry = require_source_registry(
+        db_session,
+        source_key="courtlistener",
+        source_name="CourtListener API",
+    )
+    # Explicitly disable in case a prior test activated it in the shared SQLite DB.
+    registry.is_active = False
+    db_session.commit()
+
+    since = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    run = run_courtlistener_ingestion(db_session, since)
+
+    assert run.status == "failed", "Runner must return failed status when source disabled"
+    assert run.error_count >= 1, "Runner must record at least one error"
+    assert any("blocked" in (e or "").lower() for e in (run.errors or [])), (
+        "Error message must mention 'blocked'"
+    )
