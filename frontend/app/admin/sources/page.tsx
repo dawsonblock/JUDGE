@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { apiBase } from "@/lib/api";
 
 interface SourceRegistry {
   id: number;
@@ -73,7 +74,7 @@ export default function AdminSourcesPage() {
     if (!token) return;
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/sources", {
+      const res = await fetch(`${apiBase(false)}/api/admin/sources`, {
         headers: {
           Accept: "application/json",
           "X-JTA-Admin-Token": token,
@@ -95,7 +96,7 @@ export default function AdminSourcesPage() {
       setLoadingDetails((prev) => ({ ...prev, [sourceKey]: true }));
 
       // Load health
-      const healthRes = await fetch(`/api/admin/sources/${sourceKey}/health`, {
+      const healthRes = await fetch(`${apiBase(false)}/api/admin/sources/${sourceKey}/health`, {
         headers: {
           Accept: "application/json",
           "X-JTA-Admin-Token": token,
@@ -107,7 +108,7 @@ export default function AdminSourcesPage() {
       }
 
       // Load runs
-      const runsRes = await fetch(`/api/admin/sources/${sourceKey}/runs?limit=5`, {
+      const runsRes = await fetch(`${apiBase(false)}/api/admin/sources/${sourceKey}/runs?limit=5`, {
         headers: {
           Accept: "application/json",
           "X-JTA-Admin-Token": token,
@@ -128,7 +129,7 @@ export default function AdminSourcesPage() {
     if (!token) return;
     try {
       const action = isActive ? "disable" : "enable";
-      const res = await fetch(`/api/admin/sources/${sourceKey}/${action}`, {
+      const res = await fetch(`${apiBase(false)}/api/admin/sources/${sourceKey}/${action}`, {
         method: "POST",
         headers: {
           Accept: "application/json",

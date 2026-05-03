@@ -686,7 +686,7 @@ class SourceRegistry(Base, TimestampMixin):
         DateTime(timezone=True)
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
+        Boolean, nullable=False, default=False, server_default="false"
     )
 
     # Rate limiting and operational controls
@@ -1011,6 +1011,10 @@ class MemoryClaim(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", default=True)
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invalidation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="active", default="active", index=True
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MemoryEvidenceLink(Base):
@@ -1075,6 +1079,68 @@ class MemoryInvalidation(Base):
     )
     invalidated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class MemoryRelationshipState(Base, TimestampMixin):
+    """Computed pairwise relationship state between two canonical entities."""
+
+    __tablename__ = "memory_relationship_states"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_entity_id",
+            "target_entity_id",
+            "relationship_type",
+            name="uq_memory_relationship_state",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
+    )
+    target_entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
+    )
+    relationship_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    state_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence_claim_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0", default=0.0
+    )
+    last_rebuild_run_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("memory_rebuild_runs.id"), nullable=True, index=True
+    )
+    rebuilt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EntityEvidenceLink(Base):
+    """Direct link between a canonical entity and a source snapshot.
+
+    Populated during ingestion to record which snapshots contain evidence
+    for a given entity. Allows memory rebuild to scope snapshot selection
+    to snapshots actually relevant to the entity being rebuilt.
+    """
+
+    __tablename__ = "entity_evidence_links"
+
+    __table_args__ = (
+        UniqueConstraint("entity_id", "snapshot_id", name="uq_entity_evidence_link"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
+    )
+    snapshot_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("source_snapshots.id"), nullable=False, index=True
+    )
+    linked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    linking_reason: Mapped[str] = mapped_column(
+        String(80), nullable=False, server_default="ingestion_run"
     )
 
 

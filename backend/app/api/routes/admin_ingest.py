@@ -22,6 +22,7 @@ from app.ingestion.crime_sources.saskatoon import import_saskatoon_csv
 from app.ingestion.crime_sources.los_angeles import import_la_csv
 from app.ingestion.crime_sources.statscan import import_statscan_csv
 from app.ingestion.crime_sources.fbi_crime_data import import_fbi_json
+from app.ingestion.source_registry_ctl import check_ingestion_allowed, require_source_registry
 
 router = APIRouter(prefix="/api/admin/ingest", tags=["admin"])
 
@@ -34,12 +35,21 @@ def _require_imports(
     return db
 
 
+def _check_source_active(source_key: str, source_name: str, db: Session) -> None:
+    """Raise HTTP 403 if the source is disabled in SourceRegistry."""
+    registry = require_source_registry(db, source_key, source_name)
+    allowed, reason = check_ingestion_allowed(registry)
+    if not allowed:
+        raise HTTPException(status_code=403, detail=reason)
+
+
 @router.post("/gdelt")
 def ingest_gdelt(db: Session = Depends(_require_imports)):
     """Fetch and import GDELT news articles."""
     settings = get_settings()
     if not settings.gdelt_enabled:
         raise HTTPException(status_code=403, detail="GDELT feed disabled")
+    _check_source_active("gdelt", "GDELT News Feed", db)
     articles = fetch_gdelt_articles()
     if articles is None:
         raise HTTPException(status_code=502, detail="GDELT fetch failed")
@@ -56,6 +66,7 @@ async def ingest_chicago(
     settings = get_settings()
     if not settings.local_feeds_enabled:
         raise HTTPException(status_code=403, detail="Local feeds disabled")
+    _check_source_active("chicago_crime", "Chicago Data Portal", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
     result = import_chicago_csv(db, stream)
@@ -71,6 +82,7 @@ async def ingest_toronto(
     settings = get_settings()
     if not settings.local_feeds_enabled:
         raise HTTPException(status_code=403, detail="Local feeds disabled")
+    _check_source_active("toronto_crime", "Toronto Police Service", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
     result = import_toronto_csv(db, stream)
@@ -86,6 +98,7 @@ async def ingest_saskatoon(
     settings = get_settings()
     if not settings.local_feeds_enabled:
         raise HTTPException(status_code=403, detail="Local feeds disabled")
+    _check_source_active("saskatoon_crime", "Saskatoon Police Service", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
     result = import_saskatoon_csv(db, stream)
@@ -101,6 +114,7 @@ async def ingest_los_angeles(
     settings = get_settings()
     if not settings.local_feeds_enabled:
         raise HTTPException(status_code=403, detail="Local feeds disabled")
+    _check_source_active("la_crime", "LA Open Data", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
     result = import_la_csv(db, stream)
@@ -108,7 +122,7 @@ async def ingest_los_angeles(
 
 
 @router.post("/statscan")
-def ingest_statscan(
+async def ingest_statscan(
     file: UploadFile = File(...),
     db: Session = Depends(_require_imports),
 ):
@@ -116,7 +130,8 @@ def ingest_statscan(
     settings = get_settings()
     if not settings.statscan_enabled:
         raise HTTPException(status_code=403, detail="StatsCan feed disabled")
-    content = file.file.read()
+    _check_source_active("statscan", "Statistics Canada", db)
+    content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     stream = io.StringIO(content.decode("utf-8-sig"))
     result = import_statscan_csv(db, stream)
     return result.__dict__
@@ -131,6 +146,7 @@ def ingest_fbi(
     settings = get_settings()
     if not settings.fbi_crime_enabled:
         raise HTTPException(status_code=403, detail="FBI feed disabled")
+    _check_source_active("fbi_crime", "FBI Crime Data", db)
     result = import_fbi_json(db, payload)
     return result.__dict__
 
@@ -142,6 +158,7 @@ def ingest_fbi(
 @router.get("/courtlistener-bulk/runs")
 def cl_bulk_runs(db: Session = Depends(_require_imports)):
     """List all CourtListener bulk import run records."""
+    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
     from sqlalchemy import select as _select
     from app.models.entities import CourtListenerBulkRun
     runs = db.scalars(
@@ -171,6 +188,7 @@ def cl_bulk_runs(db: Session = Depends(_require_imports)):
 @router.post("/courtlistener-bulk/list")
 def cl_bulk_list(db: Session = Depends(_require_imports)):
     """List CSV files available in the configured bulk_data_dir."""
+    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
     import os
     settings = get_settings()
     data_dir = settings.courtlistener_bulk_data_dir
@@ -200,6 +218,7 @@ def cl_bulk_import(
         {"snapshot_date": "2026-03-31", "files": ["courts","dockets"],
          "force": false, "include_opinions": false}
     """
+    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
     import os
     from app.ingestion.courtlistener_bulk_normalizer import (
         get_or_create_bulk_run,
@@ -314,6 +333,7 @@ def cl_bulk_normalize(
 
     Delegates to /import with force=True but only for already-downloaded files.
     """
+    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
     body = dict(payload or {})
     body["force"] = True
     return cl_bulk_import(body, db)

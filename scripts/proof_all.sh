@@ -41,7 +41,10 @@ cd "$REPO_ROOT"
 run_step "backend_install" "cd backend && python -m pip install -e '.[test]'"
 run_step "backend_compile" "cd backend && python -m compileall -q app"
 run_step "backend_tests" "cd backend && python -m pytest -q"
-run_step "alembic_sqlite" "cd backend && JTA_DATABASE_URL=sqlite:///./proof_test.db alembic upgrade head && rm -f proof_test.db judgetracker.db"
+run_step "alembic_sqlite" \
+    "cd backend && { JTA_DATABASE_URL=sqlite:///./proof_test.db alembic upgrade head; rc=\$?; rm -f proof_test.db; exit \$rc; }"
+run_step "alembic_single_head" \
+    "cd backend && heads=\$(JTA_DATABASE_URL=sqlite:///./proof_heads.db alembic heads 2>&1); rm -f proof_heads.db; count=\$(echo \"\$heads\" | grep -c '(head)' || true); [ \"\$count\" -eq 1 ] || { echo \"Expected 1 alembic head, got: \$heads\"; exit 1; }"
 run_step "frontend_install" "cd frontend && npm ci"
 run_step "frontend_lint" "cd frontend && npm run lint"
 run_step "frontend_typecheck" "cd frontend && npm run typecheck"

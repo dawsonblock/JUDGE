@@ -17,6 +17,7 @@ from app.memory import entity_summary_checksum
 from app.memory.extract_claims import extract_claims
 from app.models.entities import (
     CanonicalEntity,
+    EntityEvidenceLink,
     MemoryClaim,
     MemoryEntityState,
     MemoryEvidenceLink,
@@ -29,13 +30,20 @@ def _get_latest_snapshot_for_entity(
     entity: CanonicalEntity,
     db: Session,
 ) -> SourceSnapshot | None:
-    """Return the most recent SourceSnapshot in the store.
+    """Return the most recent SourceSnapshot linked to this entity.
 
-    In the current schema there is no direct canonical-entity → snapshot FK;
-    the most recent snapshot is used as a reasonable default for text-based
-    claim extraction. Future work may refine this via ingestion-run linkage.
+    Joins through EntityEvidenceLink to scope the query to snapshots
+    that actually contain evidence for this entity. Returns None if no
+    entity-scoped snapshots exist rather than falling back to an
+    unrelated global snapshot.
     """
-    return db.query(SourceSnapshot).order_by(SourceSnapshot.fetched_at.desc()).first()
+    return (
+        db.query(SourceSnapshot)
+        .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
+        .filter(EntityEvidenceLink.entity_id == entity.id)
+        .order_by(SourceSnapshot.fetched_at.desc())
+        .first()
+    )
 
 
 def _upsert_claims(
@@ -55,6 +63,30 @@ def _upsert_claims(
         key = c["claim_key"]
         existing = db.query(MemoryClaim).filter(MemoryClaim.claim_key == key).first()
         if existing is not None:
+            # Accumulate new evidence for the existing claim instead of silently skipping.
+            existing_link = (
+                db.query(MemoryEvidenceLink)
+                .filter(
+                    MemoryEvidenceLink.claim_id == existing.id,
+                    MemoryEvidenceLink.snapshot_id == snapshot.id,
+                )
+                .first()
+            )
+            if existing_link is None:
+                ev_span: str | None = None
+                if c.get("span_start") is not None and c.get("span_end") is not None:
+                    src = snapshot.extracted_text or ""
+                    ev_span = src[c["span_start"] : c["span_end"]]
+                db.add(
+                    MemoryEvidenceLink(
+                        claim_id=existing.id,
+                        snapshot_id=snapshot.id,
+                        evidence_checksum=snapshot.content_hash or "",
+                        span_start=c.get("span_start"),
+                        span_end=c.get("span_end"),
+                        span_text=ev_span,
+                    )
+                )
             skipped += 1
             continue
 

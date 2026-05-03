@@ -1,6 +1,6 @@
 # Judge Atlas - Current Status & Limitations
 
-**Date:** 2026-05-02  
+**Date:** 2026-05-02 (updated post-repair)  
 **Release Status:** **ALPHA - Not Production Ready**
 
 ## What This Is
@@ -24,11 +24,16 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 
 ## Known Limitations
 
-### 1. Memory System Is Contract-Only
-- File: `docs/MEMORY_INTEGRATION_CONTRACT.md`
-- No memory tables, embeddings, retrieval planner, invalidation engine, or API
-- Backend is ready to receive a fluid memory layer, but memory is not implemented
-- **Do not claim the app uses memory yet**
+### 1. Memory System Is Under Active Repair
+- Memory tables now exist: `memory_claims`, `memory_entity_states`, `memory_rebuild_runs`,
+  `memory_relationship_states`, `memory_evidence_links`, `entity_evidence_links`
+- `MemoryClaim.status` lifecycle field ("active"/"inactive") added alongside existing `is_active`
+- `invalidate_claim` / `invalidate_entity_state` set both `is_active=False` and `status="inactive"`
+- `get_active_claims` filters on both fields (belt-and-suspenders)
+- `_get_latest_snapshot_for_entity` scoped to entity via `EntityEvidenceLink` — no cross-entity contamination
+- `_upsert_claims` accumulates `MemoryEvidenceLink` rows for existing claims instead of silently skipping
+- Memory is still a derivative layer: no public API, no embeddings, no semantic retrieval
+- **Do not claim the app uses production-grade memory**
 
 ### 2. Canadian Law Is Stub-Only
 - Files: `backend/app/ingestion/laws/canada_*.py`
@@ -76,14 +81,14 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 
 ## Migration Status
 
-**Total Migrations:** 22 (correct as of 2026-05-02)
+**Total Migrations:** 23 (as of 2026-05-02 repair)
 
-Recent migrations:
-- `20260502_0001_add_snapshot_integrity_fields.py` — storage_backend, content_size_bytes, truncation_flag
-- `20260502_0002_add_audit_actor_fields.py` — audit_logs.actor_id
-- `20260502_0003_expand_source_registry_source_type.py` — source_type String(20)→String(80)
+Recent migrations (Phase 4-6 repair):
+- `20260502_0005_add_memory_tables.py` — core memory tables
+- `20260502_0006_add_entity_evidence_links.py` — `entity_evidence_links` table (scopes rebuild to entity)
+- `20260502_0007_add_memory_claim_lifecycle.py` — `status` + `last_seen_at` columns on `memory_claims`
 
-**Proof Status:** Alembic upgrade head tested on SQLite; full migration suite not yet re-proven against 22 migrations. Run `bash scripts/proof_all.sh` with fixed JTA_DATABASE_URL to verify current state.
+**Proof Status:** `alembic heads` now verified to return exactly one head (checked by `test_alembic_heads.py` and `alembic_single_head` step in `proof_all.sh`). Run `bash scripts/proof_all.sh` to verify full migration chain.
 
 ## What Is Safe
 
@@ -122,20 +127,29 @@ Recent migrations:
 - [x] Startup validation: fail if tokens missing, dev tokens detected, wildcard CORS, Redis unavailable
 
 ### Phase 4 (Source Registry)
-- [ ] Make source enable/disable the real control switch in admin UI
-- [ ] Add UI controls to enable/disable courtlistener, saskatoon_police, statscan, etc.
-- [ ] Verify ingestion runner respects source is_active
+- [x] Source registry `is_active` defaults to `False` — fail-closed by default
+- [x] All 11 admin ingestion routes call `_check_source_active` before running ingestion
+- [x] `require_source_registry` auto-creates disabled entry when source key unknown
+- [x] `test_source_gate.py` added: verifies disabled source → HTTP 403; enabled → no gate 403
+- [ ] Admin UI controls to enable/disable sources (still manual DB operation)
 
 ### Phase 5 (Evidence Vault)
-- [ ] Configure JTA_EVIDENCE_STORE_ROOT=/Volumes/ExternalDrive/judge-atlas-evidence (or equivalent)
-- [ ] Add startup verification: path exists, writable, not inside repo
-- [ ] Large snapshots stored on external drive by hash
+- [x] `GET /api/admin/evidence-store/verify/{snapshot_id}` endpoint added
+- [x] Computes SHA-256 of stored content, compares with `original_content_hash`
+- [x] Returns `{"status": "ok"|"corrupted"|"unavailable", "stored_hash", "actual_hash", ...}`
+- [x] `test_snapshot_verify.py` added: covers ok / corrupted / unavailable / 404 / auth required
+- [ ] Configure `JTA_EVIDENCE_STORE_ROOT` for external drive storage
 
 ### Phase 6 (Fluid Memory)
-- [ ] Design memory as derivative layer, not source of truth
-- [ ] Add memory claim state tables with invalidation, checksums, rebuild status
-- [ ] Embeddings, summaries, relationship hints reference source IDs, review IDs, graph edge IDs
-- [ ] Rebuilds trigger when evidence changes
+- [x] `MemoryRelationshipState` ORM + migration
+- [x] `EntityEvidenceLink` ORM + migration (scopes snapshot queries to entity)
+- [x] `_get_latest_snapshot_for_entity` now scoped via `EntityEvidenceLink` join
+- [x] `_upsert_claims` accumulates `MemoryEvidenceLink` for existing claims (no silent skip)
+- [x] `MemoryClaim.status` lifecycle field + `last_seen_at` + migration
+- [x] `invalidate_claim` / `invalidate_entity_state` set `status="inactive"`
+- [x] `get_active_claims` filters both `is_active` and `status == "active"`
+- [x] `test_memory_rebuild_accumulation.py` + `test_memory_claim_lifecycle.py` added
+- [ ] Embeddings, summaries, semantic retrieval — not yet implemented
 
 ## Do Not Yet Claim
 
@@ -153,6 +167,9 @@ Recent migrations:
 - [x] "Strong source-first and evidence-first commitment"
 - [x] "No auto-publish without human review"
 - [x] "All admin mutations audited"
+- [x] "Source registry is fail-closed: new sources start disabled"
+- [x] "Memory rebuilds scoped per-entity via EntityEvidenceLink"
+- [x] "Snapshot integrity verifiable via /verify endpoint"
 - [x] "Ready for local development and research"
 
 ---

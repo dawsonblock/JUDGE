@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from app.db.session import SessionLocal
 from app.ingestion.web_monitor.source_targets import EXAMPLE_TARGETS
-from app.ingestion.web_monitor import run_web_monitor_target
+from app.ingestion.web_monitor import run_web_monitor_target_sync
 
 
 def list_targets():
@@ -83,14 +83,13 @@ def run_target(
     # Check if target is enabled
     if not target.enabled:
         print(f"WARNING: Target '{target_key}' is disabled.")
-        print("This will create a disabled registry entry and fail.")
-        print("Enable the target in the admin panel first.\n")
+        print(f"Enable the source in the admin panel (source key: web_monitor_{target_key}).")
 
     with SessionLocal() as db:
         print(f"Starting crawl at {datetime.now(timezone.utc).isoformat()}...")
 
         try:
-            run = run_web_monitor_target(target, db)
+            run = run_web_monitor_target_sync(target, db)
 
             print(f"\nCrawl completed at {datetime.now(timezone.utc).isoformat()}")
             print(f"Status: {run.status}")

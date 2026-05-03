@@ -36,6 +36,7 @@ def invalidate_claim(
 
     now = datetime.now(timezone.utc)
     claim.is_active = False
+    claim.status = "inactive"
     claim.invalidated_at = now
     claim.invalidation_reason = reason
 
@@ -79,6 +80,7 @@ def invalidate_entity_state(
     now = datetime.now(timezone.utc)
     for claim in active_claims:
         claim.is_active = False
+        claim.status = "inactive"
         claim.invalidated_at = now
         claim.invalidation_reason = reason
         db.add(

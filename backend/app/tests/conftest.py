@@ -6,6 +6,8 @@ import pytest
 TEST_DB = Path(__file__).with_name("test.db")
 if TEST_DB.exists():
     TEST_DB.unlink()
+os.environ["JTA_APP_ENV"] = "development"
+os.environ["JTA_ADMIN_TOKEN"] = "test-token"
 os.environ["JTA_DATABASE_URL"] = f"sqlite:///{TEST_DB}"
 os.environ["JTA_AUTO_SEED"] = "true"
 os.environ["JTA_RATE_LIMIT_ENABLED"] = "false"  # Disable rate limiting in tests

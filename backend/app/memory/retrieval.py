@@ -29,6 +29,7 @@ def get_active_claims(entity_id: int, db: Session) -> list[MemoryClaim]:
         .filter(
             MemoryClaim.entity_id == entity_id,
             MemoryClaim.is_active.is_(True),
+            MemoryClaim.status == "active",
         )
         .order_by(MemoryClaim.id)
         .all()
