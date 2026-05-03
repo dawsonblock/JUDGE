@@ -1,0 +1,247 @@
+"use client";
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { ExternalLink, MapPin, Calendar, BarChart2 } from "lucide-react";
+import type { CrimeIncident, EvidenceSource } from "@/lib/types";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
+import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
+
+interface IncidentDrawerProps {
+  incident: CrimeIncident | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+function DetailsTab({ incident }: { incident: CrimeIncident }) {
+  return (
+    <div className="space-y-4">
+      <SectionCard title="Description">
+        <p className="text-sm text-slate-700 leading-relaxed">{incident.description}</p>
+      </SectionCard>
+
+      <SectionCard title="Location">
+        <div className="flex items-start gap-2 text-sm text-slate-700">
+          <MapPin className="h-4 w-4 mt-0.5 text-slate-400 shrink-0" />
+          <span>
+            {incident.location.address ? `${incident.location.address}, ` : ""}
+            {incident.location.city}, {incident.location.province}
+          </span>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Classification">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <dt className="text-slate-500">Category</dt>
+          <dd className="text-slate-900 capitalize">{incident.category.replace(/_/g, " ")}</dd>
+          <dt className="text-slate-500">Status</dt>
+          <dd><StatusBadge status={incident.status} /></dd>
+          {incident.incidentDate && (
+            <>
+              <dt className="text-slate-500">Date</dt>
+              <dd className="text-slate-900 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {new Date(incident.incidentDate).toLocaleDateString("en-CA")}
+              </dd>
+            </>
+          )}
+          <dt className="text-slate-500">Confidence</dt>
+          <dd className="text-slate-900">{Math.round(incident.confidenceScore * 100)}%</dd>
+        </dl>
+      </SectionCard>
+
+      {incident.tags.length > 0 && (
+        <SectionCard title="Tags">
+          <div className="flex flex-wrap gap-1.5">
+            {incident.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+function AiTab({ incident }: { incident: CrimeIncident }) {
+  return (
+    <div className="space-y-4">
+      {incident.aiSummary ? (
+        <SectionCard title="AI Summary">
+          <p className="text-sm text-slate-700 leading-relaxed">{incident.aiSummary}</p>
+        </SectionCard>
+      ) : (
+        <EmptyState
+          title="No AI Analysis"
+          description="AI analysis has not been generated for this incident yet."
+        />
+      )}
+      <SectionCard title="Confidence Score">
+        <div className="flex items-center gap-3">
+          <BarChart2 className="h-5 w-5 text-slate-400" />
+          <div className="flex-1">
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-slate-500">Overall confidence</span>
+              <span className="font-medium">{Math.round(incident.confidenceScore * 100)}%</span>
+            </div>
+            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full"
+                style={{ width: `${incident.confidenceScore * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function EvidenceTab({ incident }: { incident: CrimeIncident }) {
+  const sources: EvidenceSource[] = MOCK_EVIDENCE_SOURCES.filter((s) =>
+    incident.sourceIds.includes(s.id)
+  );
+
+  if (sources.length === 0) {
+    return (
+      <EmptyState title="No Evidence Sources" description="No evidence has been linked to this incident." />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {sources.map((source) => (
+        <div key={source.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-medium text-slate-900 leading-tight">{source.title}</p>
+            {source.url && (
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-blue-500 shrink-0"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <EvidenceTypeBadge type={source.type} />
+            <ConfidenceBadge confidence={source.confidence} />
+          </div>
+          {source.publicationDate && (
+            <p className="text-xs text-slate-400">
+              {new Date(source.publicationDate).toLocaleDateString("en-CA")}
+              {source.author ? ` · ${source.author}` : ""}
+            </p>
+          )}
+          {source.excerpt && (
+            <p className="text-xs text-slate-600 italic leading-relaxed line-clamp-3">
+              "{source.excerpt}"
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RelatedTab({ incident }: { incident: CrimeIncident }) {
+  const hasRelated =
+    incident.caseId || incident.judgeId || incident.defendantIds.length > 0;
+
+  if (!hasRelated) {
+    return (
+      <EmptyState title="No Related Records" description="No court cases, judges, or defendants are linked to this incident." />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {incident.caseId && (
+        <div className="border border-slate-200 rounded-lg p-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Court Case</p>
+          <p className="text-sm font-medium text-slate-900">{incident.caseId}</p>
+          <Button variant="link" className="p-0 h-auto text-xs text-blue-600 mt-1">
+            View case →
+          </Button>
+        </div>
+      )}
+      {incident.judgeId && (
+        <div className="border border-slate-200 rounded-lg p-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Presiding Judge</p>
+          <p className="text-sm font-medium text-slate-900">{incident.judgeId}</p>
+          <Button variant="link" className="p-0 h-auto text-xs text-blue-600 mt-1">
+            View judge profile →
+          </Button>
+        </div>
+      )}
+      {incident.defendantIds.length > 0 && (
+        <div className="border border-slate-200 rounded-lg p-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Defendants</p>
+          <ul className="space-y-1">
+            {incident.defendantIds.map((id) => (
+              <li key={id} className="text-sm text-slate-900">{id}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function IncidentDrawer({ incident, open, onClose }: IncidentDrawerProps) {
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+        {incident && (
+          <>
+            <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-200">
+              <SheetTitle className="text-base leading-snug">{incident.title}</SheetTitle>
+              <div className="flex items-center gap-2 mt-1">
+                <StatusBadge status={incident.status} />
+                <span className="text-xs text-slate-400">
+                  {incident.location.city}, {incident.location.province}
+                </span>
+              </div>
+            </SheetHeader>
+            <ScrollArea className="flex-1">
+              <div className="px-6 py-4">
+                <Tabs defaultValue="details">
+                  <TabsList className="w-full mb-4">
+                    <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+                    <TabsTrigger value="ai" className="flex-1">AI Analysis</TabsTrigger>
+                    <TabsTrigger value="evidence" className="flex-1">Evidence</TabsTrigger>
+                    <TabsTrigger value="related" className="flex-1">Related</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="details">
+                    <DetailsTab incident={incident} />
+                  </TabsContent>
+                  <TabsContent value="ai">
+                    <AiTab incident={incident} />
+                  </TabsContent>
+                  <TabsContent value="evidence">
+                    <EvidenceTab incident={incident} />
+                  </TabsContent>
+                  <TabsContent value="related">
+                    <RelatedTab incident={incident} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

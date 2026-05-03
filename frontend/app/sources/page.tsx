@@ -1,59 +1,55 @@
-import Link from "next/link";
-import { fetchJson } from "@/lib/api";
-import SourcePanel from "@/components/SourcePanel";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
+import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
+import { ExternalLink } from "lucide-react";
 
-type Source = {
-  id: number;
-  source_id: string;
-  source_type: string;
-  title: string;
-  url: string;
-  source_quality: string;
-  verified_flag: boolean;
-  review_status: string;
-};
-
-export default async function SourcesPage() {
-  const sources = await fetchJson<Source[]>("/api/sources");
-
+export default function SourcesPage() {
   return (
-    <main className="page">
-      <div className="page-header">
-        <div>
-          <div className="kicker">Source list</div>
-          <h1>Legal sources</h1>
-          <p className="meta">News remains secondary context and unmatched source review is a placeholder queue.</p>
-        </div>
-        <Link className="badge" href="/">Back to map</Link>
+    <div className="space-y-6">
+      <PageHeader
+        title="Evidence Sources"
+        subtitle="Tracked publications, court records, and documents supporting incident data."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {MOCK_EVIDENCE_SOURCES.map((source) => (
+          <SectionCard
+            key={source.id}
+            title={
+              <div className="flex items-start justify-between gap-2 w-full">
+                <span className="text-sm font-medium leading-snug">{source.title}</span>
+                {source.url && (
+                  <a href={source.url} target="_blank" rel="noopener noreferrer"
+                    className="text-slate-400 hover:text-blue-500 shrink-0 mt-0.5">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            }
+          >
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                <EvidenceTypeBadge type={source.type} />
+                <ConfidenceBadge confidence={source.confidence} />
+              </div>
+              {source.publicationDate && (
+                <p className="text-xs text-slate-400">
+                  {new Date(source.publicationDate).toLocaleDateString("en-CA")}
+                  {source.author ? ` · ${source.author}` : ""}
+                </p>
+              )}
+              {source.excerpt && (
+                <p className="text-xs text-slate-600 italic line-clamp-2">"{source.excerpt}"</p>
+              )}
+            </div>
+          </SectionCard>
+        ))}
       </div>
-      <table className="source-table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Quality</th>
-            <th>Verified</th>
-            <th>Review</th>
-            <th>Evidence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sources.map((source) => (
-            <tr key={source.id}>
-              <td><a href={source.url}>{source.title}</a></td>
-              <td>{source.source_type}</td>
-              <td>{source.source_quality}</td>
-              <td>{source.verified_flag ? "yes" : "no"}</td>
-              <td>{source.review_status.replaceAll("_", " ")}</td>
-              <td><SourcePanel entityType="source" entityId={source.source_id} compact /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <section className="panel mt-md">
-        <h2>Unmatched news/source queue</h2>
-        <p>Placeholder only. Secondary context cannot create outcomes or primary decision records.</p>
-      </section>
-    </main>
+      {MOCK_EVIDENCE_SOURCES.length === 0 && (
+        <EmptyState title="No Sources" description="No evidence sources have been added yet." />
+      )}
+    </div>
   );
 }

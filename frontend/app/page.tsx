@@ -1,5 +1,5 @@
-import AtlasDashboardLoader from "@/components/AtlasDashboardLoader";
+import DashboardPage from "./dashboard/page";
 
 export default function Home() {
-  return <AtlasDashboardLoader />;
+  return <DashboardPage />;
 }
