@@ -1,4 +1,4 @@
-"""AI Correctness Check API routes.
+"""Rule-based validation check API routes.
 
 GET  /api/admin/correctness/checks          — list checks (admin)
 GET  /api/admin/correctness/checks/{id}     — single check (admin)

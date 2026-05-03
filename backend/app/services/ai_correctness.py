@@ -1,4 +1,4 @@
-"""AI correctness-checking service.
+"""Rule-based correctness-checking service.
 
 The AI checks map accuracy only.  It never scores guilt, judges people,
 implies danger, or ranks suspects.

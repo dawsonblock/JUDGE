@@ -11,7 +11,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 - **Backend:** FastAPI, SQLAlchemy ORM, 28 Alembic migrations, PostGIS
 - **Frontend:** Next.js, Leaflet, TypeScript, TailwindCSS
 - **Map:** North America Leaflet base, event layers, crime aggregates, visibility controls
-- **Admin:** Review queue, audit logs, source registry, AI correctness (rule-based)
+- **Admin:** Review queue, audit logs, source registry, automated validation (rule-based)
 
 ## What Works
 

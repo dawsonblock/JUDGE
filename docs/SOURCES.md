@@ -106,7 +106,7 @@ Monitor known public pages for:
 3. **Request limits** — Max 100 requests per run (default: 25)
 4. **Depth limits** — Max crawl depth 3 (default: 1)
 5. **Low concurrency** — Max 5 concurrent requests (default: 2)
-6. **Robots.txt compliance** — Enabled by default
+6. **Robots.txt compliance** — Enabled by default (intent; Crawlee does not expose per-crawl enforcement at runtime)
 7. **Never auto-publish** — All crawled content → `pending_review`
 8. **Low confidence** — Max 0.5 confidence for crawled content
 9. **Evidence snapshots** — Store source_url, fetched_at, content_hash, raw_content

@@ -33,7 +33,7 @@ Crawlee integration for controlled source monitoring follows a separate pipeline
 ```text
 configured target (disabled by default)
 -> admin enables target
--> Crawlee fetches (respecting robots.txt, limits)
+-> Crawlee fetches (robots.txt intent; not runtime-configurable per-crawl, limits)
 -> source snapshot saved (url, hash, timestamp, content)
 -> narrow extractor creates candidate
 -> ExtractedCandidate (confidence ≤ 0.5, warnings added)
