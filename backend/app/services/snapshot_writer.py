@@ -200,14 +200,20 @@ def read_snapshot_content(db: Session, snapshot: SourceSnapshot) -> bytes | None
         Raw content as bytes, or None if unavailable
     """
     if snapshot.storage_backend == "filesystem" and snapshot.storage_path:
-        try:
-            evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
-            if evidence_root:
-                evidence_store = EvidenceStore(root_path=evidence_root)
-                return evidence_store.read_snapshot(snapshot.storage_path)
-        except Exception:
-            # Fall through to DB fallback
-            pass
+        evidence_root = os.getenv("JTA_EVIDENCE_STORE_ROOT")
+        if not evidence_root:
+            raise OSError(
+                f"read_snapshot_content: JTA_EVIDENCE_STORE_ROOT not set "
+                f"for filesystem snapshot {snapshot.id}"
+            )
+        evidence_store = EvidenceStore(root_path=evidence_root)
+        content = evidence_store.read_snapshot(snapshot.storage_path)
+        if content is None:
+            raise OSError(
+                f"read_snapshot_content: file not found in evidence store "
+                f"for snapshot {snapshot.id}: {snapshot.storage_path}"
+            )
+        return content
 
     # DB path — decode the stored representation back to original bytes
     if snapshot.raw_content:

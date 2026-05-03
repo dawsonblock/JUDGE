@@ -26,14 +26,13 @@ def test_source_tier_auto_publish_safe_sources():
         "fbi_crime_data",
         "chicago_data_portal",
         "toronto_police",
-        "saskatoon_police",
         "los_angeles_open_data",
     ]:
         assert source_tier(name) == TIER_AUTO, f"{name} should be TIER_AUTO"
 
 
 def test_source_tier_hold_sources():
-    for name in ["courtlistener", "gdelt", "news", "media_cloud", "court_opinion_rss"]:
+    for name in ["courtlistener", "gdelt", "news", "media_cloud", "court_opinion_rss", "saskatoon_police"]:
         assert source_tier(name) == TIER_HOLD, f"{name} should be TIER_HOLD"
 
 

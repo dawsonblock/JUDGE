@@ -12,7 +12,7 @@
 | SQLite Unit Tests | ✅ Verified | 394 tests pass |
 | PostgreSQL Schema | ⏸️ Manual Only | Not CI-tested |
 | PostGIS Spatial | ⏸️ Not Verified | Requires PostgreSQL instance |
-| Migration Chain | ✅ Verified | 19 migrations apply cleanly |
+| Migration Chain | ✅ Verified | 28 migrations apply cleanly |
 
 ---
 
@@ -20,7 +20,7 @@
 
 ### Verified Capabilities
 
-- ✅ **Migrations**: 19 Alembic migrations apply successfully
+- ✅ **Migrations**: 28 Alembic migrations apply successfully
 - ✅ **Core CRUD**: All entity operations work
 - ✅ **Relationships**: Foreign keys, joins, cascades functional
 - ⚠️ **Spatial queries**: Simplified geometry (not true PostGIS)
@@ -145,7 +145,7 @@ cd backend
 rm -f test_migrate.db
 export DATABASE_URL="sqlite:///test_migrate.db"
 alembic upgrade head
-# Result: 19 migrations applied successfully
+# Result: 28 migrations applied successfully
 ```
 
 ---

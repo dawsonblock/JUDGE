@@ -255,8 +255,8 @@ class TestEvidenceStore:
                 with pytest.raises(OSError, match="post-write hash mismatch"):
                     store.write_snapshot(content, content_hash)
 
-    def test_write_snapshot_raises_oserror_on_zero_byte_file(self):
-        """write_snapshot should raise OSError when written file is empty."""
+    def test_write_snapshot_raises_oserror_on_zero_byte_read_after_write(self):
+        """write_snapshot raises OSError (hash mismatch) when disk returns empty bytes."""
         import pathlib
         from unittest.mock import patch
 
@@ -266,5 +266,15 @@ class TestEvidenceStore:
             content_hash = hashlib.sha256(content).hexdigest()
 
             with patch.object(pathlib.Path, "read_bytes", return_value=b""):
-                with pytest.raises(OSError, match="zero-byte file"):
+                with pytest.raises(OSError, match="post-write hash mismatch"):
                     store.write_snapshot(content, content_hash)
+
+    def test_write_snapshot_accepts_empty_content(self):
+        """write_snapshot stores empty bytes when the provided hash matches sha256 of b''."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            content = b""
+            content_hash = hashlib.sha256(content).hexdigest()
+            storage_path = store.write_snapshot(content, content_hash)
+            assert storage_path is not None
+            assert store.read_snapshot(storage_path) == b""

@@ -47,6 +47,24 @@ def _get_latest_snapshot_for_entity(
     )
 
 
+def _get_all_snapshots_for_entity(
+    db: Session,
+    entity_id: int,
+) -> list[SourceSnapshot]:
+    """Return all SourceSnapshots linked to this entity, oldest-first.
+
+    Claims from all snapshots are accumulated so that evidence from earlier
+    fetches is not lost when a newer snapshot is processed.
+    """
+    return (
+        db.query(SourceSnapshot)
+        .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
+        .filter(EntityEvidenceLink.entity_id == entity_id)
+        .order_by(SourceSnapshot.fetched_at.asc())
+        .all()
+    )
+
+
 def _upsert_claims(
     db: Session,
     entity_id: int,
@@ -261,14 +279,14 @@ def run_rebuild(
         )
         for entity in entities:
             run.entities_processed += 1
-            snapshot = _get_latest_snapshot_for_entity(db, entity.id)
-            if snapshot is None:
+            snapshots = _get_all_snapshots_for_entity(db, entity.id)
+            if not snapshots:
                 continue
 
-            extracted = extract_claims(snapshot, entity, db)
-
-            created, _ = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
-            run.claims_created += created
+            for snapshot in snapshots:
+                extracted = extract_claims(snapshot, entity, db)
+                created, _ = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
+                run.claims_created += created
 
             if _rebuild_entity_state(entity, run, db):
                 run.states_updated += 1

@@ -66,7 +66,9 @@ _SOURCE_TIER_MAP: dict[str, str] = {
     # Official structured local police/city open-data feeds
     "chicago_data_portal": TIER_AUTO,
     "toronto_police": TIER_AUTO,
-    "saskatoon_police": TIER_AUTO,
+    # Saskatoon is the initial Canadian feed; hold for manual review until the
+    # pipeline is validated and auto_publish_enabled is set in SourceRegistry.
+    "saskatoon_police": TIER_HOLD,
     "los_angeles_open_data": TIER_AUTO,
     # CourtListener – hold because records include names and docket text
     "courtlistener": TIER_HOLD,

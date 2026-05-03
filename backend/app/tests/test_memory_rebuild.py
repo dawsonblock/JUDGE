@@ -52,7 +52,7 @@ class TestRunRebuild:
         db.query.return_value = q
 
         with patch(
-            "app.memory.rebuild._get_latest_snapshot_for_entity", return_value=None
+            "app.memory.rebuild._get_all_snapshots_for_entity", return_value=[]
         ):
             result = run_rebuild("full", db)
 
@@ -80,12 +80,71 @@ class TestRunRebuild:
         db.get.return_value = entity
 
         with patch(
-            "app.memory.rebuild._get_latest_snapshot_for_entity", return_value=None
+            "app.memory.rebuild._get_all_snapshots_for_entity", return_value=[]
         ):
             result = run_rebuild("entity", db, entity_id=7)
 
         assert result.status == "completed"
         assert result.entities_processed == 1
+
+
+    def test_full_scope_processes_all_snapshots_for_entity(self):
+        """run_rebuild accumulates claims across every snapshot for an entity."""
+        db = self._make_db()
+
+        entity = MagicMock(spec=CanonicalEntity)
+        entity.id = 3
+        entity.entity_type = "judge"
+        entity.canonical_name = "Carol"
+
+        q = MagicMock()
+        q.filter.return_value.all.return_value = [entity]
+        db.query.return_value = q
+
+        snap_a = MagicMock()
+        snap_b = MagicMock()
+
+        def fake_extract(snapshot, ent, session):
+            return [{"claim_type": "appointment", "claim_value": "district", "confidence": 0.9}]
+
+        with (
+            patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),
+            patch("app.memory.rebuild.extract_claims", side_effect=fake_extract),
+            patch("app.memory.rebuild._upsert_claims", return_value=(1, 0)),
+            patch("app.memory.rebuild._rebuild_entity_state", return_value=False),
+        ):
+            result = run_rebuild("full", db)
+
+        assert result.status == "completed"
+        assert result.entities_processed == 1
+        assert result.claims_created == 2  # 1 per snapshot × 2 snapshots
+
+    def test_multi_snapshot_single_entity_skips_no_duplicate_on_second_pass(self):
+        """_upsert_claims returning (0, 1) on the second snapshot doesn't inflate claims_created."""
+        db = self._make_db()
+
+        entity = MagicMock(spec=CanonicalEntity)
+        entity.id = 5
+        entity.entity_type = "judge"
+        entity.canonical_name = "Eve"
+
+        q = MagicMock()
+        q.filter.return_value.all.return_value = [entity]
+        db.query.return_value = q
+
+        snap_a = MagicMock()
+        snap_b = MagicMock()
+        upsert_returns = [(2, 0), (0, 2)]
+
+        with (
+            patch("app.memory.rebuild._get_all_snapshots_for_entity", return_value=[snap_a, snap_b]),
+            patch("app.memory.rebuild.extract_claims", return_value=[]),
+            patch("app.memory.rebuild._upsert_claims", side_effect=upsert_returns),
+            patch("app.memory.rebuild._rebuild_entity_state", return_value=False),
+        ):
+            result = run_rebuild("full", db)
+
+        assert result.claims_created == 2  # only counting new; second pass returned 0
 
 
 class TestUpsertClaims:

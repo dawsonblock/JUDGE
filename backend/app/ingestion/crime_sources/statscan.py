@@ -64,15 +64,40 @@ class StatCanImportResult:
     errors: list[str] = field(default_factory=list)
 
 
+_ZIP_MAGIC = b"PK\x03\x04"
+
+
 def import_statscan_csv(
     db,
-    file_like: io.StringIO | io.TextIOBase,
+    file_like: io.StringIO | io.TextIOBase | io.RawIOBase | io.BufferedIOBase,
 ) -> StatCanImportResult:
     """Import a Statistics Canada CSV stream into CrimeIncident rows.
 
     Expects the standard 35-10-0177-01 column layout.
     Auto-publish tier: aggregate rows are published immediately.
+
+    Raises ValueError if a ZIP archive is passed instead of a plain CSV.
+    StatsCan distributes data as a ZIP; callers must extract the CSV first.
     """
+    # Guard: reject raw ZIP bytes before they corrupt csv.DictReader
+    peek_buf: bytes | None = None
+    if isinstance(file_like, (io.RawIOBase, io.BufferedIOBase)):
+        peek_buf = file_like.read(4)
+        if peek_buf and peek_buf[:4] == _ZIP_MAGIC:
+            raise ValueError(
+                "StatsCan upload appears to be a ZIP archive. "
+                "Extract the CSV from the ZIP before calling import_statscan_csv."
+            )
+        file_like.seek(0)
+    elif isinstance(file_like, io.StringIO):
+        start = file_like.read(4)
+        file_like.seek(0)
+        if start.encode("latin-1", errors="replace")[:4] == _ZIP_MAGIC:
+            raise ValueError(
+                "StatsCan upload appears to be a ZIP archive. "
+                "Extract the CSV from the ZIP before calling import_statscan_csv."
+            )
+
     result = StatCanImportResult()
     reader = csv.DictReader(file_like)
     now = datetime.now(timezone.utc)

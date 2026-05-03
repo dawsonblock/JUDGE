@@ -9,7 +9,7 @@
 - **Location**: `backend/`
 - **Python**: 3.11.14 (in .venv)
 - **DB**: SQLite (test), PostgreSQL (production target)
-- **Migrations**: 19 migration files — **All passing on fresh SQLite DB**
+- **Migrations**: 28 migration files — **All passing on fresh SQLite DB**
 - **Tests**: **394 passed, 5 warnings**
 - **Syntax**: `python -m compileall` — **No errors**
 

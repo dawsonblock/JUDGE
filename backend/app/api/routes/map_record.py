@@ -128,9 +128,14 @@ def _court_event_detail(record_id: str, db: Session) -> dict:
         "source_quality": event.source_quality,
         "source_count": len(source_links) + len(news_articles),
         "evidence_count": len(source_links) + len(news_articles),
-        "confidence": None,
-        "source_tier": None,
-        "warnings": [],
+        "confidence": (event.classifier_metadata or {}).get("confidence"),
+        "source_tier": event.source_quality,
+        "warnings": (
+            ["Low classifier confidence"]
+            if isinstance((event.classifier_metadata or {}).get("confidence"), float)
+            and (event.classifier_metadata or {}).get("confidence") < 0.5
+            else []
+        ),
         "audit": {
             "review_status": event.review_status,
             "reviewed_by": event.reviewed_by,
@@ -222,8 +227,10 @@ def _incident_detail(record_id: str, db: Session) -> dict:
         "source_count": len(source_links) + len(news_articles),
         "evidence_count": len(source_links) + len(news_articles),
         "confidence": None,
-        "source_tier": None,
-        "warnings": [],
+        "source_tier": "official" if incident.source_url else incident.verification_status,
+        "warnings": (
+            [] if related_court_records else ["No linked court record"]
+        ),
         "audit": {
             "review_status": incident.review_status,
             "reviewed_by": incident.reviewed_by,

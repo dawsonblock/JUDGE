@@ -169,6 +169,7 @@ export type RecordDetail = {
   warnings?: string[];
   evidence_count?: number;
   source_count?: number;
+  verification_status?: string;
 };
 
 export type MapDotRecord = {

@@ -163,10 +163,6 @@ class EvidenceStore:
                     f"write_snapshot: file not found after write: {storage_path}"
                 )
             stored = storage_path.read_bytes()
-            if not stored:
-                raise OSError(
-                    f"write_snapshot: zero-byte file after write: {storage_path}"
-                )
             verify_hash = hashlib.sha256(stored).hexdigest()
             if verify_hash != content_hash:
                 raise OSError(

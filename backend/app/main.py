@@ -13,6 +13,7 @@ from app.db.session import SessionLocal, engine
 from app.db.spatial import initialize_postgis
 from app.models import entities  # noqa: F401
 from app.seed.sample_data import seed_sample_data
+from app.seed.source_registry import seed_source_registry
 
 
 def _validate_cors_origins(cors_origins: str, app_env: str) -> list[str]:
@@ -142,6 +143,7 @@ def create_app() -> FastAPI:
         if settings.auto_seed and settings.app_env == "development":
             with SessionLocal() as db:
                 seed_sample_data(db)
+                seed_source_registry(db)
         yield
 
     app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
