@@ -1,3 +1,5 @@
+> **Historical Record** — reflects state at time of writing; may not represent current implementation.
+
 # Truth Hardening Report — 2026-05-02
 
 **Status**: Implementation Complete  

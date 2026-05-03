@@ -5,7 +5,7 @@ import zipfile
 
 import pytest
 
-from app.ingestion.crime_sources.statscan import extract_csv_from_response
+from app.ingestion.crime_sources.statscan import extract_csv_from_bytes, extract_csv_from_response
 
 
 class FakeResponse:
@@ -77,3 +77,40 @@ class TestExtractCsvFromResponse:
         result = extract_csv_from_response(resp)
         assert result is not None
         assert "caf" in result
+
+
+# ---------------------------------------------------------------------------
+# extract_csv_from_bytes — direct bytes API (no httpx dependency)
+# ---------------------------------------------------------------------------
+
+
+class TestExtractCsvFromBytes:
+    def test_plain_utf8_bytes(self):
+        csv_text = "col1,col2\nval1,val2\n"
+        result = extract_csv_from_bytes(csv_text.encode("utf-8"))
+        assert result == csv_text
+
+    def test_plain_utf8_sig_bom_stripped(self):
+        csv_text = "col\nval\n"
+        result = extract_csv_from_bytes(csv_text.encode("utf-8-sig"))
+        assert result == csv_text
+
+    def test_zip_with_single_csv_extracted(self):
+        csv_text = "year,count\n2023,42\n"
+        result = extract_csv_from_bytes(_make_zip_bytes("data.csv", csv_text))
+        assert result == csv_text
+
+    def test_zip_with_no_csv_returns_none(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("readme.txt", "nothing here")
+        assert extract_csv_from_bytes(buf.getvalue()) is None
+
+    def test_zip_returns_first_alphabetically(self):
+        csv_a = "a,b\n1,2\n"
+        csv_z = "z,y\n9,8\n"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("zzz.csv", csv_z)
+            zf.writestr("aaa.csv", csv_a)
+        assert extract_csv_from_bytes(buf.getvalue()) == csv_a

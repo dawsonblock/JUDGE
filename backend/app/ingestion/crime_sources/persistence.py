@@ -114,6 +114,14 @@ def persist_crime_incident(
         incident.is_public = public_visibility_for_tier(tier)
     else:
         incident.review_status = prev_review_status
+
+    # Unconditional hold: registry TIER_HOLD always revokes public visibility.
+    # Also demote auto-published status so the record re-enters the review queue.
+    if tier == TIER_HOLD:
+        incident.is_public = False
+        if incident.review_status == "official_police_open_data_report":
+            incident.review_status = "pending_review"
+
     db.flush()
     return incident
 

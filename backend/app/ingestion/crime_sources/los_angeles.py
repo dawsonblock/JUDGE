@@ -114,7 +114,7 @@ def import_la_csv(
                 is_aggregate=False,
                 notes=None,
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="la_crime")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

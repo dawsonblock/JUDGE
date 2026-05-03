@@ -4,8 +4,8 @@ Fetches Table 35-10-0177-01 (Incident-based crime statistics) from the
 Statistics Canada public CSV download endpoint and maps aggregate rows to
 CrimeIncidentRecord objects.
 
-This source is TIER_AUTO (aggregate, no person names, no exact addresses).
-Enable with JTA_STATSCAN_ENABLED=true.
+Publication policy is governed by SourceRegistry (source_key=statscan);
+default is TIER_HOLD pending manual review. Enable with JTA_STATSCAN_ENABLED=true.
 
 Attribution: Statistics Canada. Table 35-10-0177-01.
 https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/35100177
@@ -75,7 +75,7 @@ def import_statscan_csv(
     """Import a Statistics Canada CSV stream into CrimeIncident rows.
 
     Expects the standard 35-10-0177-01 column layout.
-    Auto-publish tier: aggregate rows are published immediately.
+    Publication tier is determined by SourceRegistry; records default to pending_review.
 
     Raises ValueError if a ZIP archive is passed instead of a plain CSV.
     StatsCan distributes data as a ZIP; callers must extract the CSV first.
@@ -145,7 +145,7 @@ def import_statscan_csv(
                 is_aggregate=True,
                 notes=f"Aggregate count: {value_str}. Statistics Canada Table 35-10-0177-01.",
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="statscan")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1
@@ -158,18 +158,16 @@ def import_statscan_csv(
     return result
 
 
-def extract_csv_from_response(resp: "httpx.Response") -> str | None:
-    """Extract CSV text from an httpx response.
+def extract_csv_from_bytes(content: bytes) -> str | None:
+    """Extract CSV text from raw bytes.
 
-    Statistics Canada distributes Table 35-10-0177-01 as a ZIP archive.
-    If the response body starts with the ZIP magic bytes (``PK\\x03\\x04``)
-    the first CSV file (alphabetically) is extracted and decoded with
+    If *content* starts with the ZIP magic bytes (``PK\\x03\\x04``) the
+    first CSV entry (alphabetically) is extracted and decoded with
     ``utf-8-sig`` (strips BOM) falling back to ``latin-1``.
 
-    Plain-text CSV responses are returned as-is.
+    Plain-text bytes are decoded with ``utf-8-sig``.
     Returns ``None`` if the ZIP contains no CSV files.
     """
-    content = resp.content
     if content[:4] == _ZIP_MAGIC:
         with zipfile.ZipFile(io.BytesIO(content)) as zf:
             csv_names = sorted(
@@ -183,8 +181,19 @@ def extract_csv_from_response(resp: "httpx.Response") -> str | None:
                 return raw_bytes.decode("utf-8-sig")
             except UnicodeDecodeError:
                 return raw_bytes.decode("latin-1")
-    # Plain text response
-    return resp.text
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return content.decode("latin-1")
+
+
+def extract_csv_from_response(resp: "httpx.Response") -> str | None:
+    """Extract CSV text from an httpx response.
+
+    Delegates to :func:`extract_csv_from_bytes` for ZIP/plain-text handling.
+    Returns ``None`` if the ZIP contains no CSV files.
+    """
+    return extract_csv_from_bytes(resp.content)
 
 
 def fetch_statscan_csv(client: httpx.Client | None = None) -> str | None:

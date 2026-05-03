@@ -111,7 +111,7 @@ def import_chicago_csv(
                 is_aggregate=False,
                 notes=description if description else None,
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="chicago_crime")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

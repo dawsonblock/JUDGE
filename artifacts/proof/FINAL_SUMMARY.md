@@ -1,3 +1,5 @@
+> **Historical Record** — reflects state at time of writing; may not represent current implementation.
+
 # Final Summary — Truth-First Hardening Pass
 
 **Completed**: 2026-05-02  

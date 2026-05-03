@@ -436,3 +436,103 @@ def test_resolve_policy_all_clear_delegates_to_source_tier():
     result = resolve_publication_policy(db, "toronto_police", "toronto_police")
     # toronto_police is not in the static hold/block list → TIER_AUTO
     assert result == TIER_AUTO
+
+
+# ---------------------------------------------------------------------------
+# resolve_publication_policy — integration tests using real SQLite test DB
+# ---------------------------------------------------------------------------
+
+
+def _upsert_test_registry_row(
+    db,
+    source_key: str,
+    source_name: str,
+    *,
+    is_active: bool = True,
+    auto_publish_enabled: bool = True,
+    requires_manual_review: bool = False,
+):
+    from app.models.entities import SourceRegistry
+
+    row = db.query(SourceRegistry).filter_by(source_key=source_key).first()
+    if row is None:
+        row = SourceRegistry(
+            source_key=source_key,
+            source_name=source_name,
+            source_tier="official_police_open_data",
+            is_active=is_active,
+            auto_publish_enabled=auto_publish_enabled,
+            requires_manual_review=requires_manual_review,
+        )
+        db.add(row)
+    else:
+        row.source_name = source_name
+        row.is_active = is_active
+        row.auto_publish_enabled = auto_publish_enabled
+        row.requires_manual_review = requires_manual_review
+    db.commit()
+    return row
+
+
+def test_resolve_policy_real_db_unknown_source_fails_closed():
+    """Unknown source (no registry row) must return TIER_HOLD with real DB."""
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        tier = resolve_publication_policy(
+            db,
+            source_key="__absolutely_no_such_key__",
+            source_name="__absolutely_no_such_name__",
+        )
+    assert tier == TIER_HOLD
+
+
+def test_resolve_policy_third_fallback_finds_row_by_source_name():
+    """Third fallback: when source_key has no matching row but source_name does,
+    the registry row is found and its policy is applied.
+
+    Row: source_key='_fb3p_rkey', source_name='natural_earth'
+    Call: source_key='natural_earth', source_name='natural_earth'
+      → 1st filter_by(source_key='natural_earth') → None
+      → 2nd fallback skipped (source_key == source_name)
+      → 3rd filter_by(source_name='natural_earth') → finds row
+      → row permissive → source_tier('natural_earth') == TIER_AUTO
+    """
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        _upsert_test_registry_row(
+            db,
+            source_key="_fb3p_rkey",
+            source_name="natural_earth",
+            is_active=True,
+            auto_publish_enabled=True,
+            requires_manual_review=False,
+        )
+        tier = resolve_publication_policy(
+            db,
+            source_key="natural_earth",
+            source_name="natural_earth",
+        )
+    assert tier == TIER_AUTO
+
+
+def test_resolve_policy_real_db_inactive_returns_hold():
+    """Inactive registry row must return TIER_HOLD with real DB."""
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        _upsert_test_registry_row(
+            db,
+            source_key="_fb3p_inactive_key",
+            source_name="_fb3p_inactive_sname",
+            is_active=False,
+            auto_publish_enabled=True,
+            requires_manual_review=False,
+        )
+        tier = resolve_publication_policy(
+            db,
+            source_key="_fb3p_inactive_key",
+            source_name="_fb3p_inactive_sname",
+        )
+    assert tier == TIER_HOLD

@@ -32,7 +32,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 - `get_active_claims` filters on both fields (belt-and-suspenders)
 - `_get_latest_snapshot_for_entity` scoped to entity via `EntityEvidenceLink` — no cross-entity contamination
 - `_upsert_claims` accumulates `MemoryEvidenceLink` rows for existing claims instead of silently skipping
-- `run_rebuild()` now performs diff-based stale claim invalidation: claims whose key is no longer produced by the current snapshot are marked `is_active=False, status=inactive` before upserting new ones
+- `run_rebuild()` performs diff-based stale claim invalidation: claims whose key is no longer produced by the current snapshot are marked `is_active=False, status=inactive` before upserting new ones
 - Memory is still a derivative layer: no public API, no embeddings, no semantic retrieval
 - **Do not claim the app uses production-grade memory**
 
@@ -132,7 +132,7 @@ Recent migrations (Phase 4-6 repair):
 - [x] All 11 admin ingestion routes call `_check_source_active` before running ingestion
 - [x] `require_source_registry` auto-creates disabled entry when source key unknown
 - [x] `test_source_gate.py` added: verifies disabled source → HTTP 403; enabled → no gate 403
-- [ ] Admin UI controls to enable/disable sources (still manual DB operation)
+- [x] Admin UI controls to enable/disable sources (`/admin/sources` page in frontend)
 
 ### Phase 5 (Evidence Vault)
 - [x] `GET /api/admin/evidence-store/verify/{snapshot_id}` endpoint added

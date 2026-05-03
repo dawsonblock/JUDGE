@@ -352,6 +352,9 @@ def resolve_publication_policy(
     if registry is None and source_key != source_name:
         # Fallback: try matching by source_name used as key
         registry = db.query(SourceRegistry).filter_by(source_key=source_name).first()
+    if registry is None:
+        # Final fallback: match by the registry's own source_name field
+        registry = db.query(SourceRegistry).filter_by(source_name=source_name).first()
 
     if registry is None:
         return TIER_HOLD  # Fail closed – unknown source

@@ -1,3 +1,5 @@
+> **Historical Record** — reflects state at time of writing; may not represent current implementation.
+
 # Judge Atlas - Complete Implementation Summary
 
 **Project:** JUDGE (Judge Atlas Alpha Hardening & Foundation Build)  

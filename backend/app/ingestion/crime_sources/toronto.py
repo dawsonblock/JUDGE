@@ -3,7 +3,7 @@
 Imports CSV exports from https://data.torontopolice.on.ca/
 into the standard CrimeIncidentRecord schema.
 
-Source tier: TIER_AUTO for structured fields.
+Publication policy is governed by SourceRegistry (source_key=toronto_crime).
 """
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def import_toronto_csv(
                 is_aggregate=False,
                 notes=None,
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="toronto_crime")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

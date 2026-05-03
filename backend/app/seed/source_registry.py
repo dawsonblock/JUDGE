@@ -187,9 +187,88 @@ def seed_source_registry(db: Session) -> None:
     db.commit()
 
 
+# Fields whose DB value must match the spec.
+# is_active is intentionally excluded — admins manage it via the frontend UI.
+_REPAIR_FIELDS: tuple[str, ...] = (
+    "source_name",
+    "source_type",
+    "source_tier",
+    "fetch_method",
+    "update_cadence",
+    "auto_publish_enabled",
+    "requires_manual_review",
+    "country",
+    "province_state",
+    "city",
+    "precision_level",
+)
+
+
+def repair_canada_first_defaults(
+    db: Session, *, dry_run: bool = False
+) -> list[str]:
+    """Repair existing registry rows that deviate from the current ``_SOURCES`` spec.
+
+    Only the fields listed in :data:`_REPAIR_FIELDS` are checked — ``is_active``
+    is intentionally excluded because admins manage it via the frontend UI.
+
+    Args:
+        db: SQLAlchemy session.
+        dry_run: If *True*, collect diffs but do not write any changes.
+
+    Returns:
+        A list of human-readable change descriptions (one per field corrected).
+    """
+    changes: list[str] = []
+    for spec in _SOURCES:
+        row = db.scalar(
+            select(SourceRegistry).where(SourceRegistry.source_key == spec["source_key"])
+        )
+        if row is None:
+            continue  # seed_source_registry handles inserts
+        for field_name in _REPAIR_FIELDS:
+            if field_name not in spec:
+                continue
+            current_val = getattr(row, field_name, None)
+            spec_val = spec[field_name]
+            if current_val != spec_val:
+                changes.append(
+                    f"{spec['source_key']}.{field_name}: {current_val!r} → {spec_val!r}"
+                )
+                if not dry_run:
+                    setattr(row, field_name, spec_val)
+    if not dry_run and changes:
+        db.commit()
+    return changes
+
+
 if __name__ == "__main__":
+    import argparse
+
     from app.db.session import SessionLocal
+
+    parser = argparse.ArgumentParser(description="Source registry seed + repair")
+    parser.add_argument(
+        "--repair", action="store_true", help="Repair stale registry rows"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without applying (implies --repair)",
+    )
+    args = parser.parse_args()
 
     with SessionLocal() as db:
         seed_source_registry(db)
-    print("source_registry seeded")
+        print("source_registry seeded")
+        if args.repair or args.dry_run:
+            changes = repair_canada_first_defaults(db, dry_run=args.dry_run)
+            if not changes:
+                print("No deviations found.")
+            else:
+                for msg in changes:
+                    print(msg)
+                if args.dry_run:
+                    print("(dry run — no changes committed)")
+                else:
+                    print(f"{len(changes)} field(s) repaired.")

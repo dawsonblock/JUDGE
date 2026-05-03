@@ -145,14 +145,22 @@ def test_csv_import_invalid_source_url_is_skipped():
     assert result.skipped_count + result.error_count >= 1
 
 
-def test_approved_crime_incident_not_reset_on_non_safety_field_update():
+def test_tier_hold_source_unconditionally_revokes_approval_on_reingest():
+    """Phase 2 hold enforcement: TIER_HOLD sources (including unknown sources that
+    fail-closed) must always demote review_status back to pending_review on re-ingest,
+    regardless of whether only non-safety fields changed.
+
+    'TEST Police Open Data' is not in _SOURCE_TIER_MAP so source_tier() returns
+    TIER_HOLD, and resolve_publication_policy returns TIER_HOLD (fail-closed).
+    The Phase 2 unconditional block then demotes any previously-approved status.
+    """
     with SessionLocal() as db:
         first = persist_crime_incident(db, crime_record(
             external_id="APPROVED-001",
             incident_type="Assault",
         ))
         db.commit()
-        first.review_status = "official_police_open_data_report"
+        first.review_status = "official_police_open_data_report"  # manually approved
         db.commit()
         first_id = first.id
 
@@ -166,8 +174,8 @@ def test_approved_crime_incident_not_reset_on_non_safety_field_update():
         second_review_status = second.review_status
 
     assert second_id == first_id
-    assert second_review_status == "official_police_open_data_report", (
-        "Non-safety field change (verification_status) must not reset an approved record to pending_review"
+    assert second_review_status == "pending_review", (
+        "TIER_HOLD source must unconditionally demote review_status to pending_review on re-ingest (Phase 2)"
     )
 
 

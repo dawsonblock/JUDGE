@@ -143,7 +143,7 @@ def import_fbi_json(db, payload: list[dict]) -> FBIImportResult:
                 is_aggregate=True,
                 notes=f"Aggregate count: {count}. FBI Crime Data Explorer.",
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="fbi_crime")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

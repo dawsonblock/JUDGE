@@ -20,7 +20,7 @@ from app.ingestion.crime_sources.chicago_socrata import import_chicago_csv
 from app.ingestion.crime_sources.toronto import import_toronto_csv
 from app.ingestion.crime_sources.saskatoon import import_saskatoon_csv
 from app.ingestion.crime_sources.los_angeles import import_la_csv
-from app.ingestion.crime_sources.statscan import import_statscan_csv
+from app.ingestion.crime_sources.statscan import extract_csv_from_bytes, import_statscan_csv
 from app.ingestion.crime_sources.fbi_crime_data import import_fbi_json
 from app.ingestion.source_registry_ctl import check_ingestion_allowed, require_source_registry
 
@@ -132,7 +132,10 @@ async def ingest_statscan(
         raise HTTPException(status_code=403, detail="StatsCan feed disabled")
     _check_source_active("statscan", "Statistics Canada", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
-    stream = io.StringIO(content.decode("utf-8-sig"))
+    csv_text = extract_csv_from_bytes(content)
+    if csv_text is None:
+        raise HTTPException(status_code=422, detail="StatsCan ZIP contained no CSV files")
+    stream = io.StringIO(csv_text)
     result = import_statscan_csv(db, stream)
     return result.__dict__
 

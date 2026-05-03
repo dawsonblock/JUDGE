@@ -4,7 +4,7 @@ Imports CSV exports from the Saskatoon Police crime map
 (https://www.saskatoonpolice.ca/crime-map) using generalized
 public-area coordinates only.
 
-Source tier: TIER_AUTO for structured fields.
+Publication policy is governed by SourceRegistry (source_key=saskatoon_crime).
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def import_saskatoon_csv(
                 is_aggregate=False,
                 notes=None,
             )
-            persist_crime_incident(db, record)
+            persist_crime_incident(db, record, source_key="saskatoon_crime")
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1
