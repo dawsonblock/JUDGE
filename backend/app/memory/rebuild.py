@@ -100,6 +100,13 @@ def _upsert_claims(
                     )
                 )
                 db.flush()
+            # Refresh last_seen_at and reactivate unless the claim was hard-rejected.
+            _HARD_REASONS = {"manual_reject", "source_rejected", "privacy_violation"}
+            if existing.invalidation_reason not in _HARD_REASONS:
+                now = datetime.now(timezone.utc)
+                existing.last_seen_at = now
+                existing.status = "active"
+                existing.is_active = True
             skipped += 1
             continue
 
@@ -259,35 +266,6 @@ def run_rebuild(
                 continue
 
             extracted = extract_claims(snapshot, entity, db)
-
-            # Invalidate active claims that are no longer produced by the current snapshot.
-            # Compute the set of claim keys the new snapshot yields, then mark any active
-            # claim for this entity whose key is absent from that set as inactive.
-            new_claim_keys: set[str] = set()
-            for c in extracted:
-                if "claim_key" in c:
-                    new_claim_keys.add(c["claim_key"])
-                else:
-                    raw = f"{entity.id}:{c['claim_type']}:{c['claim_value']}"
-                    new_claim_keys.add(hashlib.sha256(raw.encode()).hexdigest())
-            now = datetime.now(timezone.utc)
-            stale_claims = (
-                db.query(MemoryClaim)
-                .filter(
-                    MemoryClaim.entity_id == entity.id,
-                    MemoryClaim.is_active.is_(True),
-                )
-                .all()
-            )
-            for claim in stale_claims:
-                if claim.claim_key not in new_claim_keys:
-                    claim.is_active = False
-                    claim.status = "inactive"
-                    claim.invalidated_at = now
-                    claim.invalidation_reason = "superseded_by_rebuild"
-                    run.claims_invalidated += 1
-            if stale_claims:
-                db.flush()
 
             created, _ = _upsert_claims(db, entity.id, extracted, snapshot, run.id)
             run.claims_created += created

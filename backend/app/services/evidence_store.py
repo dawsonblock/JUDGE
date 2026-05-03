@@ -157,13 +157,22 @@ class EvidenceStore:
         if storage_path:
             storage_path.parent.mkdir(parents=True, exist_ok=True)
             storage_path.write_bytes(content)
-            # Post-write integrity assertion
-            assert storage_path.exists(), (
-                f"write_snapshot: file not found after write: {storage_path}"
-            )
-            assert storage_path.stat().st_size > 0, (
-                f"write_snapshot: zero-byte file after write: {storage_path}"
-            )
+            # Post-write integrity check
+            if not storage_path.exists():
+                raise OSError(
+                    f"write_snapshot: file not found after write: {storage_path}"
+                )
+            stored = storage_path.read_bytes()
+            if not stored:
+                raise OSError(
+                    f"write_snapshot: zero-byte file after write: {storage_path}"
+                )
+            verify_hash = hashlib.sha256(stored).hexdigest()
+            if verify_hash != content_hash:
+                raise OSError(
+                    f"write_snapshot: post-write hash mismatch for {storage_path}: "
+                    f"expected {content_hash}, got {verify_hash}"
+                )
 
         return self._get_relative_path(content_hash)
 

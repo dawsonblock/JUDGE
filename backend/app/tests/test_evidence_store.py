@@ -237,3 +237,34 @@ class TestEvidenceStore:
 
             assert retrieved == content
             assert len(retrieved) == len(content)
+
+    def test_write_snapshot_raises_oserror_on_post_write_hash_mismatch(self):
+        """write_snapshot should raise OSError when on-disk bytes don't match the expected hash."""
+        import pathlib
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            content = b"<html>valid content</html>"
+            content_hash = hashlib.sha256(content).hexdigest()
+
+            def patched_read(self_path):
+                return b"corrupted data on disk"
+
+            with patch.object(pathlib.Path, "read_bytes", patched_read):
+                with pytest.raises(OSError, match="post-write hash mismatch"):
+                    store.write_snapshot(content, content_hash)
+
+    def test_write_snapshot_raises_oserror_on_zero_byte_file(self):
+        """write_snapshot should raise OSError when written file is empty."""
+        import pathlib
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = EvidenceStore(tmpdir)
+            content = b"<html>valid content</html>"
+            content_hash = hashlib.sha256(content).hexdigest()
+
+            with patch.object(pathlib.Path, "read_bytes", return_value=b""):
+                with pytest.raises(OSError, match="zero-byte file"):
+                    store.write_snapshot(content, content_hash)

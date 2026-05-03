@@ -62,7 +62,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 ### 6. Proof System Has Known Bug
 - `scripts/proof_all.sh` uses `DATABASE_URL` instead of `JTA_DATABASE_URL`
 - Alembic reads `JTA_DATABASE_URL`, so migration proof may not test intended database
-- Proof artifacts are from 19 migrations; repo now has 22
+- Proof artifacts are from 19 migrations; repo now has 28
 - **Fixed in recent commit**
 
 ### 7. Crawlee Web Monitor Is Alpha
@@ -82,7 +82,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 
 ## Migration Status
 
-**Total Migrations:** 23 (as of 2026-05-02 repair)
+**Total Migrations:** 28 (as of 2026-05-02 repair)
 
 Recent migrations (Phase 4-6 repair):
 - `20260502_0005_add_memory_tables.py` — core memory tables
@@ -115,7 +115,7 @@ Recent migrations (Phase 4-6 repair):
 ### Phase 1 (Fix Proof System)
 - [x] Patch `scripts/proof_all.sh` to use `JTA_DATABASE_URL`
 - [ ] Run clean proof command on current state
-- [ ] Verify all 22 migrations pass
+- [ ] Verify all 28 migrations pass
 
 ### Phase 2 (Crawlee Safety)
 - [x] Fix publish_recommendation ("hold" → "review_required")

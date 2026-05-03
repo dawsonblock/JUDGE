@@ -17,7 +17,7 @@ from app.auth.actor import AdminActor
 from app.db.session import get_db
 from app.models.entities import RelationshipEvidence, ReviewItem, SourceSnapshot
 from app.services.evidence_store import EvidenceStore
-from app.services.snapshot_writer import _decode_from_db
+from app.services.snapshot_writer import read_snapshot_content
 
 router = APIRouter(prefix="/api/admin/snapshots", tags=["snapshots"])
 
@@ -209,21 +209,7 @@ def get_snapshot_raw(
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
 
-    content: str | None = None
-    content_bytes: bytes | None = None
-
-    # Try external storage first
-    if snapshot.storage_backend == "filesystem" and snapshot.storage_path:
-        store = EvidenceStore()
-        content_bytes = store.read_snapshot(snapshot.storage_path)
-        if content_bytes is None:
-            raise HTTPException(
-                status_code=404,
-                detail="External storage file not found",
-            )
-    # Fall back to DB storage — decode the stored representation back to original bytes
-    elif snapshot.raw_content:
-        content_bytes = _decode_from_db(snapshot.raw_content)
+    content_bytes = read_snapshot_content(db, snapshot)
 
     if content_bytes is None:
         raise HTTPException(status_code=404, detail="No raw content available")

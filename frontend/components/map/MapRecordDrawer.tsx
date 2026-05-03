@@ -149,7 +149,7 @@ export default function MapRecordDrawer({ record, onClose }: Props) {
                 {/* Source and Review Badges */}
                 <div className="map-drawer-badges">
                   <SourceTierBadge tier={detail.source_tier ?? detail.source_quality} />
-                  <ReviewStatusBadge status={detail.review_status} />
+                  <ReviewStatusBadge status={detail.review_status ?? detail.audit?.review_status} />
                   <ConfidenceBadge confidence={detail.confidence} />
                 </div>
 

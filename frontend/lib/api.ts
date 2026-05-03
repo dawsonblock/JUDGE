@@ -167,6 +167,8 @@ export type RecordDetail = {
   review_status?: string;
   confidence?: number;
   warnings?: string[];
+  evidence_count?: number;
+  source_count?: number;
 };
 
 export type MapDotRecord = {
