@@ -17,16 +17,14 @@ export default function SourcesPage() {
         {MOCK_EVIDENCE_SOURCES.map((source) => (
           <SectionCard
             key={source.id}
-            title={
-              <div className="flex items-start justify-between gap-2 w-full">
-                <span className="text-sm font-medium leading-snug">{source.title}</span>
-                {source.url && (
-                  <a href={source.url} target="_blank" rel="noopener noreferrer"
-                    className="text-slate-400 hover:text-blue-500 shrink-0 mt-0.5">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </div>
+            title={source.name}
+            action={
+              source.url ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer"
+                  className="text-slate-400 hover:text-blue-500 shrink-0">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : undefined
             }
           >
             <div className="space-y-2">
@@ -34,14 +32,13 @@ export default function SourcesPage() {
                 <EvidenceTypeBadge type={source.type} />
                 <ConfidenceBadge confidence={source.confidence} />
               </div>
-              {source.publicationDate && (
+              {source.publishedAt && (
                 <p className="text-xs text-slate-400">
-                  {new Date(source.publicationDate).toLocaleDateString("en-CA")}
-                  {source.author ? ` · ${source.author}` : ""}
+                  {new Date(source.publishedAt).toLocaleDateString("en-CA")}
                 </p>
               )}
-              {source.excerpt && (
-                <p className="text-xs text-slate-600 italic line-clamp-2">"{source.excerpt}"</p>
+              {source.summary && (
+                <p className="text-xs text-slate-600 italic line-clamp-2">&ldquo;{source.summary}&rdquo;</p>
               )}
             </div>
           </SectionCard>

@@ -14,7 +14,7 @@ function computeStats() {
     statusCounts[inc.status] = (statusCounts[inc.status] ?? 0) + 1;
   }
   const avgConf =
-    MOCK_INCIDENTS.reduce((sum, i) => sum + i.confidenceScore, 0) /
+    MOCK_INCIDENTS.filter((i) => i.confidence === "medium").length /
     (MOCK_INCIDENTS.length || 1);
   return { statusCounts, avgConf };
 }
@@ -38,22 +38,22 @@ export default function DashboardPage() {
       {/* Metric row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <MetricCard
-          title="Total Incidents"
+          label="Total Incidents"
           value={MOCK_INCIDENTS.length}
           icon={<AlertCircle className="h-5 w-5" />}
         />
         <MetricCard
-          title="Active Cases"
+          label="Active Cases"
           value={MOCK_CASES.filter((c) => c.status === "before_court").length}
           icon={<FileText className="h-5 w-5" />}
         />
         <MetricCard
-          title="Judge Profiles"
+          label="Judge Profiles"
           value={MOCK_JUDGES.length}
           icon={<Scale className="h-5 w-5" />}
         />
         <MetricCard
-          title="Avg. Confidence"
+          label="Avg. Confidence"
           value={`${Math.round(avgConf * 100)}%`}
           icon={<TrendingUp className="h-5 w-5" />}
         />

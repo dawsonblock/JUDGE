@@ -1,49 +1,85 @@
+"use client";
+
 import Link from "next/link";
-import { EventItem, fetchJson } from "@/lib/api";
-import SourcePanel from "@/components/SourcePanel";
+import { notFound } from "next/navigation";
+import { MOCK_INCIDENTS, MOCK_CASES } from "@/lib/mock-data";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, MapPin, Gavel } from "lucide-react";
 
-type Defendant = {
-  id: number;
-  anonymized_id: string;
-  display_label: string;
-  warning: string;
-};
+export default function DefendantPage({ params }: { params: { id: string } }) {
+  const linkedIncidents = MOCK_INCIDENTS.filter((i) =>
+    i.linkedDefendants.includes(params.id)
+  );
+  const linkedCases = MOCK_CASES.filter((c) =>
+    c.linkedDefendants.includes(params.id)
+  );
 
-export default async function DefendantPage({ params }: { params: { id: string } }) {
-  const defendant = await fetchJson<Defendant>(`/api/defendants/${params.id}`);
-  const events = await fetchJson<EventItem[]>(`/api/defendants/${params.id}/timeline`);
+  if (linkedIncidents.length === 0 && linkedCases.length === 0) notFound();
 
   return (
-    <main className="page">
-      <div className="page-header">
-        <div>
-          <div className="kicker">Anonymized defendant profile</div>
-          <h1>{defendant.display_label}</h1>
-          <p className="meta">{defendant.warning}</p>
-        </div>
-        <Link className="badge" href="/">Back to map</Link>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/defendants">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Defendants
+          </Link>
+        </Button>
       </div>
-      <div className="content-grid">
-        <section className="panel">
-          <h2>Linked decisions</h2>
-          <div className="timeline">
-            {events.map((event) => (
-              <article className="event-row" key={event.event_id}>
-                <div className="kicker">{event.decision_date || "No decision date"} · {event.event_type.replaceAll("_", " ")}</div>
-                <div className="row-title">{event.title}</div>
-                <p>{event.summary}</p>
-                <SourcePanel entityType="event" entityId={event.event_id} />
-              </article>
-            ))}
-          </div>
-        </section>
-        <aside className="panel">
-          <h2>Verified outcomes</h2>
-          {events.map((event) => (
-            <p key={event.event_id}>{event.outcomes.length ? event.outcomes.map((outcome) => outcome.summary).join(" ") : event.outcome_status}</p>
-          ))}
-        </aside>
+
+      <PageHeader
+        title={params.id}
+        subtitle="Defendant — privacy-redacted identifier"
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SectionCard title={`Linked Incidents (${linkedIncidents.length})`}>
+          {linkedIncidents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No linked incidents.</p>
+          ) : (
+            <div className="space-y-3">
+              {linkedIncidents.map((incident) => (
+                <div key={incident.id} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm font-medium line-clamp-1">{incident.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-5">
+                    <StatusBadge status={incident.status} />
+                    <span className="text-xs text-muted-foreground">{incident.location.city}, {incident.location.province}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title={`Linked Cases (${linkedCases.length})`}>
+          {linkedCases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No linked cases.</p>
+          ) : (
+            <div className="space-y-3">
+              {linkedCases.map((c) => (
+                <div key={c.id} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Gavel className="h-3 w-3 text-muted-foreground" />
+                    <Link href={`/cases/${c.id}`} className="text-sm font-medium hover:underline text-primary line-clamp-1">
+                      {c.title}
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-2 pl-5">
+                    <StatusBadge status={c.status} />
+                    <span className="text-xs text-muted-foreground">{c.caseNumber}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
       </div>
-    </main>
+    </div>
   );
 }

@@ -17,17 +17,14 @@ export function JudgeCard({ judge }: JudgeCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="font-semibold text-slate-900">{judge.name}</h3>
-            <p className="text-sm text-slate-500 mt-0.5">{judge.title}</p>
+            <p className="text-sm text-slate-500 mt-0.5">{judge.court}</p>
           </div>
-          {judge.isActive ? (
-            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs shrink-0">
-              Active
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-slate-50 text-slate-500 text-xs shrink-0">
-              Inactive
-            </Badge>
-          )}
+          <Badge
+            variant="outline"
+            className={judge.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs shrink-0" : "bg-slate-50 text-slate-500 text-xs shrink-0 capitalize"}
+          >
+            {judge.status}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -40,26 +37,20 @@ export function JudgeCard({ judge }: JudgeCardProps) {
             <MapPin className="h-3 w-3 text-slate-400" />
             <span>{judge.jurisdiction}</span>
           </div>
-          {judge.appointedDate && (
+          {judge.appointedAt && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3 w-3 text-slate-400" />
-              <span>Appointed {new Date(judge.appointedDate).getFullYear()}</span>
+              <span>Appointed {new Date(judge.appointedAt).getFullYear()}</span>
             </div>
           )}
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400">Cases:</span>
-            <span className="font-medium text-slate-900">{judge.caseIds.length}</span>
+            <span className="font-medium text-slate-900">{judge.linkedCases.length}</span>
           </div>
         </div>
 
-        {judge.specializations.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {judge.specializations.map((s) => (
-              <Badge key={s} variant="secondary" className="text-xs capitalize">
-                {s.replace(/_/g, " ")}
-              </Badge>
-            ))}
-          </div>
+        {judge.notes && (
+          <p className="text-xs text-slate-500 line-clamp-2">{judge.notes}</p>
         )}
 
         <Link

@@ -5,8 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { ExternalLink, MapPin, Calendar, BarChart2 } from "lucide-react";
+import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import type { CrimeIncident, EvidenceSource } from "@/lib/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
@@ -14,6 +13,7 @@ import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
+import Link from "next/link";
 
 interface IncidentDrawerProps {
   incident: CrimeIncident | null;
@@ -25,7 +25,7 @@ function DetailsTab({ incident }: { incident: CrimeIncident }) {
   return (
     <div className="space-y-4">
       <SectionCard title="Description">
-        <p className="text-sm text-slate-700 leading-relaxed">{incident.description}</p>
+        <p className="text-sm text-slate-700 leading-relaxed">{incident.summary}</p>
       </SectionCard>
 
       <SectionCard title="Location">
@@ -44,17 +44,17 @@ function DetailsTab({ incident }: { incident: CrimeIncident }) {
           <dd className="text-slate-900 capitalize">{incident.category.replace(/_/g, " ")}</dd>
           <dt className="text-slate-500">Status</dt>
           <dd><StatusBadge status={incident.status} /></dd>
-          {incident.incidentDate && (
+          {incident.date && (
             <>
               <dt className="text-slate-500">Date</dt>
               <dd className="text-slate-900 flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {new Date(incident.incidentDate).toLocaleDateString("en-CA")}
+                {new Date(incident.date).toLocaleDateString("en-CA")}
               </dd>
             </>
           )}
           <dt className="text-slate-500">Confidence</dt>
-          <dd className="text-slate-900">{Math.round(incident.confidenceScore * 100)}%</dd>
+          <dd><ConfidenceBadge confidence={incident.confidence} /></dd>
         </dl>
       </SectionCard>
 
@@ -76,31 +76,14 @@ function DetailsTab({ incident }: { incident: CrimeIncident }) {
 function AiTab({ incident }: { incident: CrimeIncident }) {
   return (
     <div className="space-y-4">
-      {incident.aiSummary ? (
-        <SectionCard title="AI Summary">
-          <p className="text-sm text-slate-700 leading-relaxed">{incident.aiSummary}</p>
-        </SectionCard>
-      ) : (
-        <EmptyState
-          title="No AI Analysis"
-          description="AI analysis has not been generated for this incident yet."
-        />
-      )}
-      <SectionCard title="Confidence Score">
-        <div className="flex items-center gap-3">
-          <BarChart2 className="h-5 w-5 text-slate-400" />
-          <div className="flex-1">
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-slate-500">Overall confidence</span>
-              <span className="font-medium">{Math.round(incident.confidenceScore * 100)}%</span>
-            </div>
-            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full"
-                style={{ width: `${incident.confidenceScore * 100}%` }}
-              />
-            </div>
-          </div>
+      <EmptyState
+        title="No AI Analysis"
+        description="AI analysis has not been generated for this incident yet."
+      />
+      <SectionCard title="Confidence">
+        <div className="flex items-center gap-2">
+          <ConfidenceBadge confidence={incident.confidence} />
+          <span className="text-xs text-slate-500 capitalize">{incident.confidence}</span>
         </div>
       </SectionCard>
     </div>
@@ -108,9 +91,7 @@ function AiTab({ incident }: { incident: CrimeIncident }) {
 }
 
 function EvidenceTab({ incident }: { incident: CrimeIncident }) {
-  const sources: EvidenceSource[] = MOCK_EVIDENCE_SOURCES.filter((s) =>
-    incident.sourceIds.includes(s.id)
-  );
+  const sources: EvidenceSource[] = MOCK_EVIDENCE_SOURCES.slice(0, incident.sourceCount);
 
   if (sources.length === 0) {
     return (
@@ -123,7 +104,7 @@ function EvidenceTab({ incident }: { incident: CrimeIncident }) {
       {sources.map((source) => (
         <div key={source.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium text-slate-900 leading-tight">{source.title}</p>
+            <p className="text-sm font-medium text-slate-900 leading-tight">{source.name}</p>
             {source.url && (
               <a
                 href={source.url}
@@ -139,15 +120,14 @@ function EvidenceTab({ incident }: { incident: CrimeIncident }) {
             <EvidenceTypeBadge type={source.type} />
             <ConfidenceBadge confidence={source.confidence} />
           </div>
-          {source.publicationDate && (
+          {source.publishedAt && (
             <p className="text-xs text-slate-400">
-              {new Date(source.publicationDate).toLocaleDateString("en-CA")}
-              {source.author ? ` · ${source.author}` : ""}
+              {new Date(source.publishedAt).toLocaleDateString("en-CA")}
             </p>
           )}
-          {source.excerpt && (
+          {source.summary && (
             <p className="text-xs text-slate-600 italic leading-relaxed line-clamp-3">
-              "{source.excerpt}"
+              &ldquo;{source.summary}&rdquo;
             </p>
           )}
         </div>
@@ -158,7 +138,9 @@ function EvidenceTab({ incident }: { incident: CrimeIncident }) {
 
 function RelatedTab({ incident }: { incident: CrimeIncident }) {
   const hasRelated =
-    incident.caseId || incident.judgeId || incident.defendantIds.length > 0;
+    incident.linkedCases.length > 0 ||
+    incident.linkedJudges.length > 0 ||
+    incident.linkedDefendants.length > 0;
 
   if (!hasRelated) {
     return (
@@ -168,30 +150,44 @@ function RelatedTab({ incident }: { incident: CrimeIncident }) {
 
   return (
     <div className="space-y-3">
-      {incident.caseId && (
+      {incident.linkedCases.length > 0 && (
         <div className="border border-slate-200 rounded-lg p-3">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Court Case</p>
-          <p className="text-sm font-medium text-slate-900">{incident.caseId}</p>
-          <Button variant="link" className="p-0 h-auto text-xs text-blue-600 mt-1">
-            View case →
-          </Button>
-        </div>
-      )}
-      {incident.judgeId && (
-        <div className="border border-slate-200 rounded-lg p-3">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Presiding Judge</p>
-          <p className="text-sm font-medium text-slate-900">{incident.judgeId}</p>
-          <Button variant="link" className="p-0 h-auto text-xs text-blue-600 mt-1">
-            View judge profile →
-          </Button>
-        </div>
-      )}
-      {incident.defendantIds.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-3">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Defendants</p>
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Court Cases</p>
           <ul className="space-y-1">
-            {incident.defendantIds.map((id) => (
-              <li key={id} className="text-sm text-slate-900">{id}</li>
+            {incident.linkedCases.map((id) => (
+              <li key={id}>
+                <Button variant="link" className="p-0 h-auto text-xs text-blue-600" asChild>
+                  <Link href={`/cases/${id}`}>{id} →</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {incident.linkedJudges.length > 0 && (
+        <div className="border border-slate-200 rounded-lg p-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Judges</p>
+          <ul className="space-y-1">
+            {incident.linkedJudges.map((id) => (
+              <li key={id}>
+                <Button variant="link" className="p-0 h-auto text-xs text-blue-600" asChild>
+                  <Link href={`/judges/${id}`}>{id} →</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {incident.linkedDefendants.length > 0 && (
+        <div className="border border-slate-200 rounded-lg p-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Defendants</p>
+          <ul className="space-y-1">
+            {incident.linkedDefendants.map((id) => (
+              <li key={id}>
+                <Button variant="link" className="p-0 h-auto text-xs text-blue-600" asChild>
+                  <Link href={`/defendants/${id}`}>{id} →</Link>
+                </Button>
+              </li>
             ))}
           </ul>
         </div>

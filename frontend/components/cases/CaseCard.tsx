@@ -30,12 +30,12 @@ export function CaseCard({ courtCase }: CaseCardProps) {
           </div>
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3 w-3 text-slate-400" />
-            <span>{new Date(courtCase.filingDate).toLocaleDateString("en-CA")}</span>
+            <span>{courtCase.filedAt ? new Date(courtCase.filedAt).toLocaleDateString("en-CA") : "—"}</span>
           </div>
-          {courtCase.judgeId && (
+          {courtCase.linkedJudges.length > 0 && (
             <div className="flex items-center gap-1.5 col-span-2">
               <User className="h-3 w-3 text-slate-400" />
-              <span>Judge: {courtCase.judgeId}</span>
+              <span>Judge: {courtCase.linkedJudges[0]}</span>
             </div>
           )}
         </div>

@@ -10,12 +10,11 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 
 const DEFAULT_FILTERS: MapFilterState = {
-  searchQuery: "",
-  category: "all",
-  status: "all",
-  province: "all",
-  dateFrom: null,
-  dateTo: null,
+  search: "",
+  category: "",
+  status: "",
+  confidence: "",
+  province: "",
   courtLinkedOnly: false,
   verifiedOnly: false,
   hideSensitive: false,
@@ -23,19 +22,20 @@ const DEFAULT_FILTERS: MapFilterState = {
 
 function applyFilters(incidents: CrimeIncident[], filters: MapFilterState): CrimeIncident[] {
   return incidents.filter((inc) => {
-    if (filters.searchQuery) {
-      const q = filters.searchQuery.toLowerCase();
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
       if (
         !inc.title.toLowerCase().includes(q) &&
         !inc.location.city.toLowerCase().includes(q) &&
         !inc.location.province.toLowerCase().includes(q)
       ) return false;
     }
-    if (filters.category !== "all" && inc.category !== filters.category) return false;
-    if (filters.status !== "all" && inc.status !== filters.status) return false;
-    if (filters.province !== "all" && inc.location.province !== filters.province) return false;
-    if (filters.courtLinkedOnly && !inc.caseId) return false;
-    if (filters.verifiedOnly && inc.confidenceScore < 0.7) return false;
+    if (filters.category !== "" && inc.category !== filters.category) return false;
+    if (filters.status !== "" && inc.status !== filters.status) return false;
+    if (filters.province !== "" && inc.location.province !== filters.province) return false;
+    if (filters.courtLinkedOnly && inc.linkedCases.length === 0) return false;
+    if (filters.verifiedOnly && (inc.confidence === "unverified" || inc.confidence === "pending")) return false;
+    if (filters.hideSensitive && inc.sensitive) return false;
     return true;
   });
 }
@@ -88,7 +88,7 @@ export function CrimeMapWorkspace() {
                 </p>
               </SectionCard>
               <SectionCard title="Description">
-                <p className="text-sm text-slate-600">{selectedIncident.description}</p>
+                <p className="text-sm text-slate-600">{selectedIncident.summary}</p>
               </SectionCard>
               <SectionCard title="Details">
                 <dl className="text-sm space-y-1">
@@ -98,12 +98,12 @@ export function CrimeMapWorkspace() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-slate-500">Confidence</dt>
-                    <dd className="text-slate-900">{Math.round(selectedIncident.confidenceScore * 100)}%</dd>
+                    <dd className="text-slate-900 capitalize">{selectedIncident.confidence}</dd>
                   </div>
-                  {selectedIncident.incidentDate && (
+                  {selectedIncident.date && (
                     <div className="flex justify-between">
                       <dt className="text-slate-500">Date</dt>
-                      <dd className="text-slate-900">{new Date(selectedIncident.incidentDate).toLocaleDateString()}</dd>
+                      <dd className="text-slate-900">{new Date(selectedIncident.date).toLocaleDateString()}</dd>
                     </div>
                   )}
                 </dl>
