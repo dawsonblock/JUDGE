@@ -27,7 +27,27 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+import lxml.html
 import httpx
+
+# Act code → chapter mapping
+_ACT_CHAPTERS: dict[str, str] = {
+    "C-46": "R.S.C., 1985, c. C-46",
+    "Y-1.5": "S.C. 2002, c. 1",
+}
+
+# Short act name → act code (for URL construction)
+_ACT_CODES: dict[str, str] = {
+    "Criminal Code": "C-46",
+    "Youth Criminal Justice Act": "Y-1.5",
+    "YCJA": "Y-1.5",
+}
+
+# Act code → priority sections to fetch
+_PRIORITY_SECTIONS: dict[str, list[str]] = {
+    "C-46": ["515", "718", "753"],
+    "Y-1.5": ["3"],
+}
 
 
 @dataclass
@@ -77,6 +97,68 @@ class JusticeLawsAdapter:
             content = content.encode("utf-8")
         return hashlib.sha256(content).hexdigest()
 
+    def _fetch_section_html(
+        self,
+        act_code: str,
+        section_num: str,
+        act_name: str,
+        chapter: str,
+    ) -> LawSection | None:
+        """Fetch a single section HTML page and parse it.
+
+        Args:
+            act_code: Justice Laws act code, e.g. "C-46"
+            section_num: Section number, e.g. "515"
+            act_name: Display name of the act
+            chapter: Chapter citation
+
+        Returns:
+            LawSection with is_stub=False on success, None on HTTP error.
+        """
+        url = f"{self.BASE_URL}/eng/acts/{act_code}/section-{section_num}.html"
+        try:
+            response = self.client.get(url)
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return None
+
+        raw_text = response.text
+        doc = lxml.html.fromstring(raw_text)
+
+        # Extract marginal note (section heading)
+        heading = ""
+        for selector in (".marginal-note", ".MarginalNote", "p.marginalNote"):
+            nodes = doc.cssselect(selector)
+            if nodes:
+                heading = nodes[0].text_content().strip()
+                break
+
+        # Extract main section text from the provision area
+        section_text = ""
+        for selector in ("section", "main", "#wb-main-in", "body"):
+            nodes = doc.cssselect(selector)
+            if nodes:
+                section_text = nodes[0].text_content().strip()
+                break
+
+        raw_hash = self._compute_hash(raw_text)
+
+        return LawSection(
+            jurisdiction="CA-FED",
+            source="Justice Laws",
+            law_title=act_name,
+            law_type="act",
+            chapter=chapter,
+            section_number=section_num,
+            section_heading=heading,
+            section_text=section_text,
+            language="en",
+            source_url=url,
+            consolidation_date=date.today(),
+            raw_hash=raw_hash,
+            is_stub=False,
+        )
+
     def fetch_law_index(self) -> list[dict[str, Any]]:
         """Fetch list of available laws from XML index.
 
@@ -114,69 +196,23 @@ class JusticeLawsAdapter:
         Returns:
             List of LawSection objects
         """
-        sections = []
+        act_code = _ACT_CODES.get(act_name)
+        if act_code is None:
+            return []
 
-        # STUB CONTENT: Hard-coded examples for development only.
-        # In production, parse actual XML from Justice Laws.
-        # These sections are marked is_stub=True and must NOT be used
-        # as authoritative legal text.
-        if act_name == "Criminal Code":
-            # s. 515 - Judicial interim release / bail
-            sections.append(
-                LawSection(
-                    jurisdiction="CA-FED",
-                    source="Justice Laws",
-                    law_title="Criminal Code",
-                    law_type="act",
-                    chapter=chapter or "R.S.C., 1985, c. C-46",
-                    section_number="515",
-                    section_heading="Judicial interim release",
-                    section_text="[STUB] Order of release / Order of detention...",
-                    language="en",
-                    source_url=f"{self.BASE_URL}/eng/acts/C-46/section-515.html",
-                    consolidation_date=date.today(),
-                    raw_hash="",  # Empty hash indicates stub content
-                    is_stub=True,  # Explicitly marked as stub
-                )
-            )
+        resolved_chapter = chapter or _ACT_CHAPTERS.get(act_code, "")
+        target_sections = _PRIORITY_SECTIONS.get(act_code, [])
 
-            # s. 718 - Sentencing principles
-            sections.append(
-                LawSection(
-                    jurisdiction="CA-FED",
-                    source="Justice Laws",
-                    law_title="Criminal Code",
-                    law_type="act",
-                    chapter=chapter or "R.S.C., 1985, c. C-46",
-                    section_number="718",
-                    section_heading="Purpose and principles of sentencing",
-                    section_text="[STUB] The fundamental purpose of sentencing...",
-                    language="en",
-                    source_url=f"{self.BASE_URL}/eng/acts/C-46/section-718.html",
-                    consolidation_date=date.today(),
-                    raw_hash="",
-                    is_stub=True,
-                )
+        sections: list[LawSection] = []
+        for section_num in target_sections:
+            result = self._fetch_section_html(
+                act_code=act_code,
+                section_num=section_num,
+                act_name=act_name,
+                chapter=resolved_chapter,
             )
-
-            # s. 753 - Dangerous offender
-            sections.append(
-                LawSection(
-                    jurisdiction="CA-FED",
-                    source="Justice Laws",
-                    law_title="Criminal Code",
-                    law_type="act",
-                    chapter=chapter or "R.S.C., 1985, c. C-46",
-                    section_number="753",
-                    section_heading="Dangerous offenders and long-term offenders",
-                    section_text="[STUB] Finding of dangerous offender...",
-                    language="en",
-                    source_url=f"{self.BASE_URL}/eng/acts/C-46/section-753.html",
-                    consolidation_date=date.today(),
-                    raw_hash="",
-                    is_stub=True,
-                )
-            )
+            if result is not None:
+                sections.append(result)
 
         return sections
 
@@ -186,28 +222,7 @@ class JusticeLawsAdapter:
         Returns:
             List of LawSection objects for YCJA
         """
-        sections = []
-
-        # s. 3 - Declaration of principles
-        sections.append(
-            LawSection(
-                jurisdiction="CA-FED",
-                source="Justice Laws",
-                law_title="Youth Criminal Justice Act",
-                law_type="act",
-                chapter="S.C. 2002, c. 1",
-                section_number="3",
-                section_heading="Declaration of principles",
-                section_text="[STUB] The youth criminal justice system...",
-                language="en",
-                source_url=f"{self.BASE_URL}/eng/acts/Y-1.5/section-3.html",
-                consolidation_date=date.today(),
-                raw_hash="",
-                is_stub=True,
-            )
-        )
-
-        return sections
+        return self.fetch_act_sections("Youth Criminal Justice Act")
 
     def get_law_by_citation(
         self,
@@ -232,6 +247,7 @@ class JusticeLawsAdapter:
         if "criminal code" in citation_lower:
             # Extract section number
             import re
+
             match = re.search(r"s\.?\s*(\d+[a-z]?)", citation_lower)
             if match:
                 section_num = match.group(1)

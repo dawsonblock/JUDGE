@@ -1135,6 +1135,9 @@ class MemoryClaim(Base, TimestampMixin):
     last_seen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Dense vector embedding for semantic retrieval (stored as JSON float array).
+    # Populated by the embeddings service when JTA_EMBEDDINGS_ENABLED=true.
+    claim_embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
 class MemoryEvidenceLink(Base):

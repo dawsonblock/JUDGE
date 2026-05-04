@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     ollama_model: str = "mistral"
     ollama_timeout_seconds: int = 30
 
+    # Semantic embeddings (sentence-transformers); disabled by default so the
+    # heavy torch dependency is never loaded in production unless opted in.
+    embeddings_enabled: bool = False
+    embeddings_model: str = "all-MiniLM-L6-v2"
+    embeddings_similarity_threshold: float = 0.70
+    embeddings_top_k: int = 5
+
     # Rate limiting (requests per minute)
     rate_limit_public: int = 100  # Public API endpoints
     rate_limit_admin: int = 30  # Admin API endpoints

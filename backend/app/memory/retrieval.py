@@ -57,3 +57,31 @@ def list_claims(
     if claim_type is not None:
         q = q.filter(MemoryClaim.claim_type == claim_type)
     return q.order_by(MemoryClaim.id).all()
+
+
+def search_claims_semantic(
+    text: str,
+    db: Session,
+    k: int | None = None,
+    threshold: float | None = None,
+) -> list[MemoryClaim]:
+    """Return MemoryClaims semantically similar to *text*.
+
+    Delegates to :func:`app.services.embeddings.find_similar_claims`.
+    Returns an empty list when embeddings are disabled or unavailable
+    so callers need no feature-flag guard.
+
+    Args:
+        text:      Free-text query (e.g. "judge sentenced defendant to 5 years").
+        db:        SQLAlchemy session.
+        k:         Maximum results.  Defaults to ``settings.embeddings_top_k``.
+        threshold: Minimum cosine similarity.
+            Defaults to ``settings.embeddings_similarity_threshold``.
+
+    Returns:
+        List of :class:`~app.models.entities.MemoryClaim` ordered by
+        descending similarity.
+    """
+    from app.services.embeddings import find_similar_claims  # noqa: PLC0415
+
+    return find_similar_claims(text=text, db=db, k=k, threshold=threshold)

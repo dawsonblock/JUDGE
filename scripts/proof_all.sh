@@ -26,7 +26,7 @@ run_step() {
     local name="$1"
     local cmd="$2"
     echo "=== $name ===" | tee -a "$LOG"
-    if eval "$cmd" >> "$LOG" 2>&1; then
+    if (cd "$REPO_ROOT" && eval "$cmd") >> "$LOG" 2>&1; then
         echo "PASS: $name" | tee -a "$LOG"
         PASS=$((PASS + 1))
     else

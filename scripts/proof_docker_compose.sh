@@ -8,6 +8,10 @@ set -euo pipefail
 KEEP_STACK="${KEEP_STACK:-0}"
 COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../docker-compose.yml"
 
+# Provide test-only placeholder tokens so CI/proof runs don't require a .env file
+export JTA_ADMIN_TOKEN="${JTA_ADMIN_TOKEN:-proof-admin-token-ci}"
+export JTA_ADMIN_REVIEW_TOKEN="${JTA_ADMIN_REVIEW_TOKEN:-proof-review-token-ci}"
+
 log() { echo "[proof_docker] $*"; }
 
 cleanup() {

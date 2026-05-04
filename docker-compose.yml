@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U judgetracker -d judgetracker"]
+      test: [ "CMD-SHELL", "pg_isready -U judgetracker -d judgetracker" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -33,8 +33,9 @@ services:
       JTA_APP_ENV: development
       JTA_ENABLE_ADMIN_IMPORTS: ${JTA_ENABLE_ADMIN_IMPORTS:-false}
       JTA_ENABLE_ADMIN_REVIEW: ${JTA_ENABLE_ADMIN_REVIEW:-false}
-      JTA_ADMIN_TOKEN: ${JTA_ADMIN_TOKEN:?Error: JTA_ADMIN_TOKEN must be set in .env}
-      JTA_ADMIN_REVIEW_TOKEN: ${JTA_ADMIN_REVIEW_TOKEN:?Error: JTA_ADMIN_REVIEW_TOKEN must be set in .env}
+      JTA_ADMIN_TOKEN: "${JTA_ADMIN_TOKEN:?Error: JTA_ADMIN_TOKEN must be set in .env}"
+      JTA_ADMIN_REVIEW_TOKEN: "${JTA_ADMIN_REVIEW_TOKEN:?Error: JTA_ADMIN_REVIEW_TOKEN
+        must be set in .env}"
       JTA_RATE_LIMIT_BACKEND: redis
       JTA_REDIS_URL: redis://redis:6379/0
     ports:

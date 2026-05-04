@@ -62,6 +62,44 @@ _ROLE_PATTERNS: dict[str, list[str]] = {
     "senior judge": ["senior judge"],
 }
 
+# Regex patterns for structured event claim extraction.
+# Each tuple: (compiled pattern, claim_type, predicate, value_fn)
+# value_fn receives the match object and returns (normalized_value, extra_dict).
+
+_BAIL_PATTERN = re.compile(
+    r"\b(bail|bond|detention|release)\s+(was\s+)?(granted|denied|revoked|set|posted|ordered)\b"
+    r"|\b(ordered\s+)(detained|released|remanded)\b"
+    r"|\b(pre[- ]?trial\s+)(release|detention)\b",
+    re.IGNORECASE,
+)
+
+_SENTENCE_PATTERN = re.compile(
+    r"\bsentenced?\s+to\s+(?P<length>[\d]+(?:\.\d+)?\s*(?:year|month|day|life)[s]?(?:\s+(?:and\s+)?[\d]+\s*(?:year|month|day)[s]?)?)\b"
+    r"|\b(?P<life>life\s+(?:in\s+prison|imprisonment|sentence))\b"
+    r"|\b(?P<probation>[\d]+\s*(?:year|month)[s]?\s+(?:of\s+)?probation)\b",
+    re.IGNORECASE,
+)
+
+_COURT_APPEARANCE_PATTERN = re.compile(
+    r"\b(?:appeared?|appearing|scheduled|set\s+for\s+(?:hearing|trial|arraignment)|"
+    r"arraigned?|indicted?|preliminary\s+hearing|status\s+conference|"
+    r"sentencing\s+hearing|bond\s+hearing|detention\s+hearing)\b",
+    re.IGNORECASE,
+)
+
+_CHARGE_PATTERN = re.compile(
+    r"\bcharged?\s+with\s+(?P<charge>[^.;]{3,80}?)(?:\.|;|,\s+(?:a|an)\s+\w+|$)"
+    r"|\bcounts?\s+of\s+(?P<charge2>[^.;]{3,80}?)(?:\.|;|,|$)"
+    r"|\bindicted?\s+(?:on\s+)?(?:charges?\s+of\s+)?(?P<charge3>[^.;]{3,80}?)(?:\.|;|,|$)",
+    re.IGNORECASE,
+)
+
+_DISPOSITION_PATTERN = re.compile(
+    r"\b(?P<disp>convicted|acquitted|found\s+(?:guilty|not\s+guilty)|pleaded?\s+(?:guilty|no\s+contest|nolo\s+contendere)|"
+    r"dismissed|case\s+dismissed|charges?\s+dropped|pled\s+guilty|entered\s+(?:a\s+)?guilty\s+plea)\b",
+    re.IGNORECASE,
+)
+
 
 def extract_claims(
     snapshot: SourceSnapshot,
@@ -134,5 +172,126 @@ def extract_claims(
                     )
                 )
                 break  # one match per role type
+
+    # --- bail_decision ---
+    search_text = window_lower if first_match else text_lower
+    m = _BAIL_PATTERN.search(search_text)
+    if m:
+        abs_start = w_start + m.start() if first_match else m.start()
+        # Determine outcome from which group matched
+        grps = m.groups()
+        if any(g and "grant" in g.lower() for g in grps if g):
+            outcome = "granted"
+        elif any(
+            g
+            and ("deni" in g.lower() or "detain" in g.lower() or "remand" in g.lower())
+            for g in grps
+            if g
+        ):
+            outcome = "denied"
+        elif any(g and "revok" in g.lower() for g in grps if g):
+            outcome = "revoked"
+        else:
+            outcome = m.group().strip().lower()
+        claims.append(
+            _build_claim(
+                entity=entity,
+                claim_type="bail_decision",
+                predicate="has_bail_decision",
+                normalized_text=outcome,
+                confidence=0.85,
+                span_start=abs_start,
+                span_end=abs_start + len(m.group()),
+                extra={"outcome": outcome, "matched_text": m.group()},
+            )
+        )
+
+    # --- sentence_length ---
+    m = _SENTENCE_PATTERN.search(search_text)
+    if m:
+        abs_start = w_start + m.start() if first_match else m.start()
+        length_text = (
+            m.group("length") or m.group("life") or m.group("probation") or m.group()
+        )
+        length_text = length_text.strip()
+        claims.append(
+            _build_claim(
+                entity=entity,
+                claim_type="sentence_length",
+                predicate="sentenced_to",
+                normalized_text=length_text.lower(),
+                confidence=0.88,
+                span_start=abs_start,
+                span_end=abs_start + len(m.group()),
+                extra={"length_text": length_text},
+            )
+        )
+
+    # --- court_appearance ---
+    m = _COURT_APPEARANCE_PATTERN.search(search_text)
+    if m:
+        abs_start = w_start + m.start() if first_match else m.start()
+        claims.append(
+            _build_claim(
+                entity=entity,
+                claim_type="court_appearance",
+                predicate="has_court_appearance",
+                normalized_text=m.group().strip().lower(),
+                confidence=0.75,
+                span_start=abs_start,
+                span_end=abs_start + len(m.group()),
+                extra={"matched_text": m.group()},
+            )
+        )
+
+    # --- charge_type ---
+    m = _CHARGE_PATTERN.search(search_text)
+    if m:
+        abs_start = w_start + m.start() if first_match else m.start()
+        raw_charge = (
+            m.group("charge") or m.group("charge2") or m.group("charge3") or m.group()
+        )
+        raw_charge = raw_charge.strip()
+        claims.append(
+            _build_claim(
+                entity=entity,
+                claim_type="charge_type",
+                predicate="charged_with",
+                normalized_text=raw_charge.lower(),
+                confidence=0.82,
+                span_start=abs_start,
+                span_end=abs_start + len(m.group()),
+                extra={"charge_text": raw_charge},
+            )
+        )
+
+    # --- disposition ---
+    m = _DISPOSITION_PATTERN.search(search_text)
+    if m:
+        abs_start = w_start + m.start() if first_match else m.start()
+        raw = (m.group("disp") or m.group()).strip().lower()
+        # normalise verbose phrases
+        if "not guilty" in raw or "acquit" in raw:
+            outcome = "acquitted"
+        elif "guilty" in raw or "convict" in raw:
+            outcome = "convicted"
+        elif "dismiss" in raw or "dropped" in raw:
+            outcome = "dismissed"
+        elif "nolo" in raw or "no contest" in raw:
+            outcome = "plea_no_contest"
+        else:
+            outcome = raw
+        claims.append(
+            _build_claim(
+                entity=entity,
+                claim_type="disposition",
+                predicate="has_disposition",
+                normalized_text=outcome,
+                confidence=0.87,
+                span_start=abs_start,
+                span_end=abs_start + len(m.group()),
+                extra={"outcome": outcome, "matched_text": m.group()},
+            )
+        )
 
     return claims

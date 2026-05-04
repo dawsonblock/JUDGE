@@ -34,6 +34,30 @@ from datetime import date
 from typing import Any
 
 import httpx
+import lxml.html
+
+# Product IDs and HTML format IDs for the three priority acts
+# Source: Saskatchewan ePublications (publications.saskatchewan.ca)
+_SK_ACTS: dict[str, dict[str, Any]] = {
+    "Saskatchewan Police Act": {
+        "product_id": 10314,
+        "html_format_id": 10976,
+        "chapter": "S.S. 2018, c. P-15.2",
+        "sections": ["2", "5"],
+    },
+    "Saskatchewan Correctional Services Act": {
+        "product_id": 9568,
+        "html_format_id": 9697,
+        "chapter": "S.S. 2012, c. C-37.1",
+        "sections": ["3"],
+    },
+    "Saskatchewan Victims of Crime Act": {
+        "product_id": 10902,
+        "html_format_id": 11149,
+        "chapter": "S.S. 1995, c. V-6",
+        "sections": ["2"],
+    },
+}
 
 
 @dataclass
@@ -83,58 +107,88 @@ class SaskatchewanLawAdapter:
             content = content.encode("utf-8")
         return hashlib.sha256(content).hexdigest()
 
+    def _fetch_act_sections(
+        self,
+        act_name: str,
+    ) -> list[SaskatchewanLawSection]:
+        """Fetch sections for a Saskatchewan act from ePublications.
+
+        Args:
+            act_name: Key from _SK_ACTS dict
+
+        Returns:
+            List of SaskatchewanLawSection with is_stub=False on success,
+            empty list on HTTP error or unknown act.
+        """
+        meta = _SK_ACTS.get(act_name)
+        if meta is None:
+            return []
+
+        product_id = meta["product_id"]
+        fmt_id = meta["html_format_id"]
+        chapter = meta["chapter"]
+        target_sections: list[str] = meta["sections"]
+
+        url = f"{self.BASE_URL}/api/v1/products/{product_id}/formats/{fmt_id}"
+        try:
+            response = self.client.get(url)
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return []
+
+        raw_text = response.text
+        raw_hash = self._compute_hash(raw_text)
+        doc = lxml.html.fromstring(raw_text)
+
+        sections: list[SaskatchewanLawSection] = []
+        for sec_num in target_sections:
+            # Look for a section heading that matches the section number
+            heading = ""
+            heading_nodes = doc.cssselect(
+                f"[id='{sec_num}'], [id='sec_{sec_num}'], [data-section='{sec_num}']"
+            )
+            if heading_nodes:
+                heading = heading_nodes[0].text_content().strip()
+
+            # Fall back: grab any strong/h tag near the section anchor
+            if not heading:
+                for tag in ("h3", "h4", "strong"):
+                    nodes = doc.cssselect(tag)
+                    if nodes:
+                        heading = nodes[0].text_content().strip()
+                        break
+
+            # Extract full page text as section text (entire statute HTML)
+            full_text = doc.cssselect("main, article, body") or [doc]
+            section_text = full_text[0].text_content().strip()
+
+            sections.append(
+                SaskatchewanLawSection(
+                    jurisdiction="CA-SK",
+                    source="Saskatchewan King's Printer",
+                    law_title=act_name,
+                    law_type="act",
+                    chapter=chapter,
+                    section_number=sec_num,
+                    section_heading=heading,
+                    section_text=section_text,
+                    language="en",
+                    source_url=url,
+                    consolidation_date=date.today(),
+                    raw_hash=raw_hash,
+                    is_stub=False,
+                )
+            )
+
+        return sections
+
     def fetch_police_act_sections(self) -> list[SaskatchewanLawSection]:
         """Fetch Saskatchewan Police Act sections.
 
         Returns:
             List of SaskatchewanLawSection objects
         """
-        sections = []
-
-        # STUB CONTENT: Hard-coded examples for development only.
-        # In production, fetch from Saskatchewan King's Printer API.
-        # These sections are marked is_stub=True and must NOT be used
-        # as authoritative legal text.
-
-        # s. 2 - Definitions
-        sections.append(
-            SaskatchewanLawSection(
-                jurisdiction="CA-SK",
-                source="Saskatchewan King's Printer",
-                law_title="Saskatchewan Police Act",
-                law_type="act",
-                chapter="S.S. 2018, c. P-15.2",
-                section_number="2",
-                section_heading="Definitions",
-                section_text="[STUB] In this Act...",
-                language="en",
-                source_url=f"{self.BASE_URL}/api/v1/products/10314/formats/10976",
-                consolidation_date=date.today(),
-                raw_hash="",  # Empty hash indicates stub content
-                is_stub=True,  # Explicitly marked as stub
-            )
-        )
-
-        # s. 5 - Policing standards
-        sections.append(
-            SaskatchewanLawSection(
-                jurisdiction="CA-SK",
-                source="Saskatchewan King's Printer",
-                law_title="Saskatchewan Police Act",
-                law_type="act",
-                chapter="S.S. 2018, c. P-15.2",
-                section_number="5",
-                section_heading="Policing standards",
-                section_text="[STUB] The minister shall establish policing standards...",
-                language="en",
-                source_url=f"{self.BASE_URL}/api/v1/products/10314/formats/10976",
-                consolidation_date=date.today(),
-                raw_hash="",
-                is_stub=True,
-            )
-        )
-
-        return sections
+        return self._fetch_act_sections("Saskatchewan Police Act")
 
     def fetch_correctional_services_sections(self) -> list[SaskatchewanLawSection]:
         """Fetch Saskatchewan Correctional Services Act sections.
@@ -142,28 +196,7 @@ class SaskatchewanLawAdapter:
         Returns:
             List of SaskatchewanLawSection objects
         """
-        sections = []
-
-        # s. 3 - Purpose
-        sections.append(
-            SaskatchewanLawSection(
-                jurisdiction="CA-SK",
-                source="Saskatchewan King's Printer",
-                law_title="Saskatchewan Correctional Services Act",
-                law_type="act",
-                chapter="S.S. 2012, c. C-37.1",
-                section_number="3",
-                section_heading="Purpose of Act",
-                section_text="[STUB] The purpose of this Act is to...",
-                language="en",
-                source_url=f"{self.BASE_URL}/api/v1/products/9568/formats/9697",
-                consolidation_date=date.today(),
-                raw_hash="",
-                is_stub=True,
-            )
-        )
-
-        return sections
+        return self._fetch_act_sections("Saskatchewan Correctional Services Act")
 
     def fetch_victims_of_crime_sections(self) -> list[SaskatchewanLawSection]:
         """Fetch Saskatchewan Victims of Crime Act sections.
@@ -171,28 +204,7 @@ class SaskatchewanLawAdapter:
         Returns:
             List of SaskatchewanLawSection objects
         """
-        sections = []
-
-        # s. 2 - Interpretation
-        sections.append(
-            SaskatchewanLawSection(
-                jurisdiction="CA-SK",
-                source="Saskatchewan King's Printer",
-                law_title="Saskatchewan Victims of Crime Act",
-                law_type="act",
-                chapter="S.S. 1995, c. V-6",
-                section_number="2",
-                section_heading="Interpretation",
-                section_text="[STUB] In this Act...",
-                language="en",
-                source_url=f"{self.BASE_URL}/api/v1/products/10902/formats/11149",
-                consolidation_date=date.today(),
-                raw_hash="",
-                is_stub=True,
-            )
-        )
-
-        return sections
+        return self._fetch_act_sections("Saskatchewan Victims of Crime Act")
 
     def get_law_by_citation(
         self,
@@ -215,6 +227,7 @@ class SaskatchewanLawAdapter:
         if "police" in citation_lower:
             sections = self.fetch_police_act_sections()
             import re
+
             match = re.search(r"s\.?\s*(\d+[a-z]?)", citation_lower)
             if match:
                 section_num = match.group(1)
@@ -261,7 +274,10 @@ class SaskatchewanLawAdapter:
             relevant_laws.extend(police_sections)
 
         # Corrections / probation
-        if any(term in desc_lower for term in ["correctional", "probation", "sentence", "custody"]):
+        if any(
+            term in desc_lower
+            for term in ["correctional", "probation", "sentence", "custody"]
+        ):
             correctional_sections = self.fetch_correctional_services_sections()
             relevant_laws.extend(correctional_sections)
 

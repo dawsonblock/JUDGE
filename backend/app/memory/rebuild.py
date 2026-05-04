@@ -191,6 +191,16 @@ def _upsert_claims(
         db.add(claim)
         db.flush()  # populate claim.id
 
+        # Optionally store a semantic embedding for this claim.
+        try:
+            from app.services.embeddings import encode as _encode  # noqa: PLC0415
+
+            vec = _encode(c["claim_value"])
+            if vec is not None:
+                claim.claim_embedding = vec
+        except Exception:  # pragma: no cover — embeddings are optional
+            pass
+
         span_text: str | None = None
         if c.get("span_start") is not None and c.get("span_end") is not None:
             src = snapshot.extracted_text or ""
