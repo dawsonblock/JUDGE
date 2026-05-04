@@ -46,8 +46,7 @@ class TestAdminAuth:
     def test_wrong_token_rejected(self):
         """Wrong admin token should be rejected."""
         response = client.get(
-            "/api/admin/review-queue",
-            headers={"X-JTA-Admin-Token": "wrong-token"}
+            "/api/admin/review-queue", headers={"X-JTA-Admin-Token": "wrong-token"}
         )
         # Should be rejected
         assert response.status_code in (403, 401)
@@ -64,7 +63,9 @@ class TestAdminConfig:
         """
         import os
 
-        docs_path = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "AUTH_ROADMAP.md")
+        docs_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "docs", "AUTH_ROADMAP.md"
+        )
         assert os.path.exists(docs_path), "AUTH_ROADMAP.md should exist"
 
         with open(docs_path) as f:
@@ -75,7 +76,9 @@ class TestAdminConfig:
         """Deployment security documentation should exist."""
         import os
 
-        docs_path = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "DEPLOYMENT_SECURITY.md")
+        docs_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "docs", "DEPLOYMENT_SECURITY.md"
+        )
         assert os.path.exists(docs_path), "DEPLOYMENT_SECURITY.md should exist"
 
 
@@ -90,12 +93,18 @@ class TestAuditLogging:
         from app.models.entities import AuditLog, Event
         from sqlalchemy import select
 
-        event = db_session.scalar(select(Event).where(Event.event_id == "EVT-SAMPLE-006"))
+        event = db_session.scalar(
+            select(Event).where(Event.event_id == "EVT-SAMPLE-006")
+        )
         assert event is not None, "Seeded events must exist"
 
         response = client.post(
             f"/api/admin/review-queue/event/{event.event_id}/decision",
-            json={"decision": "approve", "reviewed_by": "audit_tester", "notes": "audit test"},
+            json={
+                "decision": "approve",
+                "reviewed_by": "audit_tester",
+                "notes": "audit test",
+            },
             headers={"X-JTA-Admin-Token": "test-token"},
         )
         assert response.status_code == 200
@@ -116,25 +125,43 @@ class TestAuditLogging:
         from app.models.entities import AuditLog, Event
         from sqlalchemy import func, select
 
-        event = db_session.scalar(select(Event).where(Event.event_id == "EVT-SAMPLE-006"))
+        event = db_session.scalar(
+            select(Event).where(Event.event_id == "EVT-SAMPLE-006")
+        )
         assert event is not None, "Seeded events must exist"
 
-        count_before = db_session.scalar(
-            select(func.count(AuditLog.id)).where(AuditLog.action == "review.decision")
-        ) or 0
+        count_before = (
+            db_session.scalar(
+                select(func.count(AuditLog.id)).where(
+                    AuditLog.action == "review.decision"
+                )
+            )
+            or 0
+        )
 
         response = client.post(
             f"/api/admin/review-queue/event/{event.event_id}/decision",
-            json={"decision": "approve", "reviewed_by": "monitor_admin", "notes": "logging check"},
+            json={
+                "decision": "approve",
+                "reviewed_by": "monitor_admin",
+                "notes": "logging check",
+            },
             headers={"X-JTA-Admin-Token": "test-token"},
         )
         assert response.status_code == 200
 
         db_session.expire_all()
-        count_after = db_session.scalar(
-            select(func.count(AuditLog.id)).where(AuditLog.action == "review.decision")
-        ) or 0
-        assert count_after > count_before, "AuditLog count must increase after admin API call"
+        count_after = (
+            db_session.scalar(
+                select(func.count(AuditLog.id)).where(
+                    AuditLog.action == "review.decision"
+                )
+            )
+            or 0
+        )
+        assert (
+            count_after > count_before
+        ), "AuditLog count must increase after admin API call"
 
 
 class TestAdminActorIdentity:
@@ -157,13 +184,15 @@ class TestAdminActorIdentity:
         with patch("app.auth.admin.get_settings", return_value=FakeSettings()):
             from app.auth.admin import require_admin_token
 
-            actor = require_admin_token.__wrapped__("test-secret-token") if hasattr(
-                require_admin_token, "__wrapped__"
-            ) else require_admin_token(x_jta_admin_token="test-secret-token")
+            actor = (
+                require_admin_token.__wrapped__("test-secret-token")
+                if hasattr(require_admin_token, "__wrapped__")
+                else require_admin_token(x_jta_admin_token="test-secret-token")
+            )
 
-        assert isinstance(actor, AdminActor), (
-            f"require_admin_token must return AdminActor, got {type(actor)}"
-        )
+        assert isinstance(
+            actor, AdminActor
+        ), f"require_admin_token must return AdminActor, got {type(actor)}"
 
     def test_actor_id_is_not_raw_token(self, monkeypatch):
         """actor_id must be a stable label, never the raw token value."""
@@ -179,9 +208,9 @@ class TestAdminActorIdentity:
 
             actor = require_admin_token(x_jta_admin_token="super-secret-value-12345")
 
-        assert actor.actor_id != "super-secret-value-12345", (
-            "actor_id must not be the raw token value"
-        )
+        assert (
+            actor.actor_id != "super-secret-value-12345"
+        ), "actor_id must not be the raw token value"
         assert actor.actor_id == "shared-admin-token"
 
     def test_audit_log_does_not_contain_raw_token(self):
@@ -251,4 +280,3 @@ class TestAdminActorIdentity:
         assert actor.actor_type == "shared_token"
         assert actor.role == "system_admin"
         assert actor.auth_method == "shared_token"
-

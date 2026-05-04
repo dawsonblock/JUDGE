@@ -8,7 +8,13 @@ from app.auth.admin import require_admin_review, require_admin_token
 from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
-from app.models.entities import AuditLog, CrimeIncident, Event, EvidenceReview, LegalSource
+from app.models.entities import (
+    AuditLog,
+    CrimeIncident,
+    Event,
+    EvidenceReview,
+    LegalSource,
+)
 from app.serializers.public import (
     entity_by_type,
     entity_public_visibility,
@@ -35,7 +41,12 @@ def _public_visibility_for_status(status: str) -> bool:
 
 
 def _status_from_decision(entity, payload: dict) -> str:
-    decision = str(payload.get("decision") or payload.get("action") or payload.get("review_status") or "").strip()
+    decision = str(
+        payload.get("decision")
+        or payload.get("action")
+        or payload.get("review_status")
+        or ""
+    ).strip()
     if decision in REVIEW_STATUSES:
         return decision
     if decision == "approve":
@@ -52,11 +63,23 @@ def _status_from_decision(entity, payload: dict) -> str:
 
 
 def _serialize_review_item(entity_type: str, entity) -> dict:
-    title = getattr(entity, "title", None) or getattr(entity, "incident_type", None) or getattr(entity, "source_id", None)
-    source_type = getattr(entity, "source_type", None) or getattr(entity, "source_quality", None) or getattr(entity, "incident_category", None)
+    title = (
+        getattr(entity, "title", None)
+        or getattr(entity, "incident_type", None)
+        or getattr(entity, "source_id", None)
+    )
+    source_type = (
+        getattr(entity, "source_type", None)
+        or getattr(entity, "source_quality", None)
+        or getattr(entity, "incident_category", None)
+    )
     return {
         "entity_type": entity_type,
-        "entity_id": getattr(entity, "event_id", None) if isinstance(entity, Event) else entity.id,
+        "entity_id": (
+            getattr(entity, "event_id", None)
+            if isinstance(entity, Event)
+            else entity.id
+        ),
         "database_id": entity.id,
         "title": title,
         "source_type": source_type,
@@ -74,7 +97,9 @@ def _query_count(db: Session, stmt) -> int:
     return db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
 
-def _review_statements(entity_type: str, review_status: str | None, source_type: str | None):
+def _review_statements(
+    entity_type: str, review_status: str | None, source_type: str | None
+):
     if entity_type == "event":
         data_stmt = select(Event).options(*event_options()).order_by(Event.id)
         count_stmt = select(Event.id)
@@ -93,7 +118,9 @@ def _review_statements(entity_type: str, review_status: str | None, source_type:
             count_stmt = count_stmt.where(CrimeIncident.review_status == review_status)
         if source_type:
             data_stmt = data_stmt.where(CrimeIncident.incident_category == source_type)
-            count_stmt = count_stmt.where(CrimeIncident.incident_category == source_type)
+            count_stmt = count_stmt.where(
+                CrimeIncident.incident_category == source_type
+            )
         return data_stmt, count_stmt
     if entity_type == "source":
         data_stmt = select(LegalSource).order_by(LegalSource.id)
@@ -108,7 +135,10 @@ def _review_statements(entity_type: str, review_status: str | None, source_type:
     raise HTTPException(status_code=404, detail="Unsupported entity type")
 
 
-@router.get("/api/admin/review-queue", dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)])
+@router.get(
+    "/api/admin/review-queue",
+    dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)],
+)
 def admin_review_queue(
     entity_type: str | None = None,
     review_status: str | None = None,
@@ -117,14 +147,18 @@ def admin_review_queue(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    requested_types = [entity_type] if entity_type else ["event", "crime_incident", "source"]
+    requested_types = (
+        [entity_type] if entity_type else ["event", "crime_incident", "source"]
+    )
     total_count = 0
     items: list[dict] = []
     remaining_offset = offset
     remaining_limit = limit
 
     for current_type in requested_types:
-        data_stmt, count_stmt = _review_statements(current_type, review_status, source_type)
+        data_stmt, count_stmt = _review_statements(
+            current_type, review_status, source_type
+        )
         current_count = _query_count(db, count_stmt)
         total_count += current_count
         if remaining_limit <= 0:
@@ -132,14 +166,21 @@ def admin_review_queue(
         if remaining_offset >= current_count:
             remaining_offset -= current_count
             continue
-        rows = db.scalars(data_stmt.offset(remaining_offset).limit(remaining_limit)).unique().all()
+        rows = (
+            db.scalars(data_stmt.offset(remaining_offset).limit(remaining_limit))
+            .unique()
+            .all()
+        )
         items.extend(_serialize_review_item(current_type, entity) for entity in rows)
         remaining_limit -= len(rows)
         remaining_offset = 0
     return {"items": items, "total_count": total_count}
 
 
-@router.get("/api/admin/review-history", dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)])
+@router.get(
+    "/api/admin/review-history",
+    dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)],
+)
 def admin_review_history(
     entity_type: str | None = None,
     entity_id: int | None = None,
@@ -147,7 +188,9 @@ def admin_review_history(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    stmt = select(EvidenceReview).order_by(EvidenceReview.reviewed_at.desc(), EvidenceReview.id.desc())
+    stmt = select(EvidenceReview).order_by(
+        EvidenceReview.reviewed_at.desc(), EvidenceReview.id.desc()
+    )
     if entity_type:
         stmt = stmt.where(EvidenceReview.entity_type == entity_type)
     if entity_id is not None:
@@ -171,7 +214,10 @@ def admin_review_history(
     return {"items": items, "total_count": total_count}
 
 
-@router.post("/api/admin/review-queue/{entity_type}/{entity_id}/decision", dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)])
+@router.post(
+    "/api/admin/review-queue/{entity_type}/{entity_id}/decision",
+    dependencies=[Depends(require_admin_review), Depends(rate_limit_admin)],
+)
 async def admin_review_decision(
     entity_type: str,
     entity_id: str,
@@ -238,7 +284,9 @@ async def admin_review_decision(
 )
 def retract_legal_source(
     source_id: str,
-    reason: str | None = Query(None, max_length=1000, description="Reason for retraction"),
+    reason: str | None = Query(
+        None, max_length=1000, description="Reason for retraction"
+    ),
     db: Session = Depends(get_db),
     actor: AdminActor = Depends(require_admin_token),
 ) -> dict:
@@ -250,7 +298,9 @@ def retract_legal_source(
     """
     source = db.scalar(select(LegalSource).where(LegalSource.source_id == source_id))
     if not source:
-        raise HTTPException(status_code=404, detail=f"Legal source '{source_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Legal source '{source_id}' not found"
+        )
 
     _RETRACTION_STATUS = "removed_from_public"
     previous_status = source.review_status
