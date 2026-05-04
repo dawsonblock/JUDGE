@@ -60,9 +60,7 @@ class HealthProbe:
         """Fraction of HEALTHY entries in the current window (0.0–1.0)."""
         if not self._records:
             return 1.0  # no data → optimistic
-        healthy_count = sum(
-            1 for r in self._records if r.status == ProbeStatus.HEALTHY
-        )
+        healthy_count = sum(1 for r in self._records if r.status == ProbeStatus.HEALTHY)
         return healthy_count / len(self._records)
 
     def current_status(self) -> ProbeStatus:

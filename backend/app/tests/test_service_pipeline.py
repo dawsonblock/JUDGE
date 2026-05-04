@@ -11,10 +11,10 @@ from app.services.pipeline.health_probe import HealthProbe, ProbeRecord, ProbeSt
 from app.services.pipeline.pipeline_metrics import PipelineMetrics
 from app.services.pipeline.pipeline_runtime import PipelineRuntime
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _echo(payload):
     return dict(payload)
@@ -31,6 +31,7 @@ def _explode(payload):
 # ===========================================================================
 # StageRegistry
 # ===========================================================================
+
 
 class TestStageRegistry:
 
@@ -138,6 +139,7 @@ class TestStageRegistry:
 # ServiceLocator
 # ===========================================================================
 
+
 class TestServiceLocator:
 
     def test_register_and_is_registered(self):
@@ -240,6 +242,7 @@ class TestServiceLocator:
 # CircuitBreaker
 # ===========================================================================
 
+
 class TestCircuitBreaker:
 
     def test_starts_closed(self):
@@ -276,7 +279,9 @@ class TestCircuitBreaker:
         assert cb.allow() is True
 
     def test_success_in_half_open_closes(self):
-        cb = CircuitBreaker(failure_threshold=1, recovery_ticks=1, half_open_successes=1)
+        cb = CircuitBreaker(
+            failure_threshold=1, recovery_ticks=1, half_open_successes=1
+        )
         cb.record_failure()
         cb.tick()
         cb.record_success()
@@ -334,6 +339,7 @@ class TestCircuitBreaker:
 # ===========================================================================
 # HealthProbe
 # ===========================================================================
+
 
 class TestHealthProbe:
 
@@ -417,6 +423,7 @@ class TestHealthProbe:
 # PipelineMetrics
 # ===========================================================================
 
+
 class TestPipelineMetrics:
 
     def test_execution_count_starts_zero(self):
@@ -489,6 +496,7 @@ class TestPipelineMetrics:
 # ===========================================================================
 # PipelineRuntime
 # ===========================================================================
+
 
 class TestPipelineRuntime:
 
