@@ -38,36 +38,36 @@ export default async function CasePage({ params }: { params: { id: string } }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SectionCard title="Case Information">
           <dl className="space-y-3 text-sm">
-            <div className="flex gap-2">
-              <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div>
-                <dt className="text-muted-foreground">Docket Number</dt>
-                <dd className="font-medium">{courtCase.docket_number}</dd>
-              </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                Docket Number
+              </dt>
+              <dd className="font-medium ml-5">{courtCase.docket_number}</dd>
             </div>
-            <div className="flex gap-2">
-              <Scale className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div>
-                <dt className="text-muted-foreground">Court</dt>
-                <dd className="font-medium">Court #{courtCase.court_id}</dd>
-              </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Scale className="h-3.5 w-3.5 shrink-0" />
+                Court
+              </dt>
+              <dd className="font-medium ml-5">Court #{courtCase.court_id}</dd>
             </div>
             {courtCase.filed_date && (
-              <div className="flex gap-2">
-                <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <dt className="text-muted-foreground">Filed</dt>
-                  <dd className="font-medium">{courtCase.filed_date}</dd>
-                </div>
+              <div>
+                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  Filed
+                </dt>
+                <dd className="font-medium ml-5">{courtCase.filed_date}</dd>
               </div>
             )}
             {courtCase.terminated_date && (
-              <div className="flex gap-2">
-                <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <dt className="text-muted-foreground">Terminated</dt>
-                  <dd className="font-medium">{courtCase.terminated_date}</dd>
-                </div>
+              <div>
+                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  Terminated
+                </dt>
+                <dd className="font-medium ml-5">{courtCase.terminated_date}</dd>
               </div>
             )}
           </dl>
@@ -86,13 +86,13 @@ export default async function CasePage({ params }: { params: { id: string } }) {
         ) : (
           <ul className="space-y-3">
             {events.map((ev) => (
-              <li key={ev.id} className="text-sm border-l-2 border-slate-200 pl-3">
+              <li key={ev.event_id} className="text-sm border-l-2 border-slate-200 pl-3">
                 <p className="font-medium text-slate-800">{ev.event_type}</p>
                 {ev.decision_date && (
                   <p className="text-xs text-slate-500">{ev.decision_date}</p>
                 )}
-                {ev.notes && (
-                  <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{ev.notes}</p>
+                {ev.summary && (
+                  <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{ev.summary}</p>
                 )}
               </li>
             ))}

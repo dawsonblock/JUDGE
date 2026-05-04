@@ -59,7 +59,7 @@ export default async function DashboardPage() {
               <p className="py-3 text-sm text-muted-foreground">No public events yet.</p>
             ) : (
               recent.map((ev) => (
-                <div key={ev.id} className="py-3 flex items-start justify-between gap-3">
+                <div key={ev.event_id} className="py-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{ev.event_type}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{ev.decision_date ?? "—"}</p>

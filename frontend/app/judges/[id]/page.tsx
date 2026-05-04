@@ -56,13 +56,13 @@ export default async function JudgePage({ params }: { params: { id: string } }) 
         ) : (
           <ul className="space-y-3">
             {events.map((ev) => (
-              <li key={ev.id} className="text-sm border-l-2 border-slate-200 pl-3">
+              <li key={ev.event_id} className="text-sm border-l-2 border-slate-200 pl-3">
                 <p className="font-medium text-slate-800">{ev.event_type}</p>
                 {ev.decision_date && (
                   <p className="text-xs text-slate-500">{ev.decision_date}</p>
                 )}
-                {ev.notes && (
-                  <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{ev.notes}</p>
+                {ev.summary && (
+                  <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{ev.summary}</p>
                 )}
               </li>
             ))}

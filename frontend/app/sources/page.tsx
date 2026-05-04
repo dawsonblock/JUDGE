@@ -27,6 +27,7 @@ export default async function SourcesPage() {
                     href={source.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={`View source: ${source.title}`}
                     className="text-slate-400 hover:text-blue-500 shrink-0"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
