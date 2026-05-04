@@ -91,17 +91,17 @@ class CanLIILawSection:
 
     jurisdiction: str = ""
     source: str = "CanLII"
-    law_title: str = ""          # Style of cause
+    law_title: str = ""  # Style of cause
     law_type: str = "decision"
-    chapter: str = ""            # Neutral citation
-    section_number: str = ""     # Not applicable for case decisions
-    section_heading: str = ""    # Style of cause (mirrors law_title)
-    section_text: str = ""       # Full decision text
+    chapter: str = ""  # Neutral citation
+    section_number: str = ""  # Not applicable for case decisions
+    section_heading: str = ""  # Style of cause (mirrors law_title)
+    section_text: str = ""  # Full decision text
     language: str = "en"
     source_url: str = ""
-    consolidation_date: date | None = None   # Decision date
+    consolidation_date: date | None = None  # Decision date
     raw_hash: str = ""
-    is_stub: bool = True          # False only after full text is retrieved
+    is_stub: bool = True  # False only after full text is retrieved
 
 
 class CanLIIAdapter:
@@ -127,6 +127,7 @@ class CanLIIAdapter:
             self._api_key = api_key
         else:
             from app.core.config import get_settings  # noqa: PLC0415
+
             self._api_key = get_settings().canlii_api_key or ""
         self._language = language
         self._timeout = timeout
@@ -280,7 +281,11 @@ class CanLIIAdapter:
 
         style_of_cause = data.get("title", data.get("style", ""))
         citation = data.get("citation", data.get("caseId", {}).get("id", ""))
-        case_id_str = (data.get("caseId") or {}).get("id", "") if isinstance(data.get("caseId"), dict) else str(data.get("caseId", ""))
+        case_id_str = (
+            (data.get("caseId") or {}).get("id", "")
+            if isinstance(data.get("caseId"), dict)
+            else str(data.get("caseId", ""))
+        )
 
         source_url = (
             data.get("url")
