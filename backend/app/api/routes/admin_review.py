@@ -8,7 +8,7 @@ from app.auth.admin import require_admin_review, require_admin_token
 from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
-from app.models.entities import CrimeIncident, Event, EvidenceReview, LegalSource
+from app.models.entities import AuditLog, CrimeIncident, Event, EvidenceReview, LegalSource
 from app.serializers.public import (
     entity_by_type,
     entity_public_visibility,
@@ -212,6 +212,22 @@ async def admin_review_decision(
             public_visibility=public_visibility,
         )
     )
+    db.add(
+        AuditLog(
+            action="review.decision",
+            entity_type=entity_type,
+            entity_id=str(entity.id),
+            actor_id=reviewer,
+            actor_type="admin",
+            actor_role="reviewer",
+            payload={
+                "previous_status": previous_status,
+                "new_status": new_status,
+                "decision": payload.get("decision") or payload.get("action"),
+                "notes": payload.get("notes"),
+            },
+        )
+    )
     db.commit()
     return _serialize_review_item(entity_type, entity)
 
@@ -257,6 +273,21 @@ def retract_legal_source(
             reviewed_at=now,
             notes=reason,
             public_visibility=False,
+        )
+    )
+    db.add(
+        AuditLog(
+            action="review.retraction",
+            entity_type="source",
+            entity_id=str(source.id),
+            actor_id=actor.actor_id,
+            actor_type="admin",
+            actor_role=actor.role,
+            payload={
+                "previous_status": previous_status,
+                "new_status": _RETRACTION_STATUS,
+                "reason": reason,
+            },
         )
     )
     db.commit()

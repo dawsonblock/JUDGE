@@ -85,27 +85,56 @@ class TestAuditLogging:
     These are aspirational tests for when audit logging is implemented.
     """
 
-    def test_review_actions_need_audit_log(self):
-        """Review actions should be logged for audit.
+    def test_review_actions_need_audit_log(self, client, db_session):
+        """Review actions should write an AuditLog entry."""
+        from app.models.entities import AuditLog, Event
+        from sqlalchemy import select
 
-        This test documents the requirement that all review decisions
-        (approve, reject, block) must be logged with:
-        - Who performed the action
-        - When it was performed
-        - What was changed
-        - Previous and new state
-        """
-        # Placeholder test - will fail until audit logging is implemented
-        pytest.skip("Audit logging not yet implemented - see AUTH_ROADMAP.md")
+        event = db_session.scalar(select(Event).where(Event.event_id == "EVT-SAMPLE-006"))
+        assert event is not None, "Seeded events must exist"
 
-    def test_admin_api_calls_need_audit_log(self):
-        """Admin API calls should be logged.
+        response = client.post(
+            f"/api/admin/review-queue/event/{event.event_id}/decision",
+            json={"decision": "approve", "reviewed_by": "audit_tester", "notes": "audit test"},
+            headers={"X-JTA-Admin-Token": "test-token"},
+        )
+        assert response.status_code == 200
 
-        This test documents the requirement that all admin API calls
-        must be logged for security monitoring.
-        """
-        # Placeholder test - will fail until audit logging is implemented
-        pytest.skip("Audit logging not yet implemented - see AUTH_ROADMAP.md")
+        db_session.expire_all()
+        log = db_session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == "review.decision")
+            .where(AuditLog.entity_type == "event")
+            .where(AuditLog.entity_id == str(event.id))
+            .order_by(AuditLog.id.desc())
+        )
+        assert log is not None, "AuditLog entry must be created for review decisions"
+        assert log.actor_id == "audit_tester"
+
+    def test_admin_api_calls_need_audit_log(self, client, db_session):
+        """Admin API calls should increment the AuditLog."""
+        from app.models.entities import AuditLog, Event
+        from sqlalchemy import func, select
+
+        event = db_session.scalar(select(Event).where(Event.event_id == "EVT-SAMPLE-006"))
+        assert event is not None, "Seeded events must exist"
+
+        count_before = db_session.scalar(
+            select(func.count(AuditLog.id)).where(AuditLog.action == "review.decision")
+        ) or 0
+
+        response = client.post(
+            f"/api/admin/review-queue/event/{event.event_id}/decision",
+            json={"decision": "approve", "reviewed_by": "monitor_admin", "notes": "logging check"},
+            headers={"X-JTA-Admin-Token": "test-token"},
+        )
+        assert response.status_code == 200
+
+        db_session.expire_all()
+        count_after = db_session.scalar(
+            select(func.count(AuditLog.id)).where(AuditLog.action == "review.decision")
+        ) or 0
+        assert count_after > count_before, "AuditLog count must increase after admin API call"
 
 
 class TestAdminActorIdentity:
