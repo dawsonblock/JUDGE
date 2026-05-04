@@ -30,13 +30,13 @@ jobs:
         run: |
           # NOTE: put your own distribution build steps here.
           python -m pip install build
-          python -m build
+          python -m build backend
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
           name: release-dists
-          path: dist/
+          path: backend/dist/
 
   pypi-publish:
     runs-on: ubuntu-latest
