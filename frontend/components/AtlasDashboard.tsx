@@ -1,10 +1,8 @@
 "use client";
 
-import L from "leaflet";
 import { Calendar, FileText, Filter, Gavel, MapPin, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
-import { EventItem, FeatureCollection, MapFeature, apiBase } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { EventItem, apiBase } from "@/lib/api";
 import SourcePanel from "@/components/SourcePanel";
 
 type Filters = {
@@ -38,27 +36,6 @@ function buildQuery(filters: Filters) {
   return params.toString();
 }
 
-function clusterFeatures(features: MapFeature[]) {
-  const clusters = new Map<string, { lat: number; lng: number; features: MapFeature[] }>();
-  for (const feature of features) {
-    const [lng, lat] = feature.geometry.coordinates;
-    const key = `${lat.toFixed(4)}:${lng.toFixed(4)}`;
-    const cluster = clusters.get(key) || { lat, lng, features: [] };
-    cluster.features.push(feature);
-    clusters.set(key, cluster);
-  }
-  return Array.from(clusters.values());
-}
-
-function FitBounds({ features }: { features: MapFeature[] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!features.length) return;
-    const bounds = L.latLngBounds(features.map((feature) => [feature.geometry.coordinates[1], feature.geometry.coordinates[0]]));
-    map.fitBounds(bounds.pad(0.25), { maxZoom: 6 });
-  }, [features, map]);
-  return null;
-}
 
 export default function AtlasDashboard() {
   const [filters, setFilters] = useState<Filters>({
@@ -69,48 +46,26 @@ export default function AtlasDashboard() {
     start: "",
     end: "",
   });
-  const [features, setFeatures] = useState<MapFeature[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [disclaimer, setDisclaimer] = useState<string | null>(null);
-  const [truncated, setTruncated] = useState(false);
 
   const selected = events.find((event) => event.event_id === selectedEventId) || events[0];
-  const clusters = useMemo(() => clusterFeatures(features), [features]);
 
   useEffect(() => {
     const query = buildQuery(filters);
     const nextUrl = query ? `/?${query}` : "/";
     window.history.replaceState(null, "", nextUrl);
-    setIsLoading(true);
-    setLoadError(null);
     async function load() {
-      const [mapRes, eventsRes] = await Promise.all([
-        fetch(`${apiBase(false)}/api/map/events${query ? `?${query}` : ""}`),
-        fetch(`${apiBase(false)}/api/events${query ? `?${query}` : ""}`),
-      ]);
-      if (!mapRes.ok || !eventsRes.ok) {
-        throw new Error(`API error: map=${mapRes.status} events=${eventsRes.status}`);
-      }
-      const mapResponse = (await mapRes.json()) as FeatureCollection;
-      const eventsResponse = (await eventsRes.json()) as EventItem[];
-      setFeatures(mapResponse.features);
+      const res = await fetch(`${apiBase(false)}/api/events${query ? `?${query}` : ""}`);
+      if (!res.ok) throw new Error(`API error: events=${res.status}`);
+      const eventsResponse = (await res.json()) as EventItem[];
       setEvents(eventsResponse);
-      setDisclaimer(mapResponse.disclaimer ?? null);
-      setTruncated(mapResponse.truncated ?? false);
       setSelectedEventId((current) => {
         if (current && eventsResponse.some((event) => event.event_id === current)) return current;
         return eventsResponse[0]?.event_id || null;
       });
     }
-    load()
-      .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : "Failed to load events.");
-        console.error(err);
-      })
-      .finally(() => setIsLoading(false));
+    load().catch((err: unknown) => console.error(err));
   }, [filters]);
 
   function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
@@ -119,10 +74,6 @@ export default function AtlasDashboard() {
 
   return (
     <main className="dashboard">
-      {isLoading && <div className="load-banner" aria-live="polite">Loading events…</div>}
-      {loadError && <div className="error-banner" role="alert">{loadError}</div>}
-      {disclaimer && <div className="disclaimer-banner" role="note">{disclaimer}</div>}
-      {truncated && <div className="truncated-banner" role="note">Results are truncated. Apply filters to narrow the view.</div>}
       <aside className="rail">
         <section className="section">
           <h2><Filter size={15} /> Filters</h2>
@@ -187,37 +138,17 @@ export default function AtlasDashboard() {
       </aside>
 
       <section className="map-wrap">
-        <div className="map-status"><MapPin size={16} /> {features.length} mapped court events</div>
-        <MapContainer className="map" center={[39.5, -98.35]} zoom={4} scrollWheelZoom>
-          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <FitBounds features={features} />
-          {clusters.length ? clusters.map((cluster) => {
-            const first = cluster.features[0];
-            const icon = L.divIcon({ className: "", html: `<div class="cluster-marker">${cluster.features.length}</div>`, iconSize: [42, 42] });
-            return (
-              <Marker key={`${cluster.lat}-${cluster.lng}`} position={[cluster.lat, cluster.lng]} icon={icon} eventHandlers={{ click: () => setSelectedEventId(first.properties.event_id) }}>
-                <Tooltip direction="top">
-                  {cluster.features.length} event{cluster.features.length === 1 ? "" : "s"} · {first.properties.court}
-                </Tooltip>
-              </Marker>
-            );
-          }) : null}
-        </MapContainer>
-        <div className="drawer" aria-label="Recent events drawer">
-          {events.length ? (
-            events.slice(0, 6).map((event) => (
-              <button className="drawer-item" key={event.event_id} onClick={() => setSelectedEventId(event.event_id)}>
-                <div className="kicker">{event.decision_date || "No decision date"}</div>
-                <div className="row-title">{event.title}</div>
-                <div className="meta">{event.court?.region || "Region pending"} · {event.source_quality}</div>
-              </button>
-            ))
-          ) : (
-            <div className="drawer-item">
-              <div className="row-title">No filtered events</div>
-              <div className="meta">Adjust filters to view mapped court events.</div>
-            </div>
-          )}
+        <div className="map-summary-card">
+          <div className="map-summary-stat">
+            <MapPin size={20} />
+            <span>{events.length} court events</span>
+          </div>
+          <p className="map-summary-hint">
+            Showing linked courthouse locations and jurisdictions.
+          </p>
+          <a href="/map" className="btn-map-link">
+            Open Interactive Map →
+          </a>
         </div>
       </section>
 

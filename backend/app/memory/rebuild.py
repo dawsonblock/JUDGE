@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.memory import entity_summary_checksum
 from app.memory.extract_claims import extract_claims
 from app.memory.invalidation import invalidate_claim
+from app.memory.memory_graph_bridge import sync_claims_to_graph
 from app.models.entities import (
     CanonicalEntity,
     EntityEvidenceLink,
@@ -376,6 +377,14 @@ def run_rebuild(
 
             if _rebuild_entity_state(entity, run, db):
                 run.states_updated += 1
+
+            # Propagate active claims to the entity graph.
+            still_active = [
+                c
+                for c in active_claims
+                if c.claim_key in entity_produced_keys and c.is_active
+            ]
+            sync_claims_to_graph(entity.id, still_active, db)
 
         run.status = "completed"
         run.finished_at = datetime.now(timezone.utc)

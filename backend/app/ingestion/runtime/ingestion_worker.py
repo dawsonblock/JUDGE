@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.ingestion.adapters import ParsedRecord, SourceAdapter
 from app.ingestion.persistence import PersistResult, persist_parsed_record
-from app.models.entities import IngestionRun
+from app.models.entities import IngestionRun, SourceRegistry
 from app.ingestion.runtime import (
     checkpointing,
     crawl_state,
@@ -73,6 +73,25 @@ class IngestionWorker:
         """
         db = self.db
         adapter = self.adapter
+
+        # ------------------------------------------------------------------
+        # 0. Gate: verify source is registered and active
+        # ------------------------------------------------------------------
+        _reg = (
+            db.query(SourceRegistry)
+            .filter(SourceRegistry.source_key == source_name)
+            .first()
+        )
+        if _reg is None:
+            raise RuntimeError(
+                f"ingestion_worker: unknown source_key={source_name!r} — "
+                "register the source in SourceRegistry before running"
+            )
+        if not _reg.is_active:
+            raise RuntimeError(
+                f"ingestion_worker: source {source_name!r} is_active=False — "
+                "activate the source in SourceRegistry before running"
+            )
 
         # ------------------------------------------------------------------
         # 1. Open run
