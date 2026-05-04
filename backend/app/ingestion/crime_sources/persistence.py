@@ -52,9 +52,16 @@ def persist_crime_incident(
 ) -> CrimeIncident:
     _validate_record(record)
     external_id = record.external_id or derive_external_id(record)
-    incident = db.scalar(select(CrimeIncident).where(CrimeIncident.source_name == record.source_name, CrimeIncident.external_id == external_id))
+    incident = db.scalar(
+        select(CrimeIncident).where(
+            CrimeIncident.source_name == record.source_name,
+            CrimeIncident.external_id == external_id,
+        )
+    )
     if not incident:
-        incident = CrimeIncident(source_name=record.source_name, external_id=external_id)
+        incident = CrimeIncident(
+            source_name=record.source_name, external_id=external_id
+        )
         db.add(incident)
         # New records always start as pending_review
         prev_review_status = "pending_review"
@@ -65,12 +72,15 @@ def persist_crime_incident(
     # Track safety-sensitive changes
     safety_fields_changed = False
     if incident.id is not None:
-        if (incident.incident_type != record.incident_type.strip() or
-            incident.incident_category != normalize_incident_category(record.incident_category) or
-            incident.public_area_label != _clean(record.public_area_label) or
-            incident.latitude_public != record.latitude_public or
-            incident.longitude_public != record.longitude_public or
-            incident.notes != _clean(record.notes)):
+        if (
+            incident.incident_type != record.incident_type.strip()
+            or incident.incident_category
+            != normalize_incident_category(record.incident_category)
+            or incident.public_area_label != _clean(record.public_area_label)
+            or incident.latitude_public != record.latitude_public
+            or incident.longitude_public != record.longitude_public
+            or incident.notes != _clean(record.notes)
+        ):
             safety_fields_changed = True
 
     incident.source_id = record.source_id
@@ -164,7 +174,9 @@ def _validate_record(record: CrimeIncidentRecord) -> None:
         raise CrimeIncidentValidationError("unsafe_private_or_person_specific_notes")
     if record.public_area_label and RESIDENCE_PATTERN.search(record.public_area_label):
         raise CrimeIncidentValidationError("unsafe_residence_in_public_area_label")
-    if record.source_url and not record.source_url.strip().startswith(("http://", "https://")):
+    if record.source_url and not record.source_url.strip().startswith(
+        ("http://", "https://")
+    ):
         raise CrimeIncidentValidationError("invalid_source_url")
 
 

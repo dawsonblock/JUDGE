@@ -9,6 +9,7 @@ APP_ENV=development to activate the saskatoon_crime pipeline locally.
 Run standalone:
     python -m app.seed.source_registry
 """
+
 from __future__ import annotations
 
 import os
@@ -21,8 +22,12 @@ from app.models.entities import SourceRegistry
 # Activate saskatoon_crime only in explicit dev mode.
 # Check JTA_APP_ENV first (canonical pydantic env_prefix), fall back to bare APP_ENV.
 _SASKATOON_ACTIVE: bool = (
-    os.environ.get("JTA_CANADA_FIRST_DEV_ENABLE_SASKATOON", "").lower() in ("1", "true", "yes")
-    and (os.environ.get("JTA_APP_ENV") or os.environ.get("APP_ENV", "production")).lower() == "development"
+    os.environ.get("JTA_CANADA_FIRST_DEV_ENABLE_SASKATOON", "").lower()
+    in ("1", "true", "yes")
+    and (
+        os.environ.get("JTA_APP_ENV") or os.environ.get("APP_ENV", "production")
+    ).lower()
+    == "development"
 )
 
 _SOURCES: list[dict] = [
@@ -180,7 +185,9 @@ def seed_source_registry(db: Session) -> None:
     """Insert source registry rows that do not yet exist (idempotent)."""
     for spec in _SOURCES:
         existing = db.scalar(
-            select(SourceRegistry).where(SourceRegistry.source_key == spec["source_key"])
+            select(SourceRegistry).where(
+                SourceRegistry.source_key == spec["source_key"]
+            )
         )
         if existing is not None:
             continue
@@ -206,9 +213,7 @@ _REPAIR_FIELDS: tuple[str, ...] = (
 )
 
 
-def repair_canada_first_defaults(
-    db: Session, *, dry_run: bool = False
-) -> list[str]:
+def repair_canada_first_defaults(db: Session, *, dry_run: bool = False) -> list[str]:
     """Repair existing registry rows that deviate from the current ``_SOURCES`` spec.
 
     Only the fields listed in :data:`_REPAIR_FIELDS` are checked — ``is_active``
@@ -224,7 +229,9 @@ def repair_canada_first_defaults(
     changes: list[str] = []
     for spec in _SOURCES:
         row = db.scalar(
-            select(SourceRegistry).where(SourceRegistry.source_key == spec["source_key"])
+            select(SourceRegistry).where(
+                SourceRegistry.source_key == spec["source_key"]
+            )
         )
         if row is None:
             continue  # seed_source_registry handles inserts

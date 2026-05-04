@@ -8,19 +8,18 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
-
 _ALLOWED_SCHEMES = {"http", "https"}
 
 
 def _parsed_allowed_host(url: str) -> str:
     """Parse URL and validate scheme, hostname, and credentials.
-    
+
     Args:
         url: URL to parse
-        
+
     Returns:
         Lowercased hostname with trailing dot stripped
-        
+
     Raises:
         ValueError: If scheme is not http/https, hostname is missing, or credentials present
     """
@@ -110,6 +109,7 @@ class WebMonitorTarget(BaseModel):
     def validate_source_key_format(cls, v: str) -> str:
         """Ensure source_key uses only safe identifier characters."""
         import re
+
         if not re.match(r"^[a-z0-9_-]+$", v):
             raise ValueError(
                 "source_key must contain only lowercase letters, numbers, underscores, and hyphens"

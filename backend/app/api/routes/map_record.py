@@ -7,6 +7,7 @@ Safety rules:
 - All text is passed through sanitize_* helpers.
 - No victim names, suspect names, or exact private addresses.
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -31,29 +32,32 @@ from app.serializers.public import (
 
 router = APIRouter()
 
-COURT_EVENT_DISCLAIMER = (
-    "Court record. Does not imply the judge caused later events."
-)
-INCIDENT_DISCLAIMER = (
-    "Reported incident. Not proof of guilt or conviction."
-)
-NEWS_CONTEXT_NOTE = (
-    "News links are context unless marked as verified source links."
-)
+COURT_EVENT_DISCLAIMER = "Court record. Does not imply the judge caused later events."
+INCIDENT_DISCLAIMER = "Reported incident. Not proof of guilt or conviction."
+NEWS_CONTEXT_NOTE = "News links are context unless marked as verified source links."
 
 _NEWS_SOURCE_TYPES = {"news", "news_article"}
-_OFFICIAL_SOURCE_TYPES = {"official", "court_record", "open_data", "official_police_open_data"}
+_OFFICIAL_SOURCE_TYPES = {
+    "official",
+    "court_record",
+    "open_data",
+    "official_police_open_data",
+}
 
 VERIFIED_LINK = "verified_source_link"
 
 
-def _serialize_source_link(source: LegalSource, supports_claim: str | None = None) -> dict:
+def _serialize_source_link(
+    source: LegalSource, supports_claim: str | None = None
+) -> dict:
     return {
         "label": sanitize_public_text(source.title, "Reviewed source"),
         "url": source.url,
         "source_type": source.source_type,
         "supports_claim": supports_claim or "",
-        "retrieved_at": source.retrieved_at.isoformat() if source.retrieved_at else None,
+        "retrieved_at": (
+            source.retrieved_at.isoformat() if source.retrieved_at else None
+        ),
         "snapshot_hash": source.url_hash,
         "is_context_only": source.source_type in _NEWS_SOURCE_TYPES,
     }
@@ -61,8 +65,12 @@ def _serialize_source_link(source: LegalSource, supports_claim: str | None = Non
 
 def _incident_options():
     return (
-        selectinload(CrimeIncident.source_links).selectinload(CrimeIncidentSource.source),
-        selectinload(CrimeIncident.event_links).selectinload(CrimeIncidentEventLink.event),
+        selectinload(CrimeIncident.source_links).selectinload(
+            CrimeIncidentSource.source
+        ),
+        selectinload(CrimeIncident.event_links).selectinload(
+            CrimeIncidentEventLink.event
+        ),
     )
 
 
@@ -107,7 +115,11 @@ def _court_event_detail(record_id: str, db: Session) -> dict:
 
     related_incidents: list[dict] = []
 
-    audit_date = (event.reviewed_at or event.updated_at if hasattr(event, "updated_at") else event.reviewed_at)
+    audit_date = (
+        event.reviewed_at or event.updated_at
+        if hasattr(event, "updated_at")
+        else event.reviewed_at
+    )
     return {
         "record_type": "court_event",
         "id": event.event_id,
@@ -117,12 +129,16 @@ def _court_event_detail(record_id: str, db: Session) -> dict:
         "date": event.decision_date.isoformat() if event.decision_date else None,
         "court_name": court.name if court else None,
         "court_location": (
-            f"{loc.city}, {loc.state}" if loc and loc.city else (loc.name if loc else None)
+            f"{loc.city}, {loc.state}"
+            if loc and loc.city
+            else (loc.name if loc else None)
         ),
         "judge_name": judge.name if judge else None,
         "case_name": sanitize_case_caption(case, event) if case else None,
         "docket_number": case.docket_number if case else None,
-        "summary": sanitize_event_text(event.summary, event, "Reviewed public legal summary."),
+        "summary": sanitize_event_text(
+            event.summary, event, "Reviewed public legal summary."
+        ),
         "source_links": source_links,
         "news_articles": news_articles,
         "related_reported_incidents": related_incidents,
@@ -173,13 +189,21 @@ def _incident_detail(record_id: str, db: Session) -> dict:
             source_links.append(entry)
 
     if not source_links and incident.source_url:
-        source_links.append({
-            "label": sanitize_public_text(incident.source_name, "Official open data source"),
-            "url": incident.source_url,
-            "source_type": "official",
-            "supports_claim": "",
-            "retrieved_at": incident.data_last_seen_at.isoformat() if incident.data_last_seen_at else None,
-        })
+        source_links.append(
+            {
+                "label": sanitize_public_text(
+                    incident.source_name, "Official open data source"
+                ),
+                "url": incident.source_url,
+                "source_type": "official",
+                "supports_claim": "",
+                "retrieved_at": (
+                    incident.data_last_seen_at.isoformat()
+                    if incident.data_last_seen_at
+                    else None
+                ),
+            }
+        )
 
     related_court_records: list[dict] = []
     for link in incident.event_links:
@@ -190,31 +214,46 @@ def _incident_detail(record_id: str, db: Session) -> dict:
             continue
         judge = ev.judge
         case = ev.case
-        _ev_url = (ev.cl_provenance or {}).get("absolute_url") or (ev.cl_provenance or {}).get("url")
-        related_court_records.append({
-            "event_id": ev.event_id,
-            "case_name": sanitize_case_caption(case, ev) if case else None,
-            "judge_name": judge.name if judge else None,
-            "decision_type": ev.event_type,
-            "date": ev.decision_date.isoformat() if ev.decision_date else None,
-            "relationship_status": link.relationship_status,
-            "url": _ev_url,
-        })
+        _ev_url = (ev.cl_provenance or {}).get("absolute_url") or (
+            ev.cl_provenance or {}
+        ).get("url")
+        related_court_records.append(
+            {
+                "event_id": ev.event_id,
+                "case_name": sanitize_case_caption(case, ev) if case else None,
+                "judge_name": judge.name if judge else None,
+                "decision_type": ev.event_type,
+                "date": ev.decision_date.isoformat() if ev.decision_date else None,
+                "relationship_status": link.relationship_status,
+                "url": _ev_url,
+            }
+        )
 
     audit_date = incident.reviewed_at
     return {
         "record_type": "reported_incident",
         "id": incident.id,
         "category": incident.incident_category,
-        "incident_type": sanitize_public_text(incident.incident_type, "Reported incident"),
+        "incident_type": sanitize_public_text(
+            incident.incident_type, "Reported incident"
+        ),
         "date": (
-            incident.occurred_at.date().isoformat() if incident.occurred_at
-            else (incident.reported_at.date().isoformat() if incident.reported_at else None)
+            incident.occurred_at.date().isoformat()
+            if incident.occurred_at
+            else (
+                incident.reported_at.date().isoformat()
+                if incident.reported_at
+                else None
+            )
         ),
         "city": incident.city,
         "state_province": incident.province_state,
         "country": incident.country,
-        "area_label": sanitize_public_text(incident.public_area_label, "General area") if incident.public_area_label else None,
+        "area_label": (
+            sanitize_public_text(incident.public_area_label, "General area")
+            if incident.public_area_label
+            else None
+        ),
         "latitude": incident.latitude_public,
         "longitude": incident.longitude_public,
         "precision_level": incident.precision_level,
@@ -230,14 +269,16 @@ def _incident_detail(record_id: str, db: Session) -> dict:
         "source_count": len(source_links) + len(news_articles),
         "evidence_count": len(source_links) + len(news_articles),
         "confidence": None,
-        "source_tier": "official" if incident.source_url else incident.verification_status,
-        "warnings": (
-            [] if related_court_records else ["No linked court record"]
+        "source_tier": (
+            "official" if incident.source_url else incident.verification_status
         ),
+        "warnings": ([] if related_court_records else ["No linked court record"]),
         "audit": {
             "review_status": incident.review_status,
             "reviewed_by": incident.reviewed_by,
-            "reviewed_at": incident.reviewed_at.isoformat() if incident.reviewed_at else None,
+            "reviewed_at": (
+                incident.reviewed_at.isoformat() if incident.reviewed_at else None
+            ),
             "last_updated": audit_date.isoformat() if audit_date else None,
         },
         "disclaimer": INCIDENT_DISCLAIMER,

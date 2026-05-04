@@ -48,9 +48,9 @@ class CrawleeRunner:
         self.request_count = 0
         self.snapshots: list[SourceSnapshot] = []
         self.errors: list[str] = []
-        self._seen_urls: set[str] = set()   # within-run URL dedup
-        self._seen_hashes: set[str] = set() # within-run content-hash dedup
-        self._db_tier: str | None = None    # set in run() from SourceRegistry
+        self._seen_urls: set[str] = set()  # within-run URL dedup
+        self._seen_hashes: set[str] = set()  # within-run content-hash dedup
+        self._db_tier: str | None = None  # set in run() from SourceRegistry
 
     def _is_url_allowed(self, url: str) -> bool:
         """Check if URL is in the allowed domains list.
@@ -166,7 +166,9 @@ class CrawleeRunner:
             "candidate_type": candidate.candidate_type,
             "location_text": candidate.location_text,
             "entities": candidate.entities,
-            "published_at": candidate.published_at.isoformat() if candidate.published_at else None,
+            "published_at": (
+                candidate.published_at.isoformat() if candidate.published_at else None
+            ),
             "extracted_warnings": candidate.warnings,
             "extraction_confidence": candidate.confidence,
         }
@@ -174,6 +176,7 @@ class CrawleeRunner:
         # Use auto_review to derive publish_recommendation and confidence
         from app.services.auto_review import auto_review as _auto_review
         from app.services.publish_rules import source_tier as _source_tier
+
         db_tier = self._db_tier or _source_tier(self.target.name)
         ar = _auto_review(
             candidate,
@@ -223,6 +226,7 @@ class CrawleeRunner:
         allowed, reason = check_ingestion_allowed(registry)
         # Pre-compute source tier for review items (used by _create_review_item)
         from app.services.publish_rules import source_tier as _source_tier
+
         self._db_tier = _source_tier(self.target.name, registry=registry)
         if not allowed:
             run = IngestionRun(
@@ -275,7 +279,9 @@ class CrawleeRunner:
 
                 # Check request limit
                 if not self._check_request_limit():
-                    context.log.warning(f"Request limit ({self.target.max_requests}) reached")
+                    context.log.warning(
+                        f"Request limit ({self.target.max_requests}) reached"
+                    )
                     return
 
                 # Check allowlist
@@ -299,13 +305,21 @@ class CrawleeRunner:
 
                     # Skip non-HTML content types (images, CSS, JS, fonts, etc.)
                     _ct_lower = content_type.lower()
-                    if not any(t in _ct_lower for t in ("text/html", "application/xhtml", "text/plain")):
-                        context.log.info(f"Skipping non-HTML content: {url} ({content_type})")
+                    if not any(
+                        t in _ct_lower
+                        for t in ("text/html", "application/xhtml", "text/plain")
+                    ):
+                        context.log.info(
+                            f"Skipping non-HTML content: {url} ({content_type})"
+                        )
                         return
 
                     # Within-run content-hash dedup
                     import hashlib as _hashlib
-                    _content_bytes = content.encode("utf-8") if isinstance(content, str) else content
+
+                    _content_bytes = (
+                        content.encode("utf-8") if isinstance(content, str) else content
+                    )
                     _content_sig = _hashlib.sha256(_content_bytes).hexdigest()
                     if _content_sig in self._seen_hashes:
                         context.log.debug(f"Skipping duplicate content from {url}")
@@ -318,7 +332,10 @@ class CrawleeRunner:
                     # Try to extract title from HTML
                     title = None
                     import re
-                    title_match = re.search(r"<title[^>]*>([^<]*)</title>", content, re.IGNORECASE)
+
+                    title_match = re.search(
+                        r"<title[^>]*>([^<]*)</title>", content, re.IGNORECASE
+                    )
                     if title_match:
                         title = title_match.group(1).strip()
                     text_excerpt = content[:2000] if content else None
@@ -345,6 +362,7 @@ class CrawleeRunner:
 
                     # Extract candidate using appropriate extractor
                     from app.ingestion.web_monitor.extractors import extract_from_page
+
                     try:
                         candidate = extract_from_page(
                             url=url,
@@ -355,7 +373,9 @@ class CrawleeRunner:
                         parsed_count += 1  # Only increment on successful parse
 
                         # Create ReviewItem from candidate (never auto-publish)
-                        review_item = self._create_review_item(candidate, snapshot, ingestion_run_id)
+                        review_item = self._create_review_item(
+                            candidate, snapshot, ingestion_run_id
+                        )
                         self.db.add(review_item)
                         context.log.info(
                             f"Created ReviewItem from {url}: "
@@ -376,9 +396,7 @@ class CrawleeRunner:
                     context.log.error(error_msg)
 
             # Run crawler with start URLs
-            start_requests = [
-                Request(url=url) for url in self.target.start_urls
-            ]
+            start_requests = [Request(url=url) for url in self.target.start_urls]
 
             # Execute crawl
             await crawler.run(start_requests)
@@ -411,7 +429,9 @@ class CrawleeRunner:
         return run
 
 
-async def run_web_monitor_target(target: "WebMonitorTarget", db: Session) -> IngestionRun:
+async def run_web_monitor_target(
+    target: "WebMonitorTarget", db: Session
+) -> IngestionRun:
     """Run web monitoring for a specific target.
 
     Convenience function to create runner and execute.
@@ -427,7 +447,9 @@ async def run_web_monitor_target(target: "WebMonitorTarget", db: Session) -> Ing
     return await runner.run()
 
 
-def run_web_monitor_target_sync(target: "WebMonitorTarget", db: Session) -> IngestionRun:
+def run_web_monitor_target_sync(
+    target: "WebMonitorTarget", db: Session
+) -> IngestionRun:
     """Run web monitoring for a specific target (sync wrapper).
 
     Convenience function to create runner and execute.
@@ -440,4 +462,5 @@ def run_web_monitor_target_sync(target: "WebMonitorTarget", db: Session) -> Inge
         IngestionRun with results
     """
     import asyncio
+
     return asyncio.run(run_web_monitor_target(target, db))

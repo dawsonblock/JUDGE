@@ -36,8 +36,13 @@ _PUBLISH_CONFIDENCE_THRESHOLD = 0.70
 
 # Sources that produce static reference data and never require snapshot hashes
 _STATIC_REF_SOURCES: frozenset[str] = frozenset(
-    {"natural_earth", "geonames", "court_location_registry",
-     "statistics_canada", "fbi_crime_data"}
+    {
+        "natural_earth",
+        "geonames",
+        "court_location_registry",
+        "statistics_canada",
+        "fbi_crime_data",
+    }
 )
 
 # Causation language: links a judge directly to causing a crime — hard block
@@ -129,8 +134,15 @@ def auto_review(
     # ------------------------------------------------------------------
     _text_blob_0c = " ".join(
         str(_get_field(record, fld) or "")
-        for fld in ("notes", "docket_text", "entry_description",
-                    "title", "summary", "caption", "description")
+        for fld in (
+            "notes",
+            "docket_text",
+            "entry_description",
+            "title",
+            "summary",
+            "caption",
+            "description",
+        )
     )
     if _CAUSATION_RE.search(_text_blob_0c):
         return AutoReviewResult(
@@ -169,7 +181,9 @@ def auto_review(
     # ------------------------------------------------------------------
     # Gate 3: Effective tier (DB registry overrides static map)
     # ------------------------------------------------------------------
-    effective_tier = db_tier if db_tier is not None else default_source_tier(source_name)
+    effective_tier = (
+        db_tier if db_tier is not None else default_source_tier(source_name)
+    )
 
     if effective_tier == TIER_HOLD or record_tier == TIER_HOLD:
         reasons.append("source_requires_review")

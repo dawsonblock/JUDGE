@@ -137,18 +137,30 @@ _BLOCK_PATTERNS: list[re.Pattern[str]] = [
         re.IGNORECASE,
     ),
     # Social media post markers
-    re.compile(r"\b(tweet|retweet|facebook post|instagram post|tiktok)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(tweet|retweet|facebook post|instagram post|tiktok)\b", re.IGNORECASE
+    ),
     # Defendant / offender names in title-case  (heuristic: "Name Surname" preceded by role word)
     re.compile(
         r"\b(defendant|offender|suspect|accused|arrestee)\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b",
         re.IGNORECASE,
     ),
     # Scraped news accusations
-    re.compile(r"\b(allegedly|accused of|charged with)\b.{0,80}\b(judge|justice)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(allegedly|accused of|charged with)\b.{0,80}\b(judge|justice)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # Fields to inspect for block patterns
-_TEXT_FIELDS = ("notes", "docket_text", "entry_description", "title", "summary", "caption")
+_TEXT_FIELDS = (
+    "notes",
+    "docket_text",
+    "entry_description",
+    "title",
+    "summary",
+    "caption",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -272,8 +284,16 @@ def is_publishable(record: Any) -> tuple[bool, list[str]]:
 
     # 6. Check for unresolved safety flags
     safety_flags = get_field("safety_flags") or []
-    if safety_flags and isinstance(safety_flags, (list, tuple)) and len(safety_flags) > 0:
-        unresolved = [f for f in safety_flags if isinstance(f, dict) and f.get("resolved") is not True]
+    if (
+        safety_flags
+        and isinstance(safety_flags, (list, tuple))
+        and len(safety_flags) > 0
+    ):
+        unresolved = [
+            f
+            for f in safety_flags
+            if isinstance(f, dict) and f.get("resolved") is not True
+        ]
         if unresolved:
             reasons.append(f"unresolved_safety_flags: {len(unresolved)}")
 
@@ -308,13 +328,21 @@ def check_publication_safety(record: Any) -> dict:
         "blocking_reasons": reasons,
         "checks": {
             "has_source_url": bool(get_field("source_url")),
-            "valid_source_tier": source_tier in VALID_SOURCE_TIERS if source_tier else False,
+            "valid_source_tier": (
+                source_tier in VALID_SOURCE_TIERS if source_tier else False
+            ),
             "source_tier_value": source_tier,
-            "safe_precision": precision not in BLOCKED_PRECISION_LEVELS if precision else True,
+            "safe_precision": (
+                precision not in BLOCKED_PRECISION_LEVELS if precision else True
+            ),
             "precision_value": precision,
-            "approved_status": review_status in PUBLIC_REVIEW_STATUSES if review_status else False,
+            "approved_status": (
+                review_status in PUBLIC_REVIEW_STATUSES if review_status else False
+            ),
             "review_status_value": review_status,
-            "public_visibility_enabled": bool(get_field("public_visibility") or get_field("is_public")),
+            "public_visibility_enabled": bool(
+                get_field("public_visibility") or get_field("is_public")
+            ),
         },
         "warnings": [],
     }
@@ -330,7 +358,9 @@ def _extract_text(record: Any) -> str:
     parts: list[str] = []
     for field in _TEXT_FIELDS:
         value = (
-            record.get(field) if isinstance(record, dict) else getattr(record, field, None)
+            record.get(field)
+            if isinstance(record, dict)
+            else getattr(record, field, None)
         )
         if value and isinstance(value, str):
             parts.append(value)
@@ -346,13 +376,17 @@ def _has_person_name_fields(record: Any) -> bool:
     name_fields = ("judge_name", "defendant_name", "party_name", "assigned_to_str")
     for field in name_fields:
         value = (
-            record.get(field) if isinstance(record, dict) else getattr(record, field, None)
+            record.get(field)
+            if isinstance(record, dict)
+            else getattr(record, field, None)
         )
         if value and isinstance(value, str) and value.strip():
             return True
     # CourtListener ParsedRecord carries parties list
     parties = (
-        record.get("parties") if isinstance(record, dict) else getattr(record, "parties", None)
+        record.get("parties")
+        if isinstance(record, dict)
+        else getattr(record, "parties", None)
     )
     if parties:
         return True

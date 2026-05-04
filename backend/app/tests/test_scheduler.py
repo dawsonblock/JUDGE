@@ -1,4 +1,5 @@
 """Tests for app.workers.scheduler — build_scheduler and _run_source_job."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,10 +17,10 @@ from app.workers.scheduler import (
     build_scheduler,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_db_factory(rows: list[Any] | None = None, raise_exc: Exception | None = None):
     """Return a db_factory context-manager callable."""

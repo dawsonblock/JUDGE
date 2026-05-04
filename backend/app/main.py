@@ -19,11 +19,7 @@ from app.seed.source_registry import seed_source_registry
 
 def _validate_cors_origins(cors_origins: str, app_env: str) -> list[str]:
     """Validate CORS origins. In production, fail if empty or wildcard."""
-    origins = [
-        origin.strip()
-        for origin in cors_origins.split(",")
-        if origin.strip()
-    ]
+    origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
 
     # In production, reject empty or wildcard origins
     if app_env == "production":
@@ -89,6 +85,7 @@ def _validate_production_safety(settings) -> None:
     # Check Redis availability if configured
     if settings.rate_limit_backend == "redis":
         import redis
+
         try:
             r = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=2)
             r.ping()
@@ -151,7 +148,11 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                         bytes_seen += len(chunk)
                         if bytes_seen > self.max_size:
                             limit_exceeded = True
-                            return {"type": "http.request", "body": b"", "more_body": False}
+                            return {
+                                "type": "http.request",
+                                "body": b"",
+                                "more_body": False,
+                            }
                     return message
 
                 request._receive = capped_receive
@@ -170,7 +171,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 def create_app() -> FastAPI:
     from pathlib import Path
     from app.services.evidence_store_validation import validate_evidence_store_root
-    
+
     settings = get_settings()
 
     # Validate production safety before proceeding
@@ -190,7 +191,7 @@ def create_app() -> FastAPI:
         except RuntimeError as e:
             print(f"ERROR: Evidence store validation failed: {e}")
             sys.exit(1)
-        
+
         initialize_postgis(engine)
         # Source registry is seeded independently of sample data (prod-safe)
         if settings.seed_source_registry:
@@ -200,6 +201,7 @@ def create_app() -> FastAPI:
             with SessionLocal() as db:
                 seed_sample_data(db)
         from app.workers.scheduler import build_scheduler
+
         scheduler = build_scheduler(SessionLocal)
         scheduler.start()
         yield

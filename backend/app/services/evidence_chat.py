@@ -7,6 +7,7 @@ and constructs a deterministic, citation-backed answer.
 No external LLM is invoked. Classification is rule-based, making
 responses auditable and free from hallucination.
 """
+
 from __future__ import annotations
 
 import re
@@ -54,11 +55,14 @@ def _sanitize_question(question: str) -> str:
 
 def _score_evidence(evidence: RelationshipEvidence, question_tokens: set[str]) -> float:
     """Return a 0–1 relevance score based on keyword overlap and confidence."""
-    text_parts = filter(None, [
-        evidence.evidence_excerpt,
-        evidence.relationship_type,
-        evidence.evidence_type,
-    ])
+    text_parts = filter(
+        None,
+        [
+            evidence.evidence_excerpt,
+            evidence.relationship_type,
+            evidence.evidence_type,
+        ],
+    )
     text = " ".join(text_parts)
     if not text:
         return evidence.confidence
@@ -170,10 +174,15 @@ def chat_about_evidence(
     ]
 
     # Construct a plain-language answer from the top evidence.
-    parts: list[str] = [f"Found {len(citations)} evidence record(s) for your query.", "Most relevant:"]
+    parts: list[str] = [
+        f"Found {len(citations)} evidence record(s) for your query.",
+        "Most relevant:",
+    ]
     for i, c in enumerate(citations, 1):
         raw_excerpt = c.excerpt or "(no excerpt)"
-        snippet = raw_excerpt[:200] + "\u2026" if len(raw_excerpt) > 200 else raw_excerpt
+        snippet = (
+            raw_excerpt[:200] + "\u2026" if len(raw_excerpt) > 200 else raw_excerpt
+        )
         parts.append(f"{i}. [{c.relationship_type} / {c.evidence_type}] {snippet}")
 
     return ChatResponse(

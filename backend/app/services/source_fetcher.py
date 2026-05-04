@@ -52,6 +52,7 @@ def _is_allowed_content_type(content_type: str) -> bool:
     base = content_type.split(";")[0].strip().lower()
     return base in ALLOWED_CONTENT_TYPES
 
+
 # Private/reserved IP ranges to block
 _PRIVATE_NETWORKS = (
     ipaddress.ip_network("10.0.0.0/8"),
@@ -59,11 +60,11 @@ _PRIVATE_NETWORKS = (
     ipaddress.ip_network("192.168.0.0/16"),
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("169.254.0.0/16"),  # Link-local
-    ipaddress.ip_network("100.64.0.0/10"),   # CGNAT
-    ipaddress.ip_network("224.0.0.0/4"),     # Multicast
-    ipaddress.ip_network("240.0.0.0/4"),     # Reserved (class E)
-    ipaddress.ip_network("fc00::/7"),       # IPv6 unique local
-    ipaddress.ip_network("fe80::/10"),       # IPv6 link-local
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("224.0.0.0/4"),  # Multicast
+    ipaddress.ip_network("240.0.0.0/4"),  # Reserved (class E)
+    ipaddress.ip_network("fc00::/7"),  # IPv6 unique local
+    ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
 )
 
 
@@ -87,7 +88,7 @@ class FetchResult:
 
 def _is_safe_url(url: str, check_dns: bool = True) -> tuple[bool, str]:
     """Validate URL is safe to fetch (no SSRF).
-    
+
     Args:
         url: URL to validate
         check_dns: If True, also check if hostname resolves to private IP
@@ -109,8 +110,13 @@ def _is_safe_url(url: str, check_dns: bool = True) -> tuple[bool, str]:
             return False, "localhost not allowed"
 
         # Block cloud metadata IPs (direct and Azure/AWS variants)
-        if host in ("169.254.169.254", "fd00:ec2::254", "metadata.google.internal",
-                    "metadata.internal", "100.100.100.200"):
+        if host in (
+            "169.254.169.254",
+            "fd00:ec2::254",
+            "metadata.google.internal",
+            "metadata.internal",
+            "100.100.100.200",
+        ):
             return False, "cloud metadata IP blocked"
 
         # IP address check (blocks private ranges)
@@ -134,7 +140,10 @@ def _is_safe_url(url: str, check_dns: bool = True) -> tuple[bool, str]:
                         addr = ipaddress.ip_address(ip_str)
                         for network in _PRIVATE_NETWORKS:
                             if addr in network:
-                                return False, f"hostname resolves to private IP {ip_str}"
+                                return (
+                                    False,
+                                    f"hostname resolves to private IP {ip_str}",
+                                )
                     except ValueError:
                         continue
             except socket.gaierror:
@@ -149,19 +158,21 @@ def _is_safe_url(url: str, check_dns: bool = True) -> tuple[bool, str]:
 
 class _SSRFRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Custom redirect handler that validates each redirect target."""
-    
+
     max_redirections = 5
-    
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         """Override to validate redirect URL before following."""
         # Validate the new URL
         is_safe, reason = _is_safe_url(newurl, check_dns=True)
         if not is_safe:
-            log.warning("source_fetcher: blocked unsafe redirect to %s: %s", newurl, reason)
+            log.warning(
+                "source_fetcher: blocked unsafe redirect to %s: %s", newurl, reason
+            )
             raise urllib.request.HTTPError(
                 newurl, code, f"Redirect blocked: {reason}", headers, fp
             )
-        
+
         log.debug("source_fetcher: following redirect to %s", newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
@@ -266,7 +277,7 @@ def fetch_source(
         # Build opener with custom redirect handler for SSRF protection
         redirect_handler = _SSRFRedirectHandler()
         opener = urllib.request.build_opener(redirect_handler)
-        
+
         with opener.open(req, timeout=timeout) as resp:
             result.http_status = resp.status
             result.final_url = resp.geturl()
@@ -278,12 +289,17 @@ def fetch_source(
                     result.headers[key] = value
 
             # Enforce content-type allowlist before reading body
-            if result.content_type and not _is_allowed_content_type(result.content_type):
-                result.error = f"Rejected: unsupported content type: {result.content_type}"
+            if result.content_type and not _is_allowed_content_type(
+                result.content_type
+            ):
+                result.error = (
+                    f"Rejected: unsupported content type: {result.content_type}"
+                )
                 result.raw_content = None  # Don't store unsafe content
                 log.warning(
                     "source_fetcher: rejected unsupported content type %s for %s",
-                    result.content_type, url,
+                    result.content_type,
+                    url,
                 )
             else:
                 # Read with size limit. If the response exceeds max_bytes,
@@ -315,7 +331,9 @@ def fetch_source(
                         if result.extracted_text:
                             result.extracted_text_hash = _sha256(result.extracted_text)
 
-        log.info("source_fetcher: fetched %s (%s bytes)", url, len(result.raw_content or b""))
+        log.info(
+            "source_fetcher: fetched %s (%s bytes)", url, len(result.raw_content or b"")
+        )
 
     except urllib.error.HTTPError as exc:
         result.http_status = exc.code
@@ -331,7 +349,9 @@ def fetch_source(
     return result
 
 
-def _persist_snapshot(result: FetchResult, settings, source_key: str | None = None) -> int | None:
+def _persist_snapshot(
+    result: FetchResult, settings, source_key: str | None = None
+) -> int | None:
     """Persist fetch result to SourceSnapshot table using canonical writer."""
     try:
         from app.services.snapshot_writer import write_snapshot

@@ -77,7 +77,7 @@ def _decode_from_db(raw_content: str) -> bytes:
         :func:`_encode_for_db`.
     """
     if raw_content.startswith(_BASE64_PREFIX):
-        return base64.b64decode(raw_content[len(_BASE64_PREFIX):])
+        return base64.b64decode(raw_content[len(_BASE64_PREFIX) :])
     return raw_content.encode("utf-8")
 
 
@@ -224,4 +224,3 @@ def read_snapshot_content(db: Session, snapshot: SourceSnapshot) -> bytes | None
         return _decode_from_db(snapshot.raw_content)
 
     return None
-

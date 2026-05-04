@@ -4,6 +4,7 @@ Builds one ``IntervalTrigger`` job per active, non-manual SourceRegistry row
 that has a matching ``WebMonitorTarget``.  The scheduler is started inside the
 FastAPI ``lifespan`` context and shut down gracefully on application exit.
 """
+
 from __future__ import annotations
 
 import logging
