@@ -2,9 +2,17 @@
 
 Provides path finding, neighborhood queries, and timeline reconstruction
 using the EntityGraphEdge S-P-O triple store.
+
+NOTE: Authoritative graph implementation now lives in app.graph.
+This service re-exports the canonical classes below and retains its own
+legacy helpers for backward compatibility.
 """
 
 from __future__ import annotations
+
+# Shim: expose graph-package classes through this module
+from app.graph.graph_queries import GraphQueryEngine  # noqa: F401
+from app.graph.edge_models import EdgeRecord  # noqa: F401
 
 from dataclasses import dataclass
 from datetime import datetime

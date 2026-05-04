@@ -2,9 +2,16 @@
 
 Resolves entities (judges, courts, cases, defendants, incidents) to canonical
 identities with confidence scoring and merge proposal workflows.
+
+NOTE: Authoritative resolver implementation now lives in app.graph.
+This service re-exports the canonical classes below and retains its own
+legacy helpers for backward compatibility.
 """
 
 from __future__ import annotations
+
+# Shim: expose graph-package classes through this module
+from app.graph.graph_resolver import GraphResolver, ResolveResult as GraphResolveResult  # noqa: F401
 
 import difflib
 from dataclasses import dataclass
