@@ -16,8 +16,15 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    uses: ./.github/workflows/quality-gate.yml
+    permissions:
+      contents: read
+
   release-build:
     runs-on: ubuntu-latest
+    needs:
+      - validate
 
     steps:
       - uses: actions/checkout@v4
