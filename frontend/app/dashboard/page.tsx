@@ -1,27 +1,17 @@
-"use client";
-
 import Link from "next/link";
-import { Map, Scale, FileText, Users, TrendingUp, AlertCircle } from "lucide-react";
+import { Map, Scale, FileText, Users, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard, SectionCard } from "@/components/shared/SectionCard";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { MOCK_INCIDENTS, MOCK_JUDGES, MOCK_CASES } from "@/lib/mock-data";
+import { Badge } from "@/components/ui/badge";
+import { fetchJudges, fetchEventsList } from "@/lib/api";
 
-function computeStats() {
-  const statusCounts: Record<string, number> = {};
-  for (const inc of MOCK_INCIDENTS) {
-    statusCounts[inc.status] = (statusCounts[inc.status] ?? 0) + 1;
-  }
-  const avgConf =
-    MOCK_INCIDENTS.filter((i) => i.confidence === "medium").length /
-    (MOCK_INCIDENTS.length || 1);
-  return { statusCounts, avgConf };
-}
-
-export default function DashboardPage() {
-  const { statusCounts, avgConf } = computeStats();
-  const recent = MOCK_INCIDENTS.slice(0, 5);
+export default async function DashboardPage() {
+  const [judges, events] = await Promise.all([
+    fetchJudges().catch(() => []),
+    fetchEventsList({ limit: "10" }).catch(() => []),
+  ]);
+  const recent = events.slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -30,69 +20,74 @@ export default function DashboardPage() {
         subtitle="Judicial accountability — tracking reported incidents across Canada"
         action={
           <Button asChild>
-            <Link href="/map">Open Crime Map</Link>
+            <Link href="/map">Open Map</Link>
           </Button>
         }
       />
 
       {/* Metric row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <MetricCard
-          label="Total Incidents"
-          value={MOCK_INCIDENTS.length}
-          icon={<AlertCircle className="h-5 w-5" />}
-        />
-        <MetricCard
-          label="Active Cases"
-          value={MOCK_CASES.filter((c) => c.status === "before_court").length}
-          icon={<FileText className="h-5 w-5" />}
-        />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <MetricCard
           label="Judge Profiles"
-          value={MOCK_JUDGES.length}
+          value={judges.length}
           icon={<Scale className="h-5 w-5" />}
         />
         <MetricCard
-          label="Avg. Confidence"
-          value={`${Math.round(avgConf * 100)}%`}
-          icon={<TrendingUp className="h-5 w-5" />}
+          label="Public Events"
+          value={events.length}
+          icon={<AlertCircle className="h-5 w-5" />}
+        />
+        <MetricCard
+          label="Cases"
+          value={judges.reduce((sum, j) => sum + j.public_event_count, 0)}
+          icon={<FileText className="h-5 w-5" />}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent incidents */}
+        {/* Recent events */}
         <SectionCard
-          title="Recent Incidents"
+          title="Recent Events"
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/map">View all on map →</Link>
+              <Link href="/cases">View cases →</Link>
             </Button>
           }
         >
           <div className="divide-y divide-slate-100">
-            {recent.map((inc) => (
-              <div key={inc.id} className="py-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{inc.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {inc.location.city}, {inc.location.province}
-                  </p>
+            {recent.length === 0 ? (
+              <p className="py-3 text-sm text-muted-foreground">No public events yet.</p>
+            ) : (
+              recent.map((ev) => (
+                <div key={ev.id} className="py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{ev.event_type}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{ev.decision_date ?? "—"}</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs shrink-0">{ev.review_status}</Badge>
                 </div>
-                <StatusBadge status={inc.status} />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </SectionCard>
 
-        {/* Status breakdown */}
-        <SectionCard title="Incidents by Status">
+        {/* Judge summary */}
+        <SectionCard title="Judges with Most Events">
           <div className="space-y-2">
-            {Object.entries(statusCounts).map(([status, count]) => (
-              <div key={status} className="flex items-center justify-between text-sm py-1.5">
-                <StatusBadge status={status as any} />
-                <span className="font-medium text-slate-900">{count}</span>
-              </div>
-            ))}
+            {judges
+              .sort((a, b) => b.public_event_count - a.public_event_count)
+              .slice(0, 5)
+              .map((j) => (
+                <div key={j.id} className="flex items-center justify-between text-sm py-1.5">
+                  <Link href={`/judges/${j.id}`} className="hover:underline text-primary truncate">
+                    {j.name}
+                  </Link>
+                  <span className="font-medium text-slate-900 shrink-0 ml-2">{j.public_event_count} events</span>
+                </div>
+              ))}
+            {judges.length === 0 && (
+              <p className="text-sm text-muted-foreground">No judges found.</p>
+            )}
           </div>
         </SectionCard>
       </div>
@@ -100,7 +95,7 @@ export default function DashboardPage() {
       {/* Quick links */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { href: "/map", label: "Crime Map", icon: Map, desc: "Interactive map" },
+          { href: "/map", label: "Map", icon: Map, desc: "Geographic view" },
           { href: "/judges", label: "Judges", icon: Scale, desc: "Judicial profiles" },
           { href: "/cases", label: "Cases", icon: FileText, desc: "Court cases" },
           { href: "/sources", label: "Sources", icon: Users, desc: "Evidence sources" },
@@ -123,3 +118,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

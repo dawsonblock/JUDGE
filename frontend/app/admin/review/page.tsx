@@ -1,40 +1,46 @@
-"use client";
-
-import { useState } from "react";
-import { MOCK_ADMIN_REVIEW_ITEMS } from "@/lib/mock-data";
-import { type AdminReviewItem } from "@/lib/types";
+import { revalidatePath } from "next/cache";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
+import { fetchAdminReviewQueue } from "@/lib/api";
 
-function ReviewStatusBadge({ status }: { status: AdminReviewItem["status"] }) {
-  if (status === "approved") return <Badge className="bg-green-100 text-green-700 border-green-200">Approved</Badge>;
-  if (status === "rejected") return <Badge className="bg-red-100 text-red-700 border-red-200">Rejected</Badge>;
-  if (status === "needs_info") return <Badge variant="outline">Needs Info</Badge>;
-  return <Badge variant="secondary">Pending</Badge>;
+const PENDING = ["pending", "needs_info"];
+
+async function decideAction(formData: FormData) {
+  "use server";
+  const entityType = formData.get("entity_type") as string;
+  const entityId = formData.get("entity_id") as string;
+  const decision = formData.get("decision") as string;
+  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const base =
+    process.env.BACKEND_INTERNAL_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "http://localhost:8000";
+  await fetch(
+    `${base}/api/admin/review-queue/${entityType}/${entityId}/decision`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-jta-admin-token": token,
+      },
+      body: JSON.stringify({ decision }),
+    },
+  );
+  revalidatePath("/admin/review");
 }
 
-function PriorityBadge({ priority }: { priority: AdminReviewItem["priority"] }) {
-  if (priority === "high") return <Badge variant="destructive">High</Badge>;
-  if (priority === "medium") return <Badge variant="outline">Medium</Badge>;
-  return <Badge variant="secondary">Low</Badge>;
-}
-
-export default function AdminReviewPage() {
-  const [items, setItems] = useState<AdminReviewItem[]>(MOCK_ADMIN_REVIEW_ITEMS);
-
-  function decide(id: string, decision: "approved" | "rejected") {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: decision } : item
-      )
-    );
-  }
-
-  const pending = items.filter((i) => i.status === "pending" || i.status === "needs_info");
-  const resolved = items.filter((i) => i.status === "approved" || i.status === "rejected");
+export default async function AdminReviewPage() {
+  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const queue = await fetchAdminReviewQueue(token).catch(() => ({
+    items: [],
+    total_count: 0,
+  }));
+  const items = queue.items;
+  const pending = items.filter((i) => PENDING.includes(i.review_status));
+  const resolved = items.filter((i) => !PENDING.includes(i.review_status));
 
   return (
     <div className="space-y-6">
@@ -45,37 +51,56 @@ export default function AdminReviewPage() {
 
       {pending.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pending</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Pending
+          </h2>
           {pending.map((item) => (
-            <SectionCard key={item.id} title={item.title}>
+            <SectionCard
+              key={`${item.entity_type}-${item.entity_id}`}
+              title={item.title ?? item.entity_type}
+            >
               <div className="space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>{item.type} &middot; submitted {item.submittedAt}</span>
-                  </div>
-                  <PriorityBadge priority={item.priority} />
+                  <span className="text-sm text-muted-foreground">
+                    {item.entity_type}
+                    {item.source_type ? ` · ${item.source_type}` : ""}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {item.review_status}
+                  </Badge>
                 </div>
-                {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+                {item.review_notes && (
+                  <p className="text-sm text-muted-foreground">{item.review_notes}</p>
+                )}
                 <div className="flex items-center gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-green-600 border-green-200 hover:bg-green-50"
-                    onClick={() => decide(item.id, "approved")}
-                  >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => decide(item.id, "rejected")}
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Reject
-                  </Button>
+                  <form action={decideAction}>
+                    <input type="hidden" name="entity_type" value={item.entity_type} />
+                    <input type="hidden" name="entity_id" value={String(item.entity_id)} />
+                    <input type="hidden" name="decision" value="approved" />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Approve
+                    </Button>
+                  </form>
+                  <form action={decideAction}>
+                    <input type="hidden" name="entity_type" value={item.entity_type} />
+                    <input type="hidden" name="entity_id" value={String(item.entity_id)} />
+                    <input type="hidden" name="decision" value="rejected" />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Reject
+                    </Button>
+                  </form>
                 </div>
               </div>
             </SectionCard>
@@ -85,12 +110,20 @@ export default function AdminReviewPage() {
 
       {resolved.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Resolved</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Resolved
+          </h2>
           {resolved.map((item) => (
-            <SectionCard key={item.id} title={item.title}>
+            <SectionCard
+              key={`${item.entity_type}-${item.entity_id}`}
+              title={item.title ?? item.entity_type}
+            >
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{item.type} &middot; {item.submittedAt}</p>
-                <ReviewStatusBadge status={item.status} />
+                <p className="text-sm text-muted-foreground">
+                  {item.entity_type}
+                  {item.reviewed_at ? ` · ${item.reviewed_at}` : ""}
+                </p>
+                <Badge>{item.review_status}</Badge>
               </div>
             </SectionCard>
           ))}

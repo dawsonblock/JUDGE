@@ -1,51 +1,54 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
-import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
-import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
-import { ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, CheckCircle } from "lucide-react";
+import { fetchSources } from "@/lib/api";
 
-export default function SourcesPage() {
+export default async function SourcesPage() {
+  const sources = await fetchSources().catch(() => []);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Evidence Sources"
-        subtitle="Tracked publications, court records, and documents supporting incident data."
+        subtitle="Tracked publications, court records, and documents supporting event data."
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {MOCK_EVIDENCE_SOURCES.map((source) => (
-          <SectionCard
-            key={source.id}
-            title={source.name}
-            action={
-              source.url ? (
-                <a href={source.url} target="_blank" rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-blue-500 shrink-0">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              ) : undefined
-            }
-          >
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                <EvidenceTypeBadge type={source.type} />
-                <ConfidenceBadge confidence={source.confidence} />
+      {sources.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No sources found.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sources.map((source) => (
+            <SectionCard
+              key={source.id}
+              title={source.title}
+              action={
+                source.url ? (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-400 hover:text-blue-500 shrink-0"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : undefined
+              }
+            >
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <Badge variant="outline" className="text-xs">{source.source_type}</Badge>
+                  <Badge variant="secondary" className="text-xs">{source.source_quality}</Badge>
+                  {source.verified_flag && (
+                    <span className="flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle className="h-3 w-3" /> Verified
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">{source.review_status}</p>
               </div>
-              {source.publishedAt && (
-                <p className="text-xs text-slate-400">
-                  {new Date(source.publishedAt).toLocaleDateString("en-CA")}
-                </p>
-              )}
-              {source.summary && (
-                <p className="text-xs text-slate-600 italic line-clamp-2">&ldquo;{source.summary}&rdquo;</p>
-              )}
-            </div>
-          </SectionCard>
-        ))}
-      </div>
-      {MOCK_EVIDENCE_SOURCES.length === 0 && (
-        <EmptyState title="No Sources" description="No evidence sources have been added yet." />
+            </SectionCard>
+          ))}
+        </div>
       )}
     </div>
   );

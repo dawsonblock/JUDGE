@@ -5,14 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ExternalLink, MapPin, Calendar } from "lucide-react";
-import type { CrimeIncident, EvidenceSource } from "@/lib/types";
+import { MapPin, Calendar } from "lucide-react";
+import type { CrimeIncident } from "@/lib/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
-import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
 import Link from "next/link";
 
 interface IncidentDrawerProps {
@@ -91,48 +89,11 @@ function AiTab({ incident }: { incident: CrimeIncident }) {
 }
 
 function EvidenceTab({ incident }: { incident: CrimeIncident }) {
-  const sources: EvidenceSource[] = MOCK_EVIDENCE_SOURCES.slice(0, incident.sourceCount);
-
-  if (sources.length === 0) {
-    return (
-      <EmptyState title="No Evidence Sources" description="No evidence has been linked to this incident." />
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {sources.map((source) => (
-        <div key={source.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium text-slate-900 leading-tight">{source.name}</p>
-            {source.url && (
-              <a
-                href={source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-blue-500 shrink-0"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <EvidenceTypeBadge type={source.type} />
-            <ConfidenceBadge confidence={source.confidence} />
-          </div>
-          {source.publishedAt && (
-            <p className="text-xs text-slate-400">
-              {new Date(source.publishedAt).toLocaleDateString("en-CA")}
-            </p>
-          )}
-          {source.summary && (
-            <p className="text-xs text-slate-600 italic leading-relaxed line-clamp-3">
-              &ldquo;{source.summary}&rdquo;
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
+    <EmptyState
+      title="No Evidence Sources"
+      description={`This incident references ${incident.sourceCount} source(s). Source details are loaded from the backend.`}
+    />
   );
 }
 

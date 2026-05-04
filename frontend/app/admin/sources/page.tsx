@@ -1,41 +1,36 @@
-"use client";
-
-import { MOCK_EVIDENCE_SOURCES } from "@/lib/mock-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
-import { EvidenceTypeBadge } from "@/components/shared/EvidenceTypeBadge";
-import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, CheckCircle } from "lucide-react";
+import { fetchAdminSourcesList } from "@/lib/api";
 
-export default function AdminSourcesPage() {
+export default async function AdminSourcesPage() {
+  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const sources = await fetchAdminSourcesList(token).catch(() => []);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Source Registry"
-        subtitle={`${MOCK_EVIDENCE_SOURCES.length} registered sources`}
+        subtitle={`${sources.length} registered sources`}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {MOCK_EVIDENCE_SOURCES.map((source) => (
-          <SectionCard key={source.id} title={source.name}>
+        {sources.map((source) => (
+          <SectionCard key={source.id} title={source.title}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <EvidenceTypeBadge type={source.type} />
-                <ConfidenceBadge confidence={source.confidence} />
-                {source.verified && (
-                  <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Verified</Badge>
+                <Badge variant="outline" className="text-xs">{source.source_type}</Badge>
+                <Badge variant="secondary" className="text-xs">{source.source_quality}</Badge>
+                {source.verified_flag && (
+                  <span className="flex items-center gap-1 text-xs text-green-600">
+                    <CheckCircle className="h-3 w-3" /> Verified
+                  </span>
                 )}
               </div>
 
-              {source.summary && (
-                <p className="text-xs text-muted-foreground line-clamp-2">{source.summary}</p>
-              )}
-
               <div className="flex items-center justify-between pt-1">
-                {source.publishedAt && (
-                  <Badge variant="outline" className="text-xs">{source.publishedAt}</Badge>
-                )}
+                <Badge variant="outline" className="text-xs">{source.review_status}</Badge>
                 {source.url && (
                   <a
                     href={source.url}
@@ -52,6 +47,10 @@ export default function AdminSourcesPage() {
           </SectionCard>
         ))}
       </div>
+
+      {sources.length === 0 && (
+        <p className="text-sm text-muted-foreground">No sources found.</p>
+      )}
     </div>
   );
 }

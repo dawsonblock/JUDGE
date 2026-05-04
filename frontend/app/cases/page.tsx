@@ -1,9 +1,10 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CaseCard } from "@/components/cases/CaseCard";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { MOCK_CASES } from "@/lib/mock-data";
+import { fetchCases } from "@/lib/api";
 
-export default function CasesPage() {
+export default async function CasesPage() {
+  const cases = await fetchCases();
   return (
     <div className="space-y-6">
       <PageHeader
@@ -11,11 +12,11 @@ export default function CasesPage() {
         subtitle="Active and historical cases in the Canadian judicial system."
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {MOCK_CASES.map((c) => (
+        {cases.map((c) => (
           <CaseCard key={c.id} courtCase={c} />
         ))}
       </div>
-      {MOCK_CASES.length === 0 && (
+      {cases.length === 0 && (
         <EmptyState title="No Cases" description="No court cases have been tracked yet." />
       )}
     </div>

@@ -7,8 +7,24 @@ from sqlalchemy.orm import Session
 
 from app.auth.admin import log_mutation, require_public_event_post
 from app.db.session import get_db
-from app.models.entities import Case, Defendant, Event, EventDefendant, Judge, LegalSource, Location, Court
-from app.schemas.api import CaseOut, EventCreate, EventOut, JudgeOut, JudgeSummaryOut, SourceOut
+from app.models.entities import (
+    Case,
+    Defendant,
+    Event,
+    EventDefendant,
+    Judge,
+    LegalSource,
+    Location,
+    Court,
+)
+from app.schemas.api import (
+    CaseOut,
+    EventCreate,
+    EventOut,
+    JudgeOut,
+    JudgeSummaryOut,
+    SourceOut,
+)
 from app.serializers.public import (
     case_options,
     case_to_public_dict,
@@ -47,14 +63,37 @@ def list_events(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    indicator_filter = repeat_offender_indicator if repeat_offender_indicator is not None else repeat_offender
-    events = db.scalars(filtered_events_query(start, end, court_id, judge_id, event_type, indicator_filter, verified_only, source_type, limit, offset)).unique().all()
+    indicator_filter = (
+        repeat_offender_indicator
+        if repeat_offender_indicator is not None
+        else repeat_offender
+    )
+    events = (
+        db.scalars(
+            filtered_events_query(
+                start,
+                end,
+                court_id,
+                judge_id,
+                event_type,
+                indicator_filter,
+                verified_only,
+                source_type,
+                limit,
+                offset,
+            )
+        )
+        .unique()
+        .all()
+    )
     return [serialize_event(event) for event in events]
 
 
 @router.get("/api/events/{event_id}", response_model=EventOut)
 def get_event(event_id: str, db: Session = Depends(get_db)):
-    event = db.scalar(select(Event).options(*event_options()).where(Event.event_id == event_id))
+    event = db.scalar(
+        select(Event).options(*event_options()).where(Event.event_id == event_id)
+    )
     if not is_public_event(event):
         raise HTTPException(status_code=404, detail="Event not found")
     return serialize_event(event)
@@ -74,13 +113,22 @@ def create_event(
     if payload.event_type not in ALLOWED_EVENT_TYPES:
         raise HTTPException(status_code=422, detail="Unsupported event type")
     if not db.get(Court, payload.court_id):
-        raise HTTPException(status_code=422, detail="court_id does not reference an existing court")
+        raise HTTPException(
+            status_code=422, detail="court_id does not reference an existing court"
+        )
     if not db.get(Case, payload.case_id):
-        raise HTTPException(status_code=422, detail="case_id does not reference an existing case")
+        raise HTTPException(
+            status_code=422, detail="case_id does not reference an existing case"
+        )
     if not db.get(Location, payload.primary_location_id):
-        raise HTTPException(status_code=422, detail="primary_location_id does not reference an existing location")
+        raise HTTPException(
+            status_code=422,
+            detail="primary_location_id does not reference an existing location",
+        )
     if payload.judge_id is not None and not db.get(Judge, payload.judge_id):
-        raise HTTPException(status_code=422, detail="judge_id does not reference an existing judge")
+        raise HTTPException(
+            status_code=422, detail="judge_id does not reference an existing judge"
+        )
     data = payload.model_dump()
     repeat_offender_indicator = data.pop("repeat_offender_indicator")
     event = Event(
@@ -99,19 +147,24 @@ def create_event(
         payload={"event_type": event.event_type, "case_id": event.case_id},
         request=request,
     )
-    event = db.scalar(select(Event).options(*event_options()).where(Event.id == event.id))
+    event = db.scalar(
+        select(Event).options(*event_options()).where(Event.id == event.id)
+    )
     return serialize_event(event)
 
 
 def _public_event_count(db: Session, judge_id: int) -> int:
     """Count public reviewed events linked to this judge."""
-    return db.scalar(
-        select(func.count(Event.id)).where(
-            Event.judge_id == judge_id,
-            Event.public_visibility.is_(True),
-            Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+    return (
+        db.scalar(
+            select(func.count(Event.id)).where(
+                Event.judge_id == judge_id,
+                Event.public_visibility.is_(True),
+                Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            )
         )
-    ) or 0
+        or 0
+    )
 
 
 def _judge_summary(db: Session, judge: Judge) -> JudgeSummaryOut:
@@ -154,8 +207,39 @@ def get_judge(judge_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/judges/{judge_id}/events", response_model=list[EventOut])
 def judge_events(judge_id: int, db: Session = Depends(get_db)):
-    events = db.scalars(select(Event).options(*event_options()).where(Event.judge_id == judge_id, Event.public_visibility.is_(True), Event.review_status.in_(PUBLIC_REVIEW_STATUSES))).unique().all()
+    events = (
+        db.scalars(
+            select(Event)
+            .options(*event_options())
+            .where(
+                Event.judge_id == judge_id,
+                Event.public_visibility.is_(True),
+                Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            )
+        )
+        .unique()
+        .all()
+    )
     return [serialize_event(event) for event in events]
+
+
+@router.get("/api/cases", response_model=list[CaseOut])
+def list_cases(db: Session = Depends(get_db)):
+    cases = db.scalars(
+        select(Case)
+        .where(
+            Case.id.in_(
+                select(Event.case_id).where(
+                    Event.public_visibility.is_(True),
+                    Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+                    Event.case_id.is_not(None),
+                )
+            )
+        )
+        .order_by(Case.filed_date.desc().nullslast())
+        .limit(200)
+    ).all()
+    return [case_to_public_dict(case) for case in cases]
 
 
 @router.get("/api/cases/{case_id}", response_model=CaseOut)
@@ -163,7 +247,16 @@ def get_case(case_id: int, db: Session = Depends(get_db)):
     case = db.scalar(select(Case).options(*case_options()).where(Case.id == case_id))
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    event = db.scalar(select(Event).options(*event_options()).where(Event.case_id == case_id, Event.public_visibility.is_(True), Event.review_status.in_(PUBLIC_REVIEW_STATUSES)).limit(1))
+    event = db.scalar(
+        select(Event)
+        .options(*event_options())
+        .where(
+            Event.case_id == case_id,
+            Event.public_visibility.is_(True),
+            Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+        )
+        .limit(1)
+    )
     if not event:
         raise HTTPException(status_code=404, detail="Case not found")
     return case_to_public_dict(case, event)
@@ -171,7 +264,20 @@ def get_case(case_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/cases/{case_id}/timeline", response_model=list[EventOut])
 def case_timeline(case_id: int, db: Session = Depends(get_db)):
-    events = db.scalars(select(Event).options(*event_options()).where(Event.case_id == case_id, Event.public_visibility.is_(True), Event.review_status.in_(PUBLIC_REVIEW_STATUSES)).order_by(Event.decision_date)).unique().all()
+    events = (
+        db.scalars(
+            select(Event)
+            .options(*event_options())
+            .where(
+                Event.case_id == case_id,
+                Event.public_visibility.is_(True),
+                Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            )
+            .order_by(Event.decision_date)
+        )
+        .unique()
+        .all()
+    )
     return [serialize_event(event) for event in events]
 
 
@@ -202,13 +308,21 @@ def get_defendant(defendant_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/defendants/{defendant_id}/timeline", response_model=list[EventOut])
 def defendant_timeline(defendant_id: int, db: Session = Depends(get_db)):
-    events = db.scalars(
-        select(Event)
-        .options(*event_options())
-        .join(EventDefendant)
-        .where(EventDefendant.defendant_id == defendant_id, Event.public_visibility.is_(True), Event.review_status.in_(PUBLIC_REVIEW_STATUSES))
-        .order_by(Event.decision_date)
-    ).unique().all()
+    events = (
+        db.scalars(
+            select(Event)
+            .options(*event_options())
+            .join(EventDefendant)
+            .where(
+                EventDefendant.defendant_id == defendant_id,
+                Event.public_visibility.is_(True),
+                Event.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            )
+            .order_by(Event.decision_date)
+        )
+        .unique()
+        .all()
+    )
     return [serialize_event(event) for event in events]
 
 
@@ -224,7 +338,14 @@ def get_source(source_id: str, db: Session = Depends(get_db)):
 
 @router.get("/api/sources", response_model=list[SourceOut])
 def list_sources(db: Session = Depends(get_db)):
-    sources = db.scalars(select(LegalSource).where(LegalSource.public_visibility.is_(True), LegalSource.review_status.in_(PUBLIC_REVIEW_STATUSES)).order_by(LegalSource.id)).all()
+    sources = db.scalars(
+        select(LegalSource)
+        .where(
+            LegalSource.public_visibility.is_(True),
+            LegalSource.review_status.in_(PUBLIC_REVIEW_STATUSES),
+        )
+        .order_by(LegalSource.id)
+    ).all()
     return [source_to_public_dict(source) for source in sources]
 
 

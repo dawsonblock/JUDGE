@@ -267,3 +267,128 @@ export async function chatAboutEvidence(
     body: JSON.stringify({ question, ...opts }),
   });
 }
+
+// ── Real-data types ──────────────────────────────────────────────────────────
+
+export type JudgeSummary = {
+  id: number;
+  name: string;
+  court_id: number | null;
+  cl_person_id: string | null;
+  public_event_count: number;
+};
+
+export type CaseItem = {
+  id: number;
+  court_id: number;
+  docket_number: string;
+  caption: string;
+  case_type: string;
+  filed_date: string | null;
+  terminated_date: string | null;
+};
+
+export type SourceItem = {
+  id: number;
+  source_id: string;
+  source_type: string;
+  title: string;
+  url: string;
+  source_quality: string;
+  verified_flag: boolean;
+  review_status: string;
+};
+
+export type DefendantItem = {
+  id: number;
+  anonymized_id: string;
+  display_label: string;
+  warning: string;
+};
+
+export type AdminReviewItem = {
+  entity_type: string;
+  entity_id: string | number;
+  database_id: number;
+  title: string | null;
+  source_type: string | null;
+  review_status: string;
+  public_visibility: boolean;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  correction_note: string | null;
+  dispute_note: string | null;
+};
+
+export type AdminReviewQueue = {
+  items: AdminReviewItem[];
+  total_count: number;
+};
+
+// ── Fetch helpers ────────────────────────────────────────────────────────────
+
+export async function fetchJudges(): Promise<JudgeSummary[]> {
+  return fetchJson<JudgeSummary[]>("/api/judges");
+}
+
+export async function fetchJudge(id: number | string): Promise<JudgeSummary> {
+  return fetchJson<JudgeSummary>(`/api/judges/${id}`);
+}
+
+export async function fetchJudgeEvents(id: number | string): Promise<EventItem[]> {
+  return fetchJson<EventItem[]>(`/api/judges/${id}/events`);
+}
+
+export async function fetchCases(): Promise<CaseItem[]> {
+  return fetchJson<CaseItem[]>("/api/cases");
+}
+
+export async function fetchCase(id: number | string): Promise<CaseItem> {
+  return fetchJson<CaseItem>(`/api/cases/${id}`);
+}
+
+export async function fetchCaseTimeline(id: number | string): Promise<EventItem[]> {
+  return fetchJson<EventItem[]>(`/api/cases/${id}/timeline`);
+}
+
+export async function fetchDefendant(id: number | string): Promise<DefendantItem> {
+  return fetchJson<DefendantItem>(`/api/defendants/${id}`);
+}
+
+export async function fetchDefendantTimeline(id: number | string): Promise<EventItem[]> {
+  return fetchJson<EventItem[]>(`/api/defendants/${id}/timeline`);
+}
+
+export async function fetchEventsList(
+  params?: Record<string, string>,
+): Promise<EventItem[]> {
+  const q = params ? "?" + new URLSearchParams(params).toString() : "";
+  return fetchJson<EventItem[]>(`/api/events${q}`);
+}
+
+export async function fetchSources(): Promise<SourceItem[]> {
+  return fetchJson<SourceItem[]>("/api/sources");
+}
+
+export async function fetchAdminSourcesList(token: string): Promise<SourceItem[]> {
+  return fetchJson<SourceItem[]>("/api/admin/sources", {
+    headers: { "x-jta-admin-token": token },
+  });
+}
+
+export async function fetchAdminReviewQueue(
+  token: string,
+  params?: { entity_type?: string; review_status?: string; limit?: number },
+): Promise<AdminReviewQueue> {
+  const entries = Object.entries(params ?? {}).filter(([, v]) => v != null) as [
+    string,
+    string,
+  ][];
+  const q = entries.length
+    ? "?" + new URLSearchParams(Object.fromEntries(entries.map(([k, v]) => [k, String(v)]))).toString()
+    : "";
+  return fetchJson<AdminReviewQueue>(`/api/admin/review-queue${q}`, {
+    headers: { "x-jta-admin-token": token },
+  });
+}
