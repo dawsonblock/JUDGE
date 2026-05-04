@@ -14,7 +14,12 @@ import itertools
 import pytest
 from sqlalchemy import select
 
-from app.models.entities import CrimeIncident, CrimeIncidentEventLink, Event, RelationshipEvidence
+from app.models.entities import (
+    CrimeIncident,
+    CrimeIncidentEventLink,
+    Event,
+    RelationshipEvidence,
+)
 from app.services.evidence_chat import (
     _MAX_CITATIONS,
     _MAX_QUESTION_LEN,
