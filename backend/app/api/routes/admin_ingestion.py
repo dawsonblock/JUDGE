@@ -108,12 +108,7 @@ def list_ingestion_runs(
     if to_date:
         query = query.filter(IngestionRun.started_at <= to_date)
 
-    runs = (
-        query.order_by(desc(IngestionRun.started_at))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    runs = query.order_by(desc(IngestionRun.started_at)).offset(skip).limit(limit).all()
 
     return runs
 
@@ -174,14 +169,11 @@ def get_source_stats(
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     # Get runs grouped by source
-    runs = (
-        db.query(IngestionRun)
-        .filter(IngestionRun.started_at >= cutoff)
-        .all()
-    )
+    runs = db.query(IngestionRun).filter(IngestionRun.started_at >= cutoff).all()
 
     # Group by source_name in Python
     from collections import defaultdict
+
     source_groups = defaultdict(list)
     for run in runs:
         source_groups[run.source_name].append(run)
@@ -328,6 +320,14 @@ def retry_ingestion_run(
 
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Guard: refuse to retry if the source is currently disabled.
+    from app.services.source_control import SourceDisabledError, require_source_enabled
+
+    try:
+        require_source_enabled(db, run.source_name)
+    except SourceDisabledError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
 
     if run.status == "running":
         raise HTTPException(

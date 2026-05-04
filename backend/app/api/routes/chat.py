@@ -5,6 +5,7 @@ POST /api/chat/evidence
 Returns evidence-backed answers to questions about tracked incidents and cases.
 Responses are citation-grounded and include a mandatory legal disclaimer.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -54,6 +55,8 @@ class EvidenceChatResponse(BaseModel):
     citations: list[CitationOut]
     disclaimer: str
     incident_found: bool
+    safety_notes: list[str] = []
+    unsupported_claims: list[str] = []
 
 
 @router.post(
@@ -98,4 +101,10 @@ def post_evidence_chat(
         ],
         disclaimer=result.disclaimer,
         incident_found=result.incident_found,
+        safety_notes=[],
+        unsupported_claims=(
+            []
+            if result.citations
+            else ["No supporting evidence found for this question."]
+        ),
     )

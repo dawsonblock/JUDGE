@@ -1,5 +1,5 @@
-import JudgeNorthAmericaMapClient from "@/components/JudgeNorthAmericaMapClient";
+import CrimeMapWorkspace from "@/components/crime-map/CrimeMapWorkspace";
 
 export default function MapPage() {
-  return <JudgeNorthAmericaMapClient />;
+  return <CrimeMapWorkspace />;
 }

@@ -14,6 +14,8 @@ from app.models.entities import (
     Event,
     EvidenceReview,
     LegalSource,
+    ReviewActionLog,
+    ReviewItem,
 )
 from app.serializers.public import (
     entity_by_type,
@@ -274,6 +276,25 @@ async def admin_review_decision(
             },
         )
     )
+    # Write ReviewActionLog if there is a ReviewItem linked via source_snapshot_id.
+    _snap_id = getattr(entity, "source_snapshot_id", None)
+    if _snap_id is not None:
+        _ri = db.scalar(
+            select(ReviewItem).where(ReviewItem.source_snapshot_id == _snap_id)
+        )
+        if _ri is not None:
+            db.add(
+                ReviewActionLog(
+                    review_item_id=_ri.id,
+                    actor=reviewer,
+                    action=new_status,
+                    before_json={"review_status": previous_status},
+                    after_json={
+                        "review_status": new_status,
+                        "is_public": public_visibility,
+                    },
+                )
+            )
     db.commit()
     return _serialize_review_item(entity_type, entity)
 

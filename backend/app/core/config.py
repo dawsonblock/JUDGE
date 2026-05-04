@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     courtlistener_max_pages: int = 10
     courtlistener_max_dockets_per_run: int = 100
     courtlistener_timeout_seconds: int = 60
-    app_env: str = "production"
+    app_env: str = "development"
     auto_seed: bool = False
     # Independent gate for source registry seeding (prod-safe, defaults True)
     seed_source_registry: bool = True

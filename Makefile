@@ -1,4 +1,4 @@
-.PHONY: backend-install backend-test frontend-install frontend-check verify docker-smoke proof
+.PHONY: backend-install backend-test frontend-install frontend-check verify docker-smoke proof backend-proof frontend-build
 
 backend-install:
 	cd backend && python -m pip install -e ".[test]"
@@ -15,6 +15,12 @@ frontend-check:
 	cd frontend && npm run typecheck
 	cd frontend && npm run build
 
+frontend-build:
+	cd frontend && npm run build
+
+backend-proof:
+	cd backend && python scripts/proof_backend_import.py
+
 verify: backend-install backend-test frontend-install frontend-check
 
 docker-smoke:
@@ -28,6 +34,8 @@ proof:
 	@TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
 	echo "=== Backend tests $(TIMESTAMP) ===" | tee artifacts/proof/backend-$${TIMESTAMP}.log; \
 	cd backend && python -m compileall -q app 2>&1 | tee -a ../artifacts/proof/backend-$${TIMESTAMP}.log; \
+	python scripts/proof_backend_import.py 2>&1 | tee -a ../artifacts/proof/backend-$${TIMESTAMP}.log; \
+	python scripts/proof_ingest_review_map.py 2>&1 | tee -a ../artifacts/proof/backend-$${TIMESTAMP}.log; \
 	python -m pytest -q 2>&1 | tee -a ../artifacts/proof/backend-$${TIMESTAMP}.log; \
 	echo "=== Frontend checks $(TIMESTAMP) ===" | tee ../artifacts/proof/frontend-$${TIMESTAMP}.log; \
 	cd ../frontend && npm run lint 2>&1 | tee -a ../artifacts/proof/frontend-$${TIMESTAMP}.log; \

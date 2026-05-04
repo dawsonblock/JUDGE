@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.entities import SourceSnapshot
+from app.models.entities import MemoryRebuildRun, SourceSnapshot
 from app.services.evidence_store import EvidenceStore
 
 if TYPE_CHECKING:
@@ -194,6 +194,14 @@ def write_snapshot(
     from app.evidence.provenance import record_custody_event  # noqa: PLC0415
 
     record_custody_event(db, snapshot, "created")
+    # Queue a memory rebuild so the NLP pipeline processes this snapshot.
+    db.add(
+        MemoryRebuildRun(
+            rebuild_scope="snapshot",
+            status="pending",
+            rebuild_reason=f"new_snapshot:{snapshot.id}",
+        )
+    )
     # Caller is responsible for commit/refresh
 
     return snapshot
