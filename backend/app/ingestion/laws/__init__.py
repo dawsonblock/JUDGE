@@ -14,8 +14,10 @@ All adapters store:
 
 from app.ingestion.laws.canada_federal_justice_xml import JusticeLawsAdapter
 from app.ingestion.laws.canada_saskatchewan import SaskatchewanLawAdapter
+from app.ingestion.laws.canlii import CanLIIAdapter
 
 __all__ = [
+    "CanLIIAdapter",
     "JusticeLawsAdapter",
     "SaskatchewanLawAdapter",
 ]

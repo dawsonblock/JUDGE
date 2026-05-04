@@ -254,7 +254,7 @@ def reset_postgres_sequences(db: Session) -> None:
     # Get the max ID from each table and reset the sequence
     tables = [
         "locations", "courts", "judges", "cases", "defendants",
-        "legal_sources", "events", "crime_incidents", "topics",
+        "legal_sources", "events", "crime_incidents",
         "review_items", "audit_logs"
     ]
     for table in tables:

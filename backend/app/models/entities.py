@@ -212,22 +212,6 @@ class EventDefendant(Base):
     defendant: Mapped[Defendant] = relationship(back_populates="event_links")
 
 
-class Topic(Base, TimestampMixin):
-    __tablename__ = "topics"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
-
-
-class EventTopic(Base):
-    __tablename__ = "event_topics"
-    __table_args__ = (UniqueConstraint("event_id", "topic_id", name="uq_event_topic"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False)
-    topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id"), nullable=False)
-
-
 class LegalSource(Base, TimestampMixin):
     __tablename__ = "legal_sources"
 

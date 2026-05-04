@@ -6,12 +6,10 @@ from app.models.entities import (  # noqa: F401
     Event,
     EventDefendant,
     EventSource,
-    EventTopic,
     IngestionRun,
     Judge,
     LegalSource,
     Location,
     Outcome,
-    Topic,
 )
 
