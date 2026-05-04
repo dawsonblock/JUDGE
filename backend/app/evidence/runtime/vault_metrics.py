@@ -65,9 +65,7 @@ class VaultMetrics:
 
     def top_n(self, n: int) -> List[Tuple[str, int]]:
         """Return the *n* highest-count stats as ``(name, count)`` pairs."""
-        ranked = sorted(
-            self._counters.items(), key=lambda kv: kv[1], reverse=True
-        )
+        ranked = sorted(self._counters.items(), key=lambda kv: kv[1], reverse=True)
         return [(s.value, v) for s, v in ranked[:n]]
 
     # ------------------------------------------------------------------

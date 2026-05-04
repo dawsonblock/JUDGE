@@ -127,9 +127,7 @@ class SnapshotLifecycle:
 
     def snapshots_by_state(self, state: SnapshotState) -> List[int]:
         """Return sorted list of snapshot IDs in *state*."""
-        return sorted(
-            sid for sid, rec in self._records.items() if rec.state == state
-        )
+        return sorted(sid for sid, rec in self._records.items() if rec.state == state)
 
     def history_for(
         self, snapshot_id: int

@@ -375,12 +375,12 @@ class TestClaimCache:
             max_entries=2, ttl_ticks=None, eviction_strategy=EvictionStrategy.LRU
         )
         c = ClaimCache(policy)
-        c.put("a", 1)      # inserted at tick=0
-        c.advance_tick()   # tick=1
-        c.put("b", 2)      # inserted at tick=1
-        c.advance_tick()   # tick=2
-        c.get("a")         # a last_accessed=2, b last_accessed=1 → b is LRU
-        c.put("c", 3)      # evict b
+        c.put("a", 1)  # inserted at tick=0
+        c.advance_tick()  # tick=1
+        c.put("b", 2)  # inserted at tick=1
+        c.advance_tick()  # tick=2
+        c.get("a")  # a last_accessed=2, b last_accessed=1 → b is LRU
+        c.put("c", 3)  # evict b
         assert c.get("b") is None
         assert c.get("a") == 1
         assert c.get("c") == 3

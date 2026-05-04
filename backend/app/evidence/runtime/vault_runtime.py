@@ -142,9 +142,7 @@ class VaultRuntime:
 
         return result
 
-    def check_integrity(
-        self, content: bytes, expected_hash: str
-    ) -> IntegrityResult:
+    def check_integrity(self, content: bytes, expected_hash: str) -> IntegrityResult:
         """Standalone integrity check (no snapshot registration required)."""
         self._metrics.increment(VaultStat.INTEGRITY_CHECKS)
         result = self._checker.check(content, expected_hash)

@@ -17,7 +17,7 @@ class RetentionTier(str, Enum):
 
 
 _DEFAULT_TTL_TICKS: Dict[RetentionTier, Optional[int]] = {
-    RetentionTier.PERMANENT: None,   # never expires
+    RetentionTier.PERMANENT: None,  # never expires
     RetentionTier.LONG: 10_000,
     RetentionTier.SHORT: 1_000,
     RetentionTier.EPHEMERAL: 100,
@@ -157,9 +157,7 @@ class RetentionScheduler:
 
     def due_for_purge(self) -> List[RetentionSchedule]:
         """Return all schedules that are due at the current tick."""
-        return [
-            s for s in self._schedules.values() if s.is_due(self._current_tick)
-        ]
+        return [s for s in self._schedules.values() if s.is_due(self._current_tick)]
 
     def mark_purged(self, snapshot_id: int) -> bool:
         sched = self._schedules.get(snapshot_id)

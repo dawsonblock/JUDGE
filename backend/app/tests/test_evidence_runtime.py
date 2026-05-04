@@ -23,10 +23,10 @@ from app.evidence.runtime import (
 from app.evidence.runtime.retention_policy import RetentionScheduler
 from app.evidence.runtime.snapshot_lifecycle import SnapshotTransitionError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -35,6 +35,7 @@ def _sha256(data: bytes) -> str:
 # ===========================================================================
 # ContentAddress
 # ===========================================================================
+
 
 class TestContentAddress:
     def test_fields(self):
@@ -76,6 +77,7 @@ class TestContentAddress:
 # ===========================================================================
 # ContentAddresser
 # ===========================================================================
+
 
 class TestContentAddresser:
     def test_address_of_empty(self):
@@ -167,6 +169,7 @@ class TestContentAddresser:
 # IntegrityResult
 # ===========================================================================
 
+
 class TestIntegrityResult:
     def test_ok(self):
         r = IntegrityResult(ok=True, expected_hash="aaa", actual_hash="aaa")
@@ -189,7 +192,9 @@ class TestIntegrityResult:
         assert r.snapshot_id is None
 
     def test_str(self):
-        r = IntegrityResult(ok=True, expected_hash="a" * 64, actual_hash="a" * 64, snapshot_id=7)
+        r = IntegrityResult(
+            ok=True, expected_hash="a" * 64, actual_hash="a" * 64, snapshot_id=7
+        )
         assert "OK" in str(r)
         assert "sid=7" in str(r)
 
@@ -197,6 +202,7 @@ class TestIntegrityResult:
 # ===========================================================================
 # IntegrityChecker
 # ===========================================================================
+
 
 class TestIntegrityChecker:
     def test_check_passing(self):
@@ -274,6 +280,7 @@ class TestIntegrityChecker:
 # RetentionPolicy
 # ===========================================================================
 
+
 class TestRetentionPolicy:
     def test_permanent_has_no_ttl(self):
         rp = RetentionPolicy()
@@ -319,6 +326,7 @@ class TestRetentionPolicy:
 # ===========================================================================
 # RetentionSchedule & RetentionScheduler
 # ===========================================================================
+
 
 class TestRetentionSchedule:
     def test_is_due_permanent(self):
@@ -386,6 +394,7 @@ class TestRetentionScheduler:
 # ===========================================================================
 # SnapshotLifecycle
 # ===========================================================================
+
 
 class TestSnapshotLifecycle:
     def _make(self):
@@ -486,6 +495,7 @@ class TestSnapshotLifecycle:
 # VaultMetrics
 # ===========================================================================
 
+
 class TestVaultMetrics:
     def test_initial_zero(self):
         vm = VaultMetrics()
@@ -555,6 +565,7 @@ class TestVaultMetrics:
 # ===========================================================================
 # VaultRuntime
 # ===========================================================================
+
 
 class TestVaultRuntime:
     def test_store_snapshot_returns_address(self):
