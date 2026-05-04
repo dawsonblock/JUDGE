@@ -1,5 +1,7 @@
 # AI-Assisted Ingestion Pipeline
 
+> **All classification is rule-based. No LLM calls are made unless `JTA_EMBEDDINGS_ENABLED=true`.**
+
 JudgeTracker Atlas treats AI as an evidence clerk, not an authority. The v1 pipeline is deterministic and local: it uses rules to redact, classify, summarize, suggest links, and create review items. It does not call an external model provider.
 
 ## Rules

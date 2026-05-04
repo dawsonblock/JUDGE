@@ -5,7 +5,7 @@
 **Migrations:** 19 Alembic migrations applied successfully
 **Status:** ORM and migrations are synchronized
 
-The ORM models are treated as authoritative. All 28 migrations have been verified to apply correctly on SQLite and match the ORM schema.
+The ORM models are treated as authoritative. All 36 migrations have been verified to apply correctly on SQLite and match the ORM schema.
 
 ---
 

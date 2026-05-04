@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ingestion.crime_sources.base import CrimeIncidentRecord
-from app.models.entities import CrimeIncident
+from app.models.entities import CrimeIncident, ReviewItem
 from app.services.auto_review import auto_review
 from app.services.publish_rules import (
     TIER_BLOCK,
@@ -49,6 +49,7 @@ def persist_crime_incident(
     record: CrimeIncidentRecord,
     source_key: str | None = None,
     import_batch_hash: str | None = None,
+    source_snapshot_id: int | None = None,
 ) -> CrimeIncident:
     _validate_record(record)
     external_id = record.external_id or derive_external_id(record)
@@ -65,9 +66,11 @@ def persist_crime_incident(
         db.add(incident)
         # New records always start as pending_review
         prev_review_status = "pending_review"
+        is_new = True
     else:
         # Preserve existing review status unless safety fields changed
         prev_review_status = incident.review_status
+        is_new = False
 
     # Track safety-sensitive changes
     safety_fields_changed = False
@@ -132,6 +135,39 @@ def persist_crime_incident(
             incident.review_status = "pending_review"
 
     db.flush()
+
+    # Wire provenance and create ReviewItem for newly ingested records.
+    if is_new:
+        if source_snapshot_id is not None:
+            incident.source_snapshot_id = source_snapshot_id
+        review_item = ReviewItem(
+            record_type="crime_incident",
+            source_snapshot_id=source_snapshot_id,
+            suggested_payload_json={
+                "incident_type": incident.incident_type,
+                "incident_category": incident.incident_category,
+                "reported_at": (
+                    incident.reported_at.isoformat() if incident.reported_at else None
+                ),
+                "city": incident.city,
+                "province_state": incident.province_state,
+                "country": incident.country,
+                "public_area_label": incident.public_area_label,
+                "precision_level": incident.precision_level,
+                "source_name": incident.source_name,
+                "external_id": incident.external_id,
+            },
+            source_url=incident.source_url,
+            source_quality="official_police_open_data",
+            confidence=review.confidence,
+            privacy_status="generalized",
+            publish_recommendation=review.review_status,
+            public_visibility=False,
+            status="pending",
+        )
+        db.add(review_item)
+        db.flush()
+
     return incident
 
 

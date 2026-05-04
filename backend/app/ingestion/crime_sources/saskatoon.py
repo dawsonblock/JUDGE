@@ -22,6 +22,7 @@ from app.ingestion.crime_sources.persistence import (
     normalize_precision_level,
     persist_crime_incident,
 )
+from app.services.snapshot_writer import write_snapshot
 
 SOURCE_NAME = "saskatoon_police"
 
@@ -56,6 +57,18 @@ def import_saskatoon_csv(
     result = SaskatoonImportResult()
     reader = csv.DictReader(io.StringIO(raw))
     now = datetime.now(timezone.utc)
+
+    # Write one SourceSnapshot for the entire CSV batch before processing rows.
+    # This creates the provenance anchor that each new CrimeIncident will reference.
+    snapshot = write_snapshot(
+        db,
+        source_url="https://www.saskatoonpolice.ca/crime-map",
+        fetched_at=now,
+        content=raw,
+        content_type="text/csv",
+        source_key="saskatoon_crime",
+    )
+    db.flush()  # ensure snapshot.id is populated before the row loop
 
     for row_num, row in enumerate(reader, start=2):
         result.read_count += 1
@@ -97,7 +110,11 @@ def import_saskatoon_csv(
                 notes=None,
             )
             persist_crime_incident(
-                db, record, source_key="saskatoon_crime", import_batch_hash=batch_hash
+                db,
+                record,
+                source_key="saskatoon_crime",
+                import_batch_hash=batch_hash,
+                source_snapshot_id=snapshot.id,
             )
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:

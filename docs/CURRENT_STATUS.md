@@ -116,7 +116,7 @@ Recent migrations (Phase 4-6 repair):
 ### Phase 1 (Fix Proof System)
 - [x] Patch `scripts/proof_all.sh` to use `JTA_DATABASE_URL`
 - [ ] Run clean proof command on current state
-- [ ] Verify all 28 migrations pass
+- [ ] Verify all 36 migrations pass
 
 ### Phase 2 (Crawlee Safety)
 - [x] Fix publish_recommendation ("hold" → "review_required")

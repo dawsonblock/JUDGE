@@ -307,6 +307,14 @@ class CrimeIncident(Base, TimestampMixin):
         JSON
     )  # References to related Court cases (Case.id values)
 
+    # Provenance: SourceSnapshot that produced this record (set on first ingest)
+    source_snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("source_snapshots.id"), nullable=True, index=True
+    )
+    source_snapshot: Mapped["SourceSnapshot"] = relationship(
+        "SourceSnapshot", foreign_keys=[source_snapshot_id]
+    )
+
     source_links: Mapped[list["CrimeIncidentSource"]] = relationship(
         back_populates="incident"
     )

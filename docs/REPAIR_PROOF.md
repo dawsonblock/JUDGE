@@ -24,7 +24,7 @@
 | Requirement | Status |
 |-------------|--------|
 | Repository hygiene | ✅ Clean — 0 `__pycache__` outside `.venv` |
-| Alembic migrations | ✅ 28 migrations pass on fresh SQLite |
+| Alembic migrations | ✅ 36 migrations pass on fresh SQLite |
 | Backend tests | ✅ 394 passed, 5 warnings (Pydantic deprecation only) |
 | Python syntax | ✅ `compileall` passes |
 | Frontend build | ✅ 9 pages generated |
@@ -185,7 +185,7 @@ This repair pass addressed **5 critical bugs** identified in the codebase:
 | Check | Result |
 |-------|--------|
 | Python syntax (`compileall`) | ✅ PASS |
-| Alembic migrations (SQLite) | ✅ 28 migrations applied |
+| Alembic migrations (SQLite) | ✅ 36 migrations applied |
 | pytest | ✅ 394 passed, 5 warnings |
 | Backend dependencies | ✅ Installed successfully |
 | Frontend npm ci | ✅ 335 packages installed |
