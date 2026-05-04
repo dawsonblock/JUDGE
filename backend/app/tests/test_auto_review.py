@@ -50,7 +50,10 @@ def _rec(**kwargs) -> CrimeIncidentRecord:
 def test_gate1_full_name_in_notes_blocks():
     record = _rec(notes="Suspect John Smith arrested at scene.")
     result = auto_review(
-        record, "statistics_canada", has_snapshot_hash=True, official_identifier="FILE123"
+        record,
+        "statistics_canada",
+        has_snapshot_hash=True,
+        official_identifier="FILE123",
     )
     assert result.action == "block"
     assert result.public_visibility is False
@@ -58,7 +61,7 @@ def test_gate1_full_name_in_notes_blocks():
 
 def test_gate1_home_address_blocks():
     record = _rec(notes="Incident at 123 Maple St, unit 4.")
-    result = auto_review(record, "toronto_police")
+    result = auto_review(record, "toronto_police", has_snapshot_hash=True)
     assert result.action == "block"
 
 
@@ -76,20 +79,20 @@ def test_gate1_clean_notes_does_not_block():
 
 def test_gate2_gdelt_is_context_only():
     record = _rec(source_name="gdelt", notes=None)
-    result = auto_review(record, "gdelt")
+    result = auto_review(record, "gdelt", has_snapshot_hash=True)
     assert result.action == "context_only"
     assert result.public_visibility is False
 
 
 def test_gate2_media_cloud_is_context_only():
     record = _rec(source_name="media_cloud", notes=None)
-    result = auto_review(record, "media_cloud")
+    result = auto_review(record, "media_cloud", has_snapshot_hash=True)
     assert result.action == "context_only"
 
 
 def test_gate2_court_opinion_rss_is_context_only():
     record = _rec(source_name="court_opinion_rss", notes=None)
-    result = auto_review(record, "court_opinion_rss")
+    result = auto_review(record, "court_opinion_rss", has_snapshot_hash=True)
     assert result.action == "context_only"
 
 
@@ -120,10 +123,16 @@ def test_gate6_missing_coordinates_lowers_confidence():
     record_no_coord = _rec(latitude_public=None, longitude_public=None, notes=None)
     record_with_coord = _rec(notes=None)
     result_no = auto_review(
-        record_no_coord, "statistics_canada", has_snapshot_hash=True, official_identifier="X"
+        record_no_coord,
+        "statistics_canada",
+        has_snapshot_hash=True,
+        official_identifier="X",
     )
     result_yes = auto_review(
-        record_with_coord, "statistics_canada", has_snapshot_hash=True, official_identifier="X"
+        record_with_coord,
+        "statistics_canada",
+        has_snapshot_hash=True,
+        official_identifier="X",
     )
     assert result_no.confidence < result_yes.confidence
 
@@ -144,19 +153,19 @@ def test_gate6_zero_coordinates_treated_as_missing():
 
 def test_gate7_exact_precision_blocks():
     record = _rec(precision_level="exact", notes=None)
-    result = auto_review(record, "toronto_police")
+    result = auto_review(record, "toronto_police", has_snapshot_hash=True)
     assert result.action == "block"
 
 
 def test_gate7_address_precision_blocks():
     record = _rec(precision_level="address", notes=None)
-    result = auto_review(record, "toronto_police")
+    result = auto_review(record, "toronto_police", has_snapshot_hash=True)
     assert result.action == "block"
 
 
 def test_gate7_residence_precision_blocks():
     record = _rec(precision_level="residence", notes=None)
-    result = auto_review(record, "toronto_police")
+    result = auto_review(record, "toronto_police", has_snapshot_hash=True)
     assert result.action == "block"
 
 

@@ -1,6 +1,6 @@
 # Judge Atlas - Current Status & Limitations
 
-**Date:** 2026-05-03 (updated post-JUDGE-main-19 correctness patches)  
+**Date:** 2026-05-03 (updated post-Phase-10 Canada-first pipeline hardening)  
 **Release Status:** **ALPHA - Not Production Ready**
 
 ## What This Is
@@ -21,6 +21,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 - **Review System:** All ingested data is pending_review by default; nothing auto-publishes without admin approval
 - **Source Registry:** Ingestion sources disabled by default; only active sources execute
 - **Audit Logging:** All admin mutations captured with actor, action, entity, payload, request metadata
+- **Scheduler:** Background APScheduler is **disabled by default** (`JTA_ENABLE_SCHEDULER=false`); set `JTA_ENABLE_SCHEDULER=true` only in deployments that have active, correctly-seeded source registry entries
 
 ## Known Limitations
 
@@ -182,6 +183,21 @@ Recent migrations (Phase 4-6 repair):
 - [x] `EvidenceStore.read_snapshot` and `delete_snapshot` now guard against path traversal with `.resolve()` + `.is_relative_to()`
 - [x] Saskatchewan law stub tests extended: `test_fetch_correctional_services` and `test_fetch_victims_of_crime` now assert `all(s.is_stub for s in sections)`
 
+### Phase 10 (Canada-First Pipeline Hardening)
+- [x] `resolve_publication_policy()` now passes `registry=registry` to `source_tier()` — registry can promote via `TIER_AUTO`; previously this arg was silently dropped, causing a bypass
+- [x] `saskatoon.py` — reads all CSV content upfront, computes SHA-256 `import_batch_hash`, passes it through to `persist_crime_incident()`; Gate 0b quarantine cleared
+- [x] `statscan.py` — replaces peek-and-seek ZIP detection with read-all-upfront pattern; computes `import_batch_hash` for binary and text paths; passes hash to `persist_crime_incident()`
+- [x] `crawlee_runner.py` — replaced brittle `if/elif` action chain with `_ACTION_MAP` dispatch dict; unknown actions default to `review_required/pending` (fail-closed)
+- [x] `test_seed_repair.py` — fixed stale tests that asserted on `requires_manual_review`/`auto_publish_enabled` (which are excluded from `_REPAIR_FIELDS`); now deviate and assert on `source_tier`; added `test_operational_flags_not_reset_by_repair` to prove admin-set flags survive repair
+- [x] `config.py` — `enable_scheduler: bool = False` added; env var `JTA_ENABLE_SCHEDULER`; scheduler is **off by default** for safe cold deploys
+- [x] `main.py` — scheduler start/stop gated behind `settings.enable_scheduler`; `scheduler = None` when disabled; `if scheduler is not None: scheduler.shutdown()`
+- [x] `test_scheduler.py` — `TestSchedulerLifespanGate` class added: verifies `build_scheduler` is not called when disabled, and is called when enabled
+- [x] `entities.py RelationshipEvidence` — 4 new columns: `public_visibility` (bool, default false), `verification_status` (str|None), `relationship_status` (str|None, default pending), `auto_publish_reason` (str|None)
+- [x] Migration `20260503_0002_add_relationship_evidence_visibility.py` — adds 4 columns to `relationship_evidence` table; reversible
+- [x] `evidence_chat.py` — case guard: verifies ≥1 public `CrimeIncident` linked to `case_id` via `CrimeIncidentEventLink`→`Event` before surfacing evidence; visibility filter: `public_visibility IS TRUE`; confidence floor: `confidence >= 0.25`
+- [x] `frontend/app/map/page.tsx` — replaced `CrimeMapWorkspace` import with `JudgeNorthAmericaMapClient`
+- [x] `frontend/components/map/MapRecordDrawer.tsx` — added `"evidence"` tab type; `EvidenceChatPanel` tab shown for incident records
+
 ## Do Not Yet Claim
 
 - [ ] "Production-ready" — Alpha only
@@ -190,13 +206,15 @@ Recent migrations (Phase 4-6 repair):
 - [ ] "Complete Canadian law coverage" — Stubs only
 - [ ] "Live CourtListener sync" — Scaffolding only
 - [ ] "Enterprise authentication" — Shared-token alpha only
+- [ ] "Auto-publish pipeline" — All evidence requires `public_visibility=True` AND `confidence >= 0.25` AND human review; no record auto-publishes without those gates
 
 ## Do Claim
 
 - [x] "Open-source legal transparency research prototype"
 - [x] "Map-first, review-first, fail-closed design"
 - [x] "Strong source-first and evidence-first commitment"
-- [x] "No auto-publish without human review"
+- [x] "No evidence surfaces without public_visibility=True, confidence ≥ 0.25, and a public linked incident"
+- [x] "Background scheduler disabled by default — requires JTA_ENABLE_SCHEDULER=true to activate"
 - [x] "All admin mutations audited"
 - [x] "Source registry is fail-closed: new sources start disabled"
 - [x] "Memory rebuilds scoped per-entity via EntityEvidenceLink"

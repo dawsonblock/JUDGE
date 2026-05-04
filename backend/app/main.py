@@ -200,12 +200,15 @@ def create_app() -> FastAPI:
         if settings.auto_seed and settings.app_env == "development":
             with SessionLocal() as db:
                 seed_sample_data(db)
-        from app.workers.scheduler import build_scheduler
+        scheduler = None
+        if settings.enable_scheduler:
+            from app.workers.scheduler import build_scheduler
 
-        scheduler = build_scheduler(SessionLocal)
-        scheduler.start()
+            scheduler = build_scheduler(SessionLocal)
+            scheduler.start()
         yield
-        scheduler.shutdown(wait=False)
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
 
     app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 

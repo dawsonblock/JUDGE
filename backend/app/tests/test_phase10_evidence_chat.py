@@ -6,13 +6,15 @@ Tests cover:
 - API route (POST /api/chat/evidence): request validation, DB-backed responses,
   public-only evidence guard.
 """
+
 from __future__ import annotations
 
 import itertools
 
 import pytest
+from sqlalchemy import select
 
-from app.models.entities import CrimeIncident, RelationshipEvidence
+from app.models.entities import CrimeIncident, CrimeIncidentEventLink, Event, RelationshipEvidence
 from app.services.evidence_chat import (
     _MAX_CITATIONS,
     _MAX_QUESTION_LEN,
@@ -27,6 +29,7 @@ _id_counter = itertools.count(1)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_incident(db, *, is_public: bool = True) -> CrimeIncident:
     uid = next(_id_counter)
@@ -68,6 +71,7 @@ def _make_evidence(
         evidence_excerpt=excerpt,
         extracted_by="test_runner",
         confidence=confidence,
+        public_visibility=True,
     )
     db.add(ev)
     db.flush()
@@ -77,6 +81,7 @@ def _make_evidence(
 # ---------------------------------------------------------------------------
 # _sanitize_question
 # ---------------------------------------------------------------------------
+
 
 def test_sanitize_strips_control_chars():
     assert "\x00" not in _sanitize_question("hello\x00world")
@@ -95,6 +100,7 @@ def test_sanitize_preserves_normal_text():
 # ---------------------------------------------------------------------------
 # chat_about_evidence – service layer
 # ---------------------------------------------------------------------------
+
 
 def test_no_entity_returns_no_evidence(db_session):
     result = chat_about_evidence(db_session, "what happened?")
@@ -131,7 +137,9 @@ def test_answer_contains_count(db_session):
     inc = _make_incident(db_session, is_public=True)
     for i in range(3):
         _make_evidence(db_session, entity_id=inc.id, excerpt=f"evidence {i}")
-    result = chat_about_evidence(db_session, "what evidence exists?", incident_id=inc.id)
+    result = chat_about_evidence(
+        db_session, "what evidence exists?", incident_id=inc.id
+    )
     assert "3" in result.answer
 
 
@@ -159,21 +167,36 @@ def test_question_sanitized_before_use(db_session):
 
 def test_case_id_evidence_returned(db_session):
     """Evidence linked to a court_case entity is returned when case_id supplied."""
+    # Use a seeded event (already linked to a seeded case) to satisfy the guard.
+    existing_event = db_session.scalar(select(Event).limit(1))
+    assert existing_event is not None, "seed_sample_data must populate events"
+    case_id = existing_event.case_id
+
+    # Create a public incident and link it to the seeded event (satisfies the guard).
+    inc = _make_incident(db_session, is_public=True)
+    link = CrimeIncidentEventLink(
+        crime_incident_id=inc.id,
+        event_id=existing_event.id,
+    )
+    db_session.add(link)
+    db_session.flush()
+
     ev = RelationshipEvidence(
         from_entity_type="court_case",
-        from_entity_id=42,
+        from_entity_id=case_id,
         to_entity_type="person",
-        to_entity_id=7,
+        to_entity_id=next(_id_counter),
         relationship_type="defendant",
         evidence_type="court_doc",
         evidence_source="pacer",
         evidence_excerpt="charged with assault",
         extracted_by="test_runner",
         confidence=0.9,
+        public_visibility=True,
     )
     db_session.add(ev)
     db_session.flush()
-    result = chat_about_evidence(db_session, "who is the defendant?", case_id=42)
+    result = chat_about_evidence(db_session, "who is the defendant?", case_id=case_id)
     assert len(result.citations) == 1
     assert result.citations[0].relationship_type == "defendant"
 
@@ -186,11 +209,12 @@ def test_high_keyword_overlap_ranked_first(db_session):
     )
     # High-relevance evidence matching the question
     _make_evidence(
-        db_session, entity_id=inc.id, excerpt="assault weapon discovered at scene", confidence=0.5
+        db_session,
+        entity_id=inc.id,
+        excerpt="assault weapon discovered at scene",
+        confidence=0.5,
     )
-    result = chat_about_evidence(
-        db_session, "assault weapon scene", incident_id=inc.id
-    )
+    result = chat_about_evidence(db_session, "assault weapon scene", incident_id=inc.id)
     assert "assault" in (result.citations[0].excerpt or "").lower()
 
 
@@ -198,15 +222,14 @@ def test_high_keyword_overlap_ranked_first(db_session):
 # API route
 # ---------------------------------------------------------------------------
 
+
 def test_post_evidence_chat_missing_both_ids(client):
     resp = client.post("/api/chat/evidence", json={"question": "what happened?"})
     assert resp.status_code == 422
 
 
 def test_post_evidence_chat_question_too_short(client):
-    resp = client.post(
-        "/api/chat/evidence", json={"question": "hi", "incident_id": 1}
-    )
+    resp = client.post("/api/chat/evidence", json={"question": "hi", "incident_id": 1})
     assert resp.status_code == 422
 
 
@@ -233,7 +256,9 @@ def test_post_evidence_chat_nonexistent_incident_returns_200(client):
 
 def test_post_evidence_chat_valid_returns_structure(client, db_session):
     inc = _make_incident(db_session, is_public=True)
-    _make_evidence(db_session, entity_id=inc.id, excerpt="police report confirms assault")
+    _make_evidence(
+        db_session, entity_id=inc.id, excerpt="police report confirms assault"
+    )
     db_session.commit()
 
     resp = client.post(

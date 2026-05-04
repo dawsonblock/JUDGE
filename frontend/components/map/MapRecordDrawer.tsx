@@ -5,8 +5,9 @@ import { MapDotRecord, RecordDetail, apiBase } from "@/lib/api";
 import SourceLinks from "@/components/map/SourceLinks";
 import { RelatedCourtRecords, RelatedIncidents } from "@/components/map/RelationshipWarnings";
 import RecordAuditBadge from "@/components/map/RecordAuditBadge";
+import { EvidenceChatPanel } from "@/components/crime-map/EvidenceChatPanel";
 
-type Tab = "overview" | "sources" | "related" | "news" | "audit";
+type Tab = "overview" | "sources" | "related" | "news" | "audit" | "evidence";
 
 type Props = {
   record: MapDotRecord | null;
@@ -102,6 +103,7 @@ export default function MapRecordDrawer({ record, onClose }: Props) {
     { id: "sources", label: "Sources" },
     ...(hasRelated ? [{ id: "related" as Tab, label: "Related Records" }] : []),
     ...(detail?.news_articles?.length ? [{ id: "news" as Tab, label: "News" }] : []),
+    ...(isIncident ? [{ id: "evidence" as Tab, label: "Evidence" }] : []),
     { id: "audit", label: "Audit" },
   ];
 
@@ -298,6 +300,12 @@ export default function MapRecordDrawer({ record, onClose }: Props) {
                 <h3 className="map-drawer-section-title">Publication Status</h3>
                 <RecordAuditBadge audit={detail.audit} />
                 <div className="map-drawer-disclaimer">{detail.disclaimer}</div>
+              </div>
+            )}
+
+            {activeTab === "evidence" && isIncident && (
+              <div className="map-drawer-section">
+                <EvidenceChatPanel incidentId={Number(record.id)} />
               </div>
             )}
           </>

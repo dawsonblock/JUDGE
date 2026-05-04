@@ -452,4 +452,4 @@ def resolve_publication_policy(
         return TIER_HOLD
 
     # Registry permits auto-publish; use static tier as final determinant.
-    return source_tier(source_name)
+    return source_tier(source_name, registry=registry)

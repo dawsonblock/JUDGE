@@ -10,6 +10,7 @@ default is TIER_HOLD pending manual review. Enable with JTA_STATSCAN_ENABLED=tru
 Attribution: Statistics Canada. Table 35-10-0177-01.
 https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/35100177
 """
+
 from __future__ import annotations
 
 import csv
@@ -34,9 +35,7 @@ log = logging.getLogger(__name__)
 
 SOURCE_NAME = "statistics_canada"
 
-_DEFAULT_URL = (
-    "https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/35100177/35100177.zip"
-)
+_DEFAULT_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/35100177/35100177.zip"
 
 _PROVINCE_CENTROIDS: dict[str, tuple[float, float]] = {
     "Alberta": (53.9333, -116.5765),
@@ -80,27 +79,31 @@ def import_statscan_csv(
     Raises ValueError if a ZIP archive is passed instead of a plain CSV.
     StatsCan distributes data as a ZIP; callers must extract the CSV first.
     """
-    # Guard: reject raw ZIP bytes before they corrupt csv.DictReader
-    peek_buf: bytes | None = None
+    # Read all content upfront: compute batch hash and perform ZIP guard in one pass.
+    # Gate 0b in auto_review() requires has_snapshot_hash=True for non-reference sources.
     if isinstance(file_like, (io.RawIOBase, io.BufferedIOBase)):
-        peek_buf = file_like.read(4)
-        if peek_buf and peek_buf[:4] == _ZIP_MAGIC:
+        raw_bytes = file_like.read()
+        if raw_bytes[:4] == _ZIP_MAGIC:
             raise ValueError(
                 "StatsCan upload appears to be a ZIP archive. "
                 "Extract the CSV from the ZIP before calling import_statscan_csv."
             )
-        file_like.seek(0)
-    elif isinstance(file_like, io.StringIO):
-        start = file_like.read(4)
-        file_like.seek(0)
-        if start.encode("latin-1", errors="replace")[:4] == _ZIP_MAGIC:
+        batch_hash = hashlib.sha256(raw_bytes).hexdigest()
+        content_str = raw_bytes.decode("utf-8", errors="replace")
+    else:
+        # StringIO or generic TextIOBase
+        content_str = file_like.read()
+        if content_str.encode("latin-1", errors="replace")[:4] == _ZIP_MAGIC:
             raise ValueError(
                 "StatsCan upload appears to be a ZIP archive. "
                 "Extract the CSV from the ZIP before calling import_statscan_csv."
             )
+        batch_hash = hashlib.sha256(
+            content_str.encode("utf-8", errors="replace")
+        ).hexdigest()
 
     result = StatCanImportResult()
-    reader = csv.DictReader(file_like)
+    reader = csv.DictReader(io.StringIO(content_str))
     now = datetime.now(timezone.utc)
 
     for row_num, row in enumerate(reader, start=2):
@@ -120,14 +123,19 @@ def import_statscan_csv(
                 continue
 
             lat, lng = coords
-            ext_id = "SC-" + hashlib.sha256(
-                f"{geography}|{violation}".encode()
-            ).hexdigest()[:16].upper()
+            ext_id = (
+                "SC-"
+                + hashlib.sha256(f"{geography}|{violation}".encode())
+                .hexdigest()[:16]
+                .upper()
+            )
             record = CrimeIncidentRecord(
                 source_id=SOURCE_NAME,
                 external_id=ext_id,
                 incident_type=violation,
-                incident_category=normalize_incident_category(_category_from_violation(violation)),
+                incident_category=normalize_incident_category(
+                    _category_from_violation(violation)
+                ),
                 reported_at=now,
                 occurred_at=None,
                 city=None,
@@ -145,7 +153,9 @@ def import_statscan_csv(
                 is_aggregate=True,
                 notes=f"Aggregate count: {value_str}. Statistics Canada Table 35-10-0177-01.",
             )
-            persist_crime_incident(db, record, source_key="statscan")
+            persist_crime_incident(
+                db, record, source_key="statscan", import_batch_hash=batch_hash
+            )
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

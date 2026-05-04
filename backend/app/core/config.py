@@ -29,8 +29,7 @@ class Settings(BaseSettings):
     courtlistener_bulk_data_dir: str = "data/courtlistener-bulk"
     courtlistener_bulk_snapshot_date: str | None = None
     courtlistener_bulk_enabled_files: str = (
-        "courts,people-db-people,people-db-positions,"
-        "dockets,opinion-clusters"
+        "courts,people-db-people,people-db-positions," "dockets,opinion-clusters"
     )
     courtlistener_bulk_import_batch_size: int = 500
     courtlistener_bulk_normalize_batch_size: int = 200
@@ -67,6 +66,9 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
     # Set to True once at least one admin user has been created via POST /api/auth/register
     jwt_auth_enabled: bool = False
+
+    # Background scheduler (APScheduler); disabled by default for safe deploys
+    enable_scheduler: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

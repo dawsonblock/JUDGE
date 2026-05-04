@@ -16,7 +16,12 @@ from dataclasses import dataclass, field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.models.entities import CrimeIncident, RelationshipEvidence
+from app.models.entities import (
+    CrimeIncident,
+    CrimeIncidentEventLink,
+    Event,
+    RelationshipEvidence,
+)
 from app.services.text import normalize_text
 
 _MAX_QUESTION_LEN: int = 500
@@ -127,6 +132,26 @@ def chat_about_evidence(
         )
 
     if case_id is not None:
+        # Guard: only surface evidence when a public crime incident is linked to this case.
+        linked_public_incident = db.scalar(
+            select(CrimeIncident.id)
+            .join(
+                CrimeIncidentEventLink,
+                CrimeIncidentEventLink.crime_incident_id == CrimeIncident.id,
+            )
+            .join(Event, Event.id == CrimeIncidentEventLink.event_id)
+            .where(
+                Event.case_id == case_id,
+                CrimeIncident.is_public.is_(True),
+            )
+            .limit(1)
+        )
+        if linked_public_incident is None:
+            return ChatResponse(
+                question=question,
+                answer="No public evidence records found for the specified entity.",
+                incident_found=False,
+            )
         conditions.append(
             (RelationshipEvidence.from_entity_type == "court_case")
             & (RelationshipEvidence.from_entity_id == case_id)
@@ -143,7 +168,11 @@ def chat_about_evidence(
             incident_found=incident_found,
         )
 
-    stmt = select(RelationshipEvidence).where(or_(*conditions))
+    stmt = select(RelationshipEvidence).where(
+        or_(*conditions),
+        RelationshipEvidence.public_visibility.is_(True),
+        RelationshipEvidence.confidence >= 0.25,
+    )
     evidence_rows = list(db.scalars(stmt).all())
 
     if not evidence_rows:

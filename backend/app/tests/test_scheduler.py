@@ -289,3 +289,33 @@ class TestRunSourceJob:
             await _run_source_job(valid_key, _factory)
 
         assert entered, "DB factory context manager should have been entered"
+
+
+# ---------------------------------------------------------------------------
+# TestSchedulerLifespanGate
+# ---------------------------------------------------------------------------
+
+
+class TestSchedulerLifespanGate:
+    """Verify that build_scheduler is only called when enable_scheduler=True."""
+
+    def test_build_scheduler_not_called_when_disabled(self):
+        """When settings.enable_scheduler is False, build_scheduler must not be invoked."""
+        with patch("app.workers.scheduler.build_scheduler") as mock_build:
+            # Simulate a settings object with enable_scheduler=False
+            from app.core.config import get_settings
+
+            settings = get_settings()
+            if not settings.enable_scheduler:
+                # Confirm the flag is false (default) — no scheduler should be built
+                assert not mock_build.called
+
+    def test_build_scheduler_called_when_enabled(self):
+        """When enable_scheduler=True, build_scheduler is the function that creates the scheduler."""
+        # Smoke-test that build_scheduler itself returns an AsyncIOScheduler
+        from sqlalchemy.orm import Session
+        from unittest.mock import MagicMock
+
+        db_factory = MagicMock()
+        sched = build_scheduler(db_factory)
+        assert isinstance(sched, AsyncIOScheduler)

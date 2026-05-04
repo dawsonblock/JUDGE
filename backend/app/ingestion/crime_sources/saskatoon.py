@@ -6,9 +6,11 @@ public-area coordinates only.
 
 Publication policy is governed by SourceRegistry (source_key=saskatoon_crime).
 """
+
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -44,16 +46,29 @@ def import_saskatoon_csv(
     Expected columns: ``IncidentType``, ``ReportedDate``, ``Neighbourhood``.
     Coordinates are always snapped to the city centroid (precision=city_centroid).
     """
+    # Read all content upfront so we can compute a stable batch hash.
+    # Gate 0b in auto_review() requires has_snapshot_hash=True for non-reference sources.
+    raw = file_like.read()
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+    batch_hash = hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+
     result = SaskatoonImportResult()
-    reader = csv.DictReader(file_like)
+    reader = csv.DictReader(io.StringIO(raw))
     now = datetime.now(timezone.utc)
 
     for row_num, row in enumerate(reader, start=2):
         result.read_count += 1
         try:
-            incident_type = (row.get("IncidentType") or row.get("incident_type") or "").strip()
-            neighbourhood = (row.get("Neighbourhood") or row.get("neighbourhood") or "Saskatoon").strip()
-            date_str = (row.get("ReportedDate") or row.get("reported_date") or "").strip()
+            incident_type = (
+                row.get("IncidentType") or row.get("incident_type") or ""
+            ).strip()
+            neighbourhood = (
+                row.get("Neighbourhood") or row.get("neighbourhood") or "Saskatoon"
+            ).strip()
+            date_str = (
+                row.get("ReportedDate") or row.get("reported_date") or ""
+            ).strip()
 
             if not incident_type:
                 result.skipped_count += 1
@@ -63,9 +78,7 @@ def import_saskatoon_csv(
                 source_id=SOURCE_NAME,
                 external_id=None,
                 incident_type=incident_type,
-                incident_category=normalize_incident_category(
-                    _category(incident_type)
-                ),
+                incident_category=normalize_incident_category(_category(incident_type)),
                 reported_at=_parse_dt(date_str) or now,
                 occurred_at=None,
                 city="Saskatoon",
@@ -83,7 +96,9 @@ def import_saskatoon_csv(
                 is_aggregate=False,
                 notes=None,
             )
-            persist_crime_incident(db, record, source_key="saskatoon_crime")
+            persist_crime_incident(
+                db, record, source_key="saskatoon_crime", import_batch_hash=batch_hash
+            )
             result.persisted_count += 1
         except CrimeIncidentValidationError as exc:
             result.skipped_count += 1

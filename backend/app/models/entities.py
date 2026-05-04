@@ -20,8 +20,12 @@ from app.db.session import Base
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Location(Base, TimestampMixin):
@@ -29,7 +33,9 @@ class Location(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    location_type: Mapped[str] = mapped_column(String(80), nullable=False, default="courthouse")
+    location_type: Mapped[str] = mapped_column(
+        String(80), nullable=False, default="courthouse"
+    )
     city: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(80))
     region: Mapped[str | None] = mapped_column(String(80))
@@ -44,7 +50,9 @@ class Court(Base, TimestampMixin):
     __tablename__ = "courts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    courtlistener_id: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    courtlistener_id: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     jurisdiction: Mapped[str | None] = mapped_column(String(80))
     region: Mapped[str | None] = mapped_column(String(80))
@@ -75,7 +83,13 @@ class Judge(Base, TimestampMixin):
 
 class Case(Base, TimestampMixin):
     __tablename__ = "cases"
-    __table_args__ = (UniqueConstraint("court_id", "normalized_docket_number", name="uq_case_court_normalized_docket"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "court_id",
+            "normalized_docket_number",
+            name="uq_case_court_normalized_docket",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     court_id: Mapped[int] = mapped_column(ForeignKey("courts.id"), nullable=False)
@@ -100,17 +114,25 @@ class Defendant(Base, TimestampMixin):
     __tablename__ = "defendants"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    anonymized_id: Mapped[str] = mapped_column(String(24), nullable=False, unique=True, index=True)
+    anonymized_id: Mapped[str] = mapped_column(
+        String(24), nullable=False, unique=True, index=True
+    )
     public_name: Mapped[str | None] = mapped_column(String(255))
     normalized_public_name: Mapped[str | None] = mapped_column(String(255), index=True)
 
     parties: Mapped[list["CaseParty"]] = relationship(back_populates="defendant")
-    event_links: Mapped[list["EventDefendant"]] = relationship(back_populates="defendant")
+    event_links: Mapped[list["EventDefendant"]] = relationship(
+        back_populates="defendant"
+    )
 
 
 class CaseParty(Base, TimestampMixin):
     __tablename__ = "case_parties"
-    __table_args__ = (UniqueConstraint("case_id", "normalized_name", "party_type", name="uq_case_party_name_type"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "case_id", "normalized_name", "party_type", name="uq_case_party_name_type"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), nullable=False)
@@ -127,11 +149,15 @@ class Event(Base, TimestampMixin):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    event_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    event_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True
+    )
     court_id: Mapped[int] = mapped_column(ForeignKey("courts.id"), nullable=False)
     judge_id: Mapped[int | None] = mapped_column(ForeignKey("judges.id"))
     case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), nullable=False)
-    primary_location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=False)
+    primary_location_id: Mapped[int] = mapped_column(
+        ForeignKey("locations.id"), nullable=False
+    )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     event_subtype: Mapped[str | None] = mapped_column(String(120))
     decision_result: Mapped[str | None] = mapped_column(String(120))
@@ -139,18 +165,24 @@ class Event(Base, TimestampMixin):
     posted_date: Mapped[date | None] = mapped_column(Date)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
-    repeat_offender_indicator: Mapped[bool] = mapped_column("repeat_offender_flag", Boolean, default=False, nullable=False)
+    repeat_offender_indicator: Mapped[bool] = mapped_column(
+        "repeat_offender_flag", Boolean, default=False, nullable=False
+    )
     verified_flag: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source_quality: Mapped[str] = mapped_column(String(80), default="court_record")
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classifier_metadata: Mapped[dict | None] = mapped_column(JSON)
-    review_status: Mapped[str] = mapped_column(String(80), default="pending_review", nullable=False, index=True)
+    review_status: Mapped[str] = mapped_column(
+        String(80), default="pending_review", nullable=False, index=True
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str | None] = mapped_column(String(120))
     review_notes: Mapped[str | None] = mapped_column(Text)
     correction_note: Mapped[str | None] = mapped_column(Text)
     dispute_note: Mapped[str | None] = mapped_column(Text)
-    public_visibility: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    public_visibility: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, index=True
+    )
 
     court: Mapped[Court] = relationship(back_populates="events")
     judge: Mapped[Judge | None] = relationship(back_populates="events")
@@ -159,20 +191,22 @@ class Event(Base, TimestampMixin):
     defendant_links: Mapped[list["EventDefendant"]] = relationship(
         back_populates="event"
     )
-    source_links: Mapped[list["EventSource"]] = relationship(
-        back_populates="event"
-    )
+    source_links: Mapped[list["EventSource"]] = relationship(back_populates="event")
     outcomes: Mapped[list["Outcome"]] = relationship(back_populates="event")
     cl_provenance: Mapped[dict | None] = mapped_column(JSON)
 
 
 class EventDefendant(Base):
     __tablename__ = "event_defendants"
-    __table_args__ = (UniqueConstraint("event_id", "defendant_id", name="uq_event_defendant"),)
+    __table_args__ = (
+        UniqueConstraint("event_id", "defendant_id", name="uq_event_defendant"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False)
-    defendant_id: Mapped[int] = mapped_column(ForeignKey("defendants.id"), nullable=False)
+    defendant_id: Mapped[int] = mapped_column(
+        ForeignKey("defendants.id"), nullable=False
+    )
 
     event: Mapped[Event] = relationship(back_populates="defendant_links")
     defendant: Mapped[Defendant] = relationship(back_populates="event_links")
@@ -198,7 +232,9 @@ class LegalSource(Base, TimestampMixin):
     __tablename__ = "legal_sources"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    source_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True
+    )
     source_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
@@ -207,7 +243,9 @@ class LegalSource(Base, TimestampMixin):
     source_quality: Mapped[str] = mapped_column(String(80), nullable=False)
     verified_flag: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    review_status: Mapped[str] = mapped_column(String(80), default="pending_review", nullable=False, index=True)
+    review_status: Mapped[str] = mapped_column(
+        String(80), default="pending_review", nullable=False, index=True
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str | None] = mapped_column(String(120))
     review_notes: Mapped[str | None] = mapped_column(Text)
@@ -218,36 +256,52 @@ class LegalSource(Base, TimestampMixin):
     )
     cl_provenance: Mapped[dict | None] = mapped_column(JSON)
 
-    event_links: Mapped[list["EventSource"]] = relationship(
-        back_populates="source"
-    )
+    event_links: Mapped[list["EventSource"]] = relationship(back_populates="source")
 
 
 class CrimeIncident(Base, TimestampMixin):
     __tablename__ = "crime_incidents"
-    __table_args__ = (UniqueConstraint("source_name", "external_id", name="uq_crime_incident_source_external"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "source_name", "external_id", name="uq_crime_incident_source_external"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source_id: Mapped[str | None] = mapped_column(String(120), index=True)
     external_id: Mapped[str | None] = mapped_column(String(120), index=True)
     incident_type: Mapped[str] = mapped_column(String(120), nullable=False)
-    incident_category: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    reported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    incident_category: Mapped[str] = mapped_column(
+        String(80), nullable=False, index=True
+    )
+    reported_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
+    occurred_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
     city: Mapped[str | None] = mapped_column(String(120), index=True)
     province_state: Mapped[str | None] = mapped_column(String(120), index=True)
     country: Mapped[str | None] = mapped_column(String(80), index=True)
     public_area_label: Mapped[str | None] = mapped_column(String(255))
     latitude_public: Mapped[float | None] = mapped_column(Float)
     longitude_public: Mapped[float | None] = mapped_column(Float)
-    precision_level: Mapped[str] = mapped_column(String(80), default="general_area", nullable=False)
+    precision_level: Mapped[str] = mapped_column(
+        String(80), default="general_area", nullable=False
+    )
     source_url: Mapped[str | None] = mapped_column(Text)
     source_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    verification_status: Mapped[str] = mapped_column(String(80), default="reported", nullable=False, index=True)
+    verification_status: Mapped[str] = mapped_column(
+        String(80), default="reported", nullable=False, index=True
+    )
     data_last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, index=True
+    )
     notes: Mapped[str | None] = mapped_column(Text)
-    review_status: Mapped[str] = mapped_column(String(80), default="pending_review", nullable=False, index=True)
+    review_status: Mapped[str] = mapped_column(
+        String(80), default="pending_review", nullable=False, index=True
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str | None] = mapped_column(String(120))
     review_notes: Mapped[str | None] = mapped_column(Text)
@@ -286,9 +340,13 @@ class EvidenceReview(Base):
     previous_status: Mapped[str | None] = mapped_column(String(80))
     new_status: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     reviewed_by: Mapped[str | None] = mapped_column(String(120))
-    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     notes: Mapped[str | None] = mapped_column(Text)
-    public_visibility: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    public_visibility: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
 
 class ReviewItem(Base):
@@ -305,12 +363,20 @@ class ReviewItem(Base):
     source_quality: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     privacy_status: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    publish_recommendation: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    public_visibility: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
-    status: Mapped[str] = mapped_column(String(80), default="pending", nullable=False, index=True)
+    publish_recommendation: Mapped[str] = mapped_column(
+        String(80), nullable=False, index=True
+    )
+    public_visibility: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    status: Mapped[str] = mapped_column(
+        String(80), default="pending", nullable=False, index=True
+    )
     reviewer_id: Mapped[str | None] = mapped_column(String(120))
     reviewer_notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Link to ingestion run that created this review item
@@ -319,7 +385,9 @@ class ReviewItem(Base):
     )
     ingestion_run: Mapped["IngestionRun"] = relationship()
 
-    action_logs: Mapped[list["ReviewActionLog"]] = relationship(back_populates="review_item")
+    action_logs: Mapped[list["ReviewActionLog"]] = relationship(
+        back_populates="review_item"
+    )
     source_snapshot: Mapped["SourceSnapshot"] = relationship()
 
 
@@ -327,24 +395,34 @@ class ReviewActionLog(Base):
     __tablename__ = "review_action_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    review_item_id: Mapped[int] = mapped_column(ForeignKey("review_items.id"), nullable=False, index=True)
+    review_item_id: Mapped[int] = mapped_column(
+        ForeignKey("review_items.id"), nullable=False, index=True
+    )
     actor: Mapped[str] = mapped_column(String(120), nullable=False)
     action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     before_json: Mapped[dict | None] = mapped_column(JSON)
     after_json: Mapped[dict | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     review_item: Mapped[ReviewItem] = relationship(back_populates="action_logs")
 
 
 class EventSource(Base):
     __tablename__ = "event_sources"
-    __table_args__ = (UniqueConstraint("event_id", "source_id", name="uq_event_source"),)
+    __table_args__ = (
+        UniqueConstraint("event_id", "source_id", name="uq_event_source"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False)
-    source_id: Mapped[int] = mapped_column(ForeignKey("legal_sources.id"), nullable=False)
-    supports_outcome: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("legal_sources.id"), nullable=False
+    )
+    supports_outcome: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
     event: Mapped[Event] = relationship(back_populates="source_links")
     source: Mapped[LegalSource] = relationship(back_populates="event_links")
@@ -358,7 +436,9 @@ class Outcome(Base, TimestampMixin):
     outcome_type: Mapped[str] = mapped_column(String(120), nullable=False)
     outcome_date: Mapped[date | None] = mapped_column(Date)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
-    verified_source_id: Mapped[int] = mapped_column(ForeignKey("legal_sources.id"), nullable=False)
+    verified_source_id: Mapped[int] = mapped_column(
+        ForeignKey("legal_sources.id"), nullable=False
+    )
 
     event: Mapped[Event] = relationship(back_populates="outcomes")
     verified_source: Mapped[LegalSource] = relationship()
@@ -369,7 +449,9 @@ class IngestionRun(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(80), default="running")
     fetched_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -403,13 +485,21 @@ class AuditLog(Base):
 class CrimeIncidentSource(Base):
     __tablename__ = "crime_incident_sources"
     __table_args__ = (
-        UniqueConstraint("crime_incident_id", "source_id", name="uq_crime_incident_source"),
+        UniqueConstraint(
+            "crime_incident_id", "source_id", name="uq_crime_incident_source"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    crime_incident_id: Mapped[int] = mapped_column(ForeignKey("crime_incidents.id"), nullable=False, index=True)
-    source_id: Mapped[int] = mapped_column(ForeignKey("legal_sources.id"), nullable=False, index=True)
-    relationship_status: Mapped[str] = mapped_column(String(80), default="verified_source_link", nullable=False)
+    crime_incident_id: Mapped[int] = mapped_column(
+        ForeignKey("crime_incidents.id"), nullable=False, index=True
+    )
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("legal_sources.id"), nullable=False, index=True
+    )
+    relationship_status: Mapped[str] = mapped_column(
+        String(80), default="verified_source_link", nullable=False
+    )
     supports_claim: Mapped[str | None] = mapped_column(Text)
 
     incident: Mapped["CrimeIncident"] = relationship(back_populates="source_links")
@@ -419,13 +509,21 @@ class CrimeIncidentSource(Base):
 class CrimeIncidentEventLink(Base):
     __tablename__ = "crime_incident_event_links"
     __table_args__ = (
-        UniqueConstraint("crime_incident_id", "event_id", name="uq_crime_incident_event"),
+        UniqueConstraint(
+            "crime_incident_id", "event_id", name="uq_crime_incident_event"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    crime_incident_id: Mapped[int] = mapped_column(ForeignKey("crime_incidents.id"), nullable=False, index=True)
-    event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False, index=True)
-    relationship_status: Mapped[str] = mapped_column(String(80), default="unverified_context", nullable=False)
+    crime_incident_id: Mapped[int] = mapped_column(
+        ForeignKey("crime_incidents.id"), nullable=False, index=True
+    )
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("events.id"), nullable=False, index=True
+    )
+    relationship_status: Mapped[str] = mapped_column(
+        String(80), default="unverified_context", nullable=False
+    )
     link_note: Mapped[str | None] = mapped_column(Text)
 
     incident: Mapped["CrimeIncident"] = relationship(back_populates="event_links")
@@ -442,7 +540,9 @@ class Boundary(Base, TimestampMixin):
     iso_code: Mapped[str | None] = mapped_column(String(10), index=True)
     boundary_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     parent_iso: Mapped[str | None] = mapped_column(String(10))
-    source: Mapped[str] = mapped_column(String(80), default="natural_earth", nullable=False)
+    source: Mapped[str] = mapped_column(
+        String(80), default="natural_earth", nullable=False
+    )
     geojson_simplified: Mapped[str | None] = mapped_column(Text)
 
 
@@ -456,9 +556,7 @@ class AICorrectnessCheck(Base):
     __tablename__ = "ai_correctness_checks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    record_type: Mapped[str] = mapped_column(
-        String(80), nullable=False, index=True
-    )
+    record_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     record_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     model_name: Mapped[str] = mapped_column(String(120), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -474,9 +572,7 @@ class AICorrectnessCheck(Base):
     privacy_risk: Mapped[str] = mapped_column(
         String(20), default="low", nullable=False, index=True
     )
-    map_quality: Mapped[str] = mapped_column(
-        String(40), nullable=False, index=True
-    )
+    map_quality: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     result_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     checked_at: Mapped[datetime] = mapped_column(
@@ -500,20 +596,14 @@ class AICorrectnessFinding(Base):
     check_id: Mapped[int] = mapped_column(
         ForeignKey("ai_correctness_checks.id"), nullable=False, index=True
     )
-    finding_type: Mapped[str] = mapped_column(
-        String(80), nullable=False, index=True
-    )
+    finding_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     field_name: Mapped[str | None] = mapped_column(String(80))
     expected: Mapped[str | None] = mapped_column(Text)
     found: Mapped[str | None] = mapped_column(Text)
-    severity: Mapped[str] = mapped_column(
-        String(20), default="info", nullable=False
-    )
+    severity: Mapped[str] = mapped_column(String(20), default="info", nullable=False)
     note: Mapped[str | None] = mapped_column(Text)
 
-    check: Mapped["AICorrectnessCheck"] = relationship(
-        back_populates="findings"
-    )
+    check: Mapped["AICorrectnessCheck"] = relationship(back_populates="findings")
 
 
 class CLBulkProvenance(Base):
@@ -528,7 +618,9 @@ class CLBulkProvenance(Base):
     __tablename__ = "cl_bulk_provenance"
     __table_args__ = (
         UniqueConstraint(
-            "run_id", "cl_table", "cl_row_id",
+            "run_id",
+            "cl_table",
+            "cl_row_id",
             name="uq_cl_bulk_provenance",
         ),
     )
@@ -560,33 +652,21 @@ class CourtListenerBulkRun(Base):
 
     __tablename__ = "courtlistener_bulk_runs"
     __table_args__ = (
-        UniqueConstraint(
-            "snapshot_date", "file_name", name="uq_cl_bulk_run"
-        ),
+        UniqueConstraint("snapshot_date", "file_name", name="uq_cl_bulk_run"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    snapshot_date: Mapped[str] = mapped_column(
-        String(20), nullable=False, index=True
-    )
+    snapshot_date: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(120), nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), default="pending", nullable=False, index=True
     )
     rows_read: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    rows_persisted: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False
-    )
-    rows_skipped: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False
-    )
+    rows_persisted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rows_skipped: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     errors: Mapped[list | None] = mapped_column(JSON)
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -616,9 +696,7 @@ class SourceSnapshot(Base):
         String(20), nullable=False, default="db"
     )
     storage_path: Mapped[str | None] = mapped_column(String(1024))
-    retention_until: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -640,7 +718,9 @@ class SourceSnapshot(Base):
     stored_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # is_truncated MUST always be False after a successful write.
     # The field is kept for schema compatibility only.
-    is_truncated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    is_truncated: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     extractor_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     extractor_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
@@ -651,9 +731,7 @@ class SourceRegistry(Base, TimestampMixin):
     __tablename__ = "source_registry"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source_key: Mapped[str] = mapped_column(
-        String(100), nullable=False, unique=True
-    )
+    source_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     source_name: Mapped[str] = mapped_column(String(255), nullable=False)
     country: Mapped[str | None] = mapped_column(String(80))
     province_state: Mapped[str | None] = mapped_column(String(80))
@@ -662,7 +740,11 @@ class SourceRegistry(Base, TimestampMixin):
         String(80), nullable=False, default="unknown"
     )
     source_tier: Mapped[str] = mapped_column(
-        String(80), nullable=False, default="news_only_context", server_default="news_only_context", index=True
+        String(80),
+        nullable=False,
+        default="news_only_context",
+        server_default="news_only_context",
+        index=True,
     )
     license: Mapped[str | None] = mapped_column(String(50))
     license_url: Mapped[str | None] = mapped_column(String(2048))
@@ -687,9 +769,7 @@ class SourceRegistry(Base, TimestampMixin):
         DateTime(timezone=True)
     )
     last_error: Mapped[str | None] = mapped_column(Text)
-    last_error_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
@@ -698,9 +778,7 @@ class SourceRegistry(Base, TimestampMixin):
     rate_limit_rpm: Mapped[int | None] = mapped_column(
         Integer, default=60
     )  # Requests per minute limit
-    last_ingested_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_ingested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     health_score: Mapped[float] = mapped_column(
         Float, default=1.0, nullable=False
     )  # 0.0-1.0 based on recent success rate
@@ -738,9 +816,7 @@ class RelationshipEvidence(Base):
         String(50), nullable=False, index=True
     )  # "crime_incident", "court_case", "news_article"
     from_entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    to_entity_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
-    )
+    to_entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     to_entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     relationship_type: Mapped[str] = mapped_column(
         String(50), nullable=False, index=True
@@ -769,17 +845,23 @@ class RelationshipEvidence(Base):
     extracted_by: Mapped[str] = mapped_column(
         String(80), nullable=False
     )  # "crawlee_runner", "ai_linker", "manual_admin"
-    confidence: Mapped[float] = mapped_column(
-        Float, default=0.0, nullable=False
-    )
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     verified_by: Mapped[str | None] = mapped_column(String(120))
-    verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    # Publication visibility and workflow state
+    public_visibility: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    verification_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, server_default="pending"
+    )
+    auto_publish_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationships
     evidence_snapshot: Mapped["SourceSnapshot"] = relationship()
@@ -807,9 +889,7 @@ class CanonicalEntity(Base):
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    last_verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     merge_confidence: Mapped[float] = mapped_column(
         Float, default=1.0, nullable=False
@@ -985,17 +1065,33 @@ class MemoryRebuildRun(Base, TimestampMixin):
     __tablename__ = "memory_rebuild_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rebuild_scope: Mapped[str] = mapped_column(String(20), nullable=False, server_default="full")
+    rebuild_scope: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="full"
+    )
     scope_entity_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("canonical_entities.id"), nullable=True, index=True
     )
-    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    entities_processed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
-    claims_created: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
-    claims_invalidated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
-    states_updated: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="pending"
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    entities_processed: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
+    claims_created: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
+    claims_invalidated: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
+    states_updated: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     rebuild_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -1006,25 +1102,39 @@ class MemoryClaim(Base, TimestampMixin):
     __tablename__ = "memory_claims"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    claim_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True, default=lambda: uuid4().hex)
+    claim_key: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True, default=lambda: uuid4().hex
+    )
     claim_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     entity_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
     )
     claim_value: Mapped[str] = mapped_column(Text, nullable=False)
     claim_value_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0", default=0.0)
+    confidence: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0", default=0.0
+    )
     source_snapshot_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("source_snapshots.id"), nullable=True, index=True
     )
     extraction_model: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", default=True)
-    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true", default=True
+    )
+    invalidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     invalidation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="active", default="active", index=True
+        String(20),
+        nullable=False,
+        server_default="active",
+        default="active",
+        index=True,
     )
-    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class MemoryEvidenceLink(Base):
@@ -1043,7 +1153,9 @@ class MemoryEvidenceLink(Base):
     span_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     span_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     span_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     __table_args__ = (
         UniqueConstraint("claim_id", "snapshot_id", name="uq_memory_evidence_link"),
@@ -1057,7 +1169,11 @@ class MemoryEntityState(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     entity_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("canonical_entities.id"), nullable=False, unique=True, index=True
+        Integer,
+        ForeignKey("canonical_entities.id"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     state_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -1068,8 +1184,12 @@ class MemoryEntityState(Base, TimestampMixin):
     last_rebuild_run_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("memory_rebuild_runs.id"), nullable=True, index=True
     )
-    rebuilt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    active_claim_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    rebuilt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    active_claim_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
 
 
 class MemoryInvalidation(Base):
@@ -1078,7 +1198,9 @@ class MemoryInvalidation(Base):
     __tablename__ = "memory_invalidations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    invalidation_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    invalidation_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, index=True
+    )
     target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
     triggered_by_claim_id: Mapped[int | None] = mapped_column(
@@ -1113,7 +1235,9 @@ class MemoryRelationshipState(Base, TimestampMixin):
     target_entity_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("canonical_entities.id"), nullable=False, index=True
     )
-    relationship_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    relationship_type: Mapped[str] = mapped_column(
+        String(80), nullable=False, index=True
+    )
     state_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     evidence_claim_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
     confidence: Mapped[float] = mapped_column(
@@ -1122,7 +1246,9 @@ class MemoryRelationshipState(Base, TimestampMixin):
     last_rebuild_run_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("memory_rebuild_runs.id"), nullable=True, index=True
     )
-    rebuilt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rebuilt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class EntityEvidenceLink(Base):
@@ -1215,12 +1341,8 @@ class CourtEvent(Base):
 
     # Relationships
     case: Mapped["Case"] = relationship(back_populates="court_events")
-    judge: Mapped["CanonicalEntity | None"] = relationship(
-        foreign_keys=[judge_id]
-    )
-    court: Mapped["CanonicalEntity | None"] = relationship(
-        foreign_keys=[court_id]
-    )
+    judge: Mapped["CanonicalEntity | None"] = relationship(foreign_keys=[judge_id])
+    court: Mapped["CanonicalEntity | None"] = relationship(foreign_keys=[court_id])
 
 
 class User(Base):
@@ -1237,9 +1359,7 @@ class User(Base):
         String(255), nullable=False, unique=True, index=True
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(
-        String(80), nullable=False, default="viewer"
-    )
+    role: Mapped[str] = mapped_column(String(80), nullable=False, default="viewer")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     display_name: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(

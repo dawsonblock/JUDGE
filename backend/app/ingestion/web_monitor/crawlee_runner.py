@@ -184,12 +184,13 @@ class CrawleeRunner:
             has_snapshot_hash=bool(snapshot.content_hash),
             db_tier=db_tier,
         )
-        if ar.action == "block":
-            ri_rec = "block"
-            ri_status = "blocked"
-        else:
-            ri_rec = "review_required"
-            ri_status = "pending"
+        _ACTION_MAP = {
+            "block": ("block", "blocked"),
+            "context_only": ("review_required", "pending"),
+            "quarantine": ("review_required", "pending"),
+            "publish": ("review_required", "pending"),
+        }
+        ri_rec, ri_status = _ACTION_MAP.get(ar.action, ("review_required", "pending"))
 
         review_item = ReviewItem(
             record_type=candidate.candidate_type,
@@ -197,7 +198,7 @@ class CrawleeRunner:
             suggested_payload_json=suggested_payload,
             source_url=candidate.source_url,
             source_quality=self.target.source_tier,
-            confidence=ar.confidence,
+            confidence=min(candidate.confidence, 0.5),
             privacy_status=privacy_status,
             publish_recommendation=ri_rec,
             status=ri_status,
