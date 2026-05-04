@@ -74,7 +74,9 @@ def register(
                 next_run=now,  # eligible immediately on first registration
             )
             _schedule[source_name] = entry
-    _log.debug("scheduler.register source=%s interval=%ds", source_name, interval_seconds)
+    _log.debug(
+        "scheduler.register source=%s interval=%ds", source_name, interval_seconds
+    )
 
 
 def due_sources(at: datetime | None = None) -> list[str]:

@@ -35,7 +35,9 @@ class GraphNode:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, GraphNode):
             return NotImplemented
-        return self.entity_type == other.entity_type and self.entity_id == other.entity_id
+        return (
+            self.entity_type == other.entity_type and self.entity_id == other.entity_id
+        )
 
 
 @dataclass

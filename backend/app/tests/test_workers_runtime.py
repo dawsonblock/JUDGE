@@ -28,7 +28,6 @@ from app.workers.worker_health import WorkerBeat, WorkerHealthMonitor, WorkerSta
 from app.workers.worker_metrics import WorkerMetrics
 from app.workers.workers_runtime import WorkersRuntime, WorkersRuntimeConfig
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -349,7 +348,12 @@ class TestRetryPolicy:
         assert policy.delay_for_attempt(3) == pytest.approx(5.0)
 
     def test_predefined_policies_exist(self):
-        for p in (IMMEDIATE_POLICY, FAST_RETRY_POLICY, STANDARD_POLICY, SLOW_RETRY_POLICY):
+        for p in (
+            IMMEDIATE_POLICY,
+            FAST_RETRY_POLICY,
+            STANDARD_POLICY,
+            SLOW_RETRY_POLICY,
+        ):
             assert p.max_attempts >= 1
 
 
@@ -417,9 +421,7 @@ class TestPipelineCoordinator:
 
     def test_linear_deps(self):
         coord = PipelineCoordinator()
-        plan = coord.plan(
-            [self._step("b", depends_on=["a"]), self._step("a")]
-        )
+        plan = coord.plan([self._step("b", depends_on=["a"]), self._step("a")])
         names = [s.name for s in plan.steps]
         assert names.index("a") < names.index("b")
 

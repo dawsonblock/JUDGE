@@ -135,7 +135,9 @@ class IngestionRuntime:
         """Return source names due for a run according to the scheduler."""
         return source_scheduler.due_sources(at=at)
 
-    def is_healthy(self, source_name: str, *, max_consecutive_failures: int = 3) -> bool:
+    def is_healthy(
+        self, source_name: str, *, max_consecutive_failures: int = 3
+    ) -> bool:
         """Return ``True`` if *source_name* is considered healthy."""
         return source_health.is_healthy(
             source_name, max_consecutive_failures=max_consecutive_failures

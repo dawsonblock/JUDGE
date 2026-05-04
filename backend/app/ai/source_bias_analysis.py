@@ -131,9 +131,7 @@ def get_source_bias_profile(db: Session, source_name: str) -> list[BiasReport]:
     from app.models.entities import SourceSnapshot  # local import to avoid circular
 
     snapshots = (
-        db.query(SourceSnapshot)
-        .filter(SourceSnapshot.source_key == source_name)
-        .all()
+        db.query(SourceSnapshot).filter(SourceSnapshot.source_key == source_name).all()
     )
 
     reports: list[BiasReport] = []

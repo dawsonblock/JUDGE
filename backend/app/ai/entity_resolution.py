@@ -54,7 +54,9 @@ def _token_sim(a: str, b: str) -> float:
     return len(ta & tb) / len(ta | tb)
 
 
-def _field_score(entity_a: CanonicalEntity, entity_b: CanonicalEntity) -> tuple[float, list[str]]:
+def _field_score(
+    entity_a: CanonicalEntity, entity_b: CanonicalEntity
+) -> tuple[float, list[str]]:
     """Return (similarity, matching_fields) based on rule comparison."""
     matches: list[str] = []
     scores: list[float] = []
@@ -163,8 +165,10 @@ def bulk_resolve(db: Session, limit: int = 50) -> list[ResolutionCandidate]:
         if len(results) >= limit:
             break
         for candidate in find_candidates(db, entity.id, threshold=DEFAULT_THRESHOLD):
-            key = (min(candidate.entity_id_a, candidate.entity_id_b),
-                   max(candidate.entity_id_a, candidate.entity_id_b))
+            key = (
+                min(candidate.entity_id_a, candidate.entity_id_b),
+                max(candidate.entity_id_a, candidate.entity_id_b),
+            )
             if key not in seen and candidate.resolution == MERGE:
                 seen.add(key)
                 results.append(candidate)

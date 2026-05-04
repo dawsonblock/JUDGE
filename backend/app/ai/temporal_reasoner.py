@@ -32,9 +32,9 @@ class TemporalSequence:
     """Chronologically ordered events for an entity."""
 
     entity_id: int
-    events: list[dict]          # list of {claim_id, claim_type, timestamp, claim_value}
+    events: list[dict]  # list of {claim_id, claim_type, timestamp, claim_value}
     gaps: list[TemporalGap]
-    span_days: Optional[int]    # total span from first to last event
+    span_days: Optional[int]  # total span from first to last event
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,12 @@ def build_sequence(db: Session, entity_id: int) -> TemporalSequence:
 
     events = [_to_event(c) for c in claims]
     # Sort: events with timestamps first (ascending), then unknowns at end
-    events.sort(key=lambda e: (e["timestamp"] is None, e["timestamp"] or datetime.min.replace(tzinfo=timezone.utc)))
+    events.sort(
+        key=lambda e: (
+            e["timestamp"] is None,
+            e["timestamp"] or datetime.min.replace(tzinfo=timezone.utc),
+        )
+    )
 
     gaps = detect_gaps(events)
 
@@ -90,7 +95,9 @@ def build_sequence(db: Session, entity_id: int) -> TemporalSequence:
         delta = timestamped[-1]["timestamp"] - timestamped[0]["timestamp"]
         span_days = delta.days
 
-    return TemporalSequence(entity_id=entity_id, events=events, gaps=gaps, span_days=span_days)
+    return TemporalSequence(
+        entity_id=entity_id, events=events, gaps=gaps, span_days=span_days
+    )
 
 
 def detect_gaps(events: list[dict], min_gap_days: int = 30) -> list[TemporalGap]:

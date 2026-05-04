@@ -155,7 +155,9 @@ def get_all_snapshots(
 
 def is_healthy(source_name: str, *, max_consecutive_failures: int = 3) -> bool:
     """Convenience predicate — returns ``True`` if the source is considered healthy."""
-    return get_snapshot(source_name, max_consecutive_failures=max_consecutive_failures).is_healthy
+    return get_snapshot(
+        source_name, max_consecutive_failures=max_consecutive_failures
+    ).is_healthy
 
 
 def refresh_from_db(db: Session, source_name: str, *, limit: int = 50) -> None:

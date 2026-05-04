@@ -66,6 +66,7 @@ class RetryPolicy:
 # Fibonacci helper
 # ---------------------------------------------------------------------------
 
+
 def _fib(n: int) -> int:
     """Return the *n*-th Fibonacci number (1-indexed, starting at 1, 1, 2, ...)."""
     a, b = 1, 1

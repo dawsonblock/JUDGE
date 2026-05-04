@@ -20,7 +20,12 @@ from app.ai.entity_resolution import ResolutionCandidate, find_candidates
 from app.ai.narrative_detection import NarrativeMatch, detect_narratives
 from app.ai.source_bias_analysis import BiasReport, analyze_source_text
 from app.ai.temporal_reasoner import TemporalSequence, build_sequence
-from app.ai.trust_propagation import TrustScore, compute_trust, get_trust_tier, propagate_trust
+from app.ai.trust_propagation import (
+    TrustScore,
+    compute_trust,
+    get_trust_tier,
+    propagate_trust,
+)
 
 
 class AIRuntime:

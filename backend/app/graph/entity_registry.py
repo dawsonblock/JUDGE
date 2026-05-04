@@ -51,7 +51,9 @@ class EntityRegistry:
                 return self._cache[entity_id]
 
         # DB fetch outside lock to avoid holding lock during IO
-        from app.models.entities import CanonicalEntity  # local import avoids circularity
+        from app.models.entities import (
+            CanonicalEntity,
+        )  # local import avoids circularity
 
         entity = db.get(CanonicalEntity, entity_id)
 

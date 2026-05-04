@@ -3,6 +3,7 @@
 Provides deterministic entity resolution, typed graph edges,
 temporal chain reconstruction, and a unified graph runtime.
 """
+
 from app.graph.canonical_ids import (
     CanonicalIdError,
     generate_canonical_id,
@@ -18,7 +19,12 @@ from app.graph.confidence import (
     propagate_confidence,
 )
 from app.graph.entity_registry import EntityRegistry, get_registry
-from app.graph.graph_merge import MergeResult, propose_merge, execute_merge, resolve_merge_chain
+from app.graph.graph_merge import (
+    MergeResult,
+    propose_merge,
+    execute_merge,
+    resolve_merge_chain,
+)
 from app.graph.temporal_chain import TemporalEdge, TemporalChain
 from app.graph.graph_queries import GraphQueryEngine
 from app.graph.graph_resolver import ResolveResult, GraphResolver

@@ -49,7 +49,9 @@ def save(source_name: str, cursor: Any, *, run_id: int) -> None:
             cursor=deepcopy(cursor),
             run_id=run_id,
         )
-    _log.debug("checkpoint.saved source=%s run_id=%d cursor=%r", source_name, run_id, cursor)
+    _log.debug(
+        "checkpoint.saved source=%s run_id=%d cursor=%r", source_name, run_id, cursor
+    )
 
 
 def load(source_name: str) -> Any | None:

@@ -52,8 +52,8 @@ class ConfidenceScore:
     """Computed confidence for a claim or entity."""
 
     subject_id: int
-    subject_type: str          # "claim" | "entity"
-    score: float               # 0.0–1.0
+    subject_type: str  # "claim" | "entity"
+    score: float  # 0.0–1.0
     source_count: int
     corroboration_bonus: float
     quality_weighted: float
@@ -107,7 +107,9 @@ def score_claim(db: Session, claim_id: int) -> ConfidenceScore:
 
     source_name: Optional[str] = None
     if claim.source_snapshot_id is not None:
-        snap: Optional[SourceSnapshot] = db.get(SourceSnapshot, claim.source_snapshot_id)
+        snap: Optional[SourceSnapshot] = db.get(
+            SourceSnapshot, claim.source_snapshot_id
+        )
         if snap is not None:
             source_name = getattr(snap, "source_key", None)
 
@@ -149,7 +151,9 @@ def score_entity(db: Session, entity_id: int) -> ConfidenceScore:
         )
 
     source_count = len(claims)
-    avg_claim_confidence = sum(float(c.confidence or 0.0) for c in claims) / source_count
+    avg_claim_confidence = (
+        sum(float(c.confidence or 0.0) for c in claims) / source_count
+    )
     quality_weighted = round(avg_claim_confidence, 4)
     bonus = apply_corroboration_bonus(quality_weighted, source_count)
     final = round(min(1.0, quality_weighted + bonus), 4)

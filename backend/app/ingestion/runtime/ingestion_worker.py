@@ -160,9 +160,14 @@ class IngestionWorker:
                 # Checkpoint after each batch of _CHECKPOINT_BATCH_SIZE
                 batch_count += 1
                 if batch_count % _CHECKPOINT_BATCH_SIZE == 0:
-                    new_cursor = {"since": fetch_since.isoformat(), "offset": batch_count}
+                    new_cursor = {
+                        "since": fetch_since.isoformat(),
+                        "offset": batch_count,
+                    }
                     checkpointing.save(source_name, new_cursor, run_id=run.id)
-                    crawl_state.advance(source_name, new_cursor, fetched_count=batch_count)
+                    crawl_state.advance(
+                        source_name, new_cursor, fetched_count=batch_count
+                    )
 
             # Final counts
             ingestion_log.increment_counts(
@@ -179,9 +184,11 @@ class IngestionWorker:
             final_status = (
                 ingestion_log.STATUS_PARTIAL
                 if error_total > 0 and persisted_total > 0
-                else ingestion_log.STATUS_FAILED
-                if error_total > 0 and persisted_total == 0
-                else ingestion_log.STATUS_COMPLETE
+                else (
+                    ingestion_log.STATUS_FAILED
+                    if error_total > 0 and persisted_total == 0
+                    else ingestion_log.STATUS_COMPLETE
+                )
             )
             ingestion_log.close_run(db, run, status=final_status)
             checkpointing.clear(source_name)
@@ -190,7 +197,10 @@ class IngestionWorker:
             # --------------------------------------------------------------
             # 7. Health + scheduler
             # --------------------------------------------------------------
-            if final_status in (ingestion_log.STATUS_COMPLETE, ingestion_log.STATUS_PARTIAL):
+            if final_status in (
+                ingestion_log.STATUS_COMPLETE,
+                ingestion_log.STATUS_PARTIAL,
+            ):
                 source_health.record_success(source_name, run_id=run.id)
             else:
                 source_health.record_failure(source_name, run_id=run.id)

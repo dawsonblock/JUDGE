@@ -34,9 +34,9 @@ class TrustScore:
     """Computed trust score for a single canonical entity."""
 
     entity_id: int
-    score: float                           # 0.0–1.0
-    contributing_sources: list[str]        # e.g. source_names gathered transitively
-    decay_factor: float                    # effective decay applied (product of per-hop factors)
+    score: float  # 0.0–1.0
+    contributing_sources: list[str]  # e.g. source_names gathered transitively
+    decay_factor: float  # effective decay applied (product of per-hop factors)
     last_updated: datetime
 
 
@@ -60,7 +60,9 @@ def _base_trust(entity: Optional[CanonicalEntity]) -> float:
     """Return the base trust from the entity's stored score, or a default."""
     if entity is None:
         return 0.5
-    stored = getattr(entity, "confidence_score", None) or getattr(entity, "merge_confidence", None)
+    stored = getattr(entity, "confidence_score", None) or getattr(
+        entity, "merge_confidence", None
+    )
     if stored is None:
         return 0.5
     return float(max(0.0, min(1.0, stored)))
@@ -81,7 +83,8 @@ def compute_trust(db: Session, entity_id: int) -> TrustScore:
         db.query(EntityGraphEdge)
         .filter(
             EntityGraphEdge.status == "active",
-            (EntityGraphEdge.subject_id == entity_id) | (EntityGraphEdge.object_id == entity_id),
+            (EntityGraphEdge.subject_id == entity_id)
+            | (EntityGraphEdge.object_id == entity_id),
         )
         .all()
     )
@@ -92,7 +95,9 @@ def compute_trust(db: Session, entity_id: int) -> TrustScore:
 
     sources: list[str] = []
     if entity is not None and hasattr(entity, "source_records"):
-        sources = [sr.source_name for sr in (entity.source_records or []) if sr.source_name]
+        sources = [
+            sr.source_name for sr in (entity.source_records or []) if sr.source_name
+        ]
 
     return TrustScore(
         entity_id=entity_id,
@@ -103,12 +108,16 @@ def compute_trust(db: Session, entity_id: int) -> TrustScore:
     )
 
 
-def propagate_trust(db: Session, source_entity_id: int, depth: int = 3) -> list[TrustScore]:
+def propagate_trust(
+    db: Session, source_entity_id: int, depth: int = 3
+) -> list[TrustScore]:
     """BFS from *source_entity_id* up to *depth* hops; return TrustScore for each reached entity."""
     root_score = compute_trust(db, source_entity_id)
     result: dict[int, TrustScore] = {source_entity_id: root_score}
 
-    frontier: list[tuple[int, float, float]] = [(source_entity_id, root_score.score, 1.0)]
+    frontier: list[tuple[int, float, float]] = [
+        (source_entity_id, root_score.score, 1.0)
+    ]
     visited: set[int] = {source_entity_id}
 
     for _hop in range(depth):
@@ -135,13 +144,19 @@ def propagate_trust(db: Session, source_entity_id: int, depth: int = 3) -> list[
                 edge_weight = float(getattr(edge, "weight", 1.0) or 1.0)
                 propagated = current_score * TRUST_DECAY * min(1.0, edge_weight)
 
-                entity: Optional[CanonicalEntity] = db.get(CanonicalEntity, neighbour_id)
+                entity: Optional[CanonicalEntity] = db.get(
+                    CanonicalEntity, neighbour_id
+                )
                 base = _base_trust(entity)
                 blended = round((base + propagated) / 2.0, 4)
 
                 sources: list[str] = []
                 if entity is not None and hasattr(entity, "source_records"):
-                    sources = [sr.source_name for sr in (entity.source_records or []) if sr.source_name]
+                    sources = [
+                        sr.source_name
+                        for sr in (entity.source_records or [])
+                        if sr.source_name
+                    ]
 
                 ts = TrustScore(
                     entity_id=neighbour_id,

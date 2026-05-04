@@ -28,9 +28,7 @@ class WorkersRuntimeConfig:
     worker_id: str = "workers-runtime-0"
     heartbeat_stale_seconds: float = 60.0
     result_store_max_size: int = 1000
-    default_retry_policy: RetryPolicy = field(
-        default_factory=lambda: STANDARD_POLICY
-    )
+    default_retry_policy: RetryPolicy = field(default_factory=lambda: STANDARD_POLICY)
 
 
 class WorkersRuntime:

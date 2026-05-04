@@ -53,7 +53,11 @@ class DeadlockDetector:
     def stalled_jobs(self, now: float | None = None) -> list[InFlightRecord]:
         """Return records for jobs that have exceeded their timeout."""
         t = now if now is not None else time.monotonic()
-        return [r for r in self._in_flight.values() if (t - r.started_at) > r.timeout_seconds]
+        return [
+            r
+            for r in self._in_flight.values()
+            if (t - r.started_at) > r.timeout_seconds
+        ]
 
     def get_record(self, job_id: str) -> InFlightRecord | None:
         """Return the in-flight record for *job_id*, or ``None``."""

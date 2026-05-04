@@ -126,7 +126,9 @@ def _build_narrative(
 ) -> Optional[NarrativeMatch]:
     if not matched:
         return None
-    confidence = round(min(1.0, len(matched) / max(1, len(phrases)) + 0.20 * len(claim_ids)), 4)
+    confidence = round(
+        min(1.0, len(matched) / max(1, len(phrases)) + 0.20 * len(claim_ids)), 4
+    )
     if confidence < _MIN_MATCH_CONFIDENCE:
         return None
     return NarrativeMatch(
@@ -192,7 +194,11 @@ def detect_narratives(db: Session, entity_id: int) -> list[NarrativeMatch]:
     for pattern_name, phrases in NARRATIVE_PATTERNS:
         accumulated_phrases, accumulated_claims = pattern_state[pattern_name]
         nm = _build_narrative(
-            entity_id, pattern_name, phrases, list(accumulated_phrases), accumulated_claims
+            entity_id,
+            pattern_name,
+            phrases,
+            list(accumulated_phrases),
+            accumulated_claims,
         )
         if nm:
             results.append(nm)

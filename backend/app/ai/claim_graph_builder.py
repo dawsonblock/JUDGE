@@ -65,6 +65,7 @@ def _claims_to_nodes(claims: list[MemoryClaim]) -> list[ClaimNode]:
 
 def _build_timeline_order(nodes: list[ClaimNode]) -> list[int]:
     """Return claim_ids sorted chronologically (nones last)."""
+
     def sort_key(n: ClaimNode):
         return n.timestamp or datetime.max
 
@@ -98,7 +99,9 @@ def _build_support_edges(nodes: list[ClaimNode]) -> list[tuple[int, int, str]]:
 
 def build_claim_graph(db: Session, entity_id: int) -> ClaimGraph:
     """Build a full claim graph for *entity_id*."""
-    from app.ai.contradiction_engine import detect_contradictions  # local to avoid cycle
+    from app.ai.contradiction_engine import (
+        detect_contradictions,
+    )  # local to avoid cycle
 
     claims: list[MemoryClaim] = (
         db.query(MemoryClaim)
@@ -113,9 +116,7 @@ def build_claim_graph(db: Session, entity_id: int) -> ClaimGraph:
     timeline = _build_timeline_order(nodes)
 
     contradiction_results = detect_contradictions(db, entity_id)
-    contradiction_pairs = [
-        (r.claim_id_a, r.claim_id_b) for r in contradiction_results
-    ]
+    contradiction_pairs = [(r.claim_id_a, r.claim_id_b) for r in contradiction_results]
 
     contradiction_pair_set: set[tuple[int, int]] = set(
         (min(a, b), max(a, b)) for a, b in contradiction_pairs

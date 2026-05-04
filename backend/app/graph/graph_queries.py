@@ -175,15 +175,19 @@ class GraphQueryEngine:
                 if (e_type, e_id) in visited:
                     continue
                 visited.add((e_type, e_id))
-                edges = self.get_entity_edges(
-                    e_type, e_id, status=status, limit=100
-                )
+                edges = self.get_entity_edges(e_type, e_id, status=status, limit=100)
                 for edge in edges:
                     if edge.id not in collected:
                         collected[edge.id] = edge
                     # Queue neighbours
-                    nbr_type = edge.object_type if edge.subject_id == e_id else edge.subject_type
-                    nbr_id = edge.object_id if edge.subject_id == e_id else edge.subject_id
+                    nbr_type = (
+                        edge.object_type
+                        if edge.subject_id == e_id
+                        else edge.subject_type
+                    )
+                    nbr_id = (
+                        edge.object_id if edge.subject_id == e_id else edge.subject_id
+                    )
                     if (nbr_type, nbr_id) not in visited:
                         next_frontier.append((nbr_type, nbr_id))
             frontier = next_frontier
@@ -237,9 +241,7 @@ class GraphQueryEngine:
                 continue
             visited_at_depth[key] = depth
 
-            edges = self.get_entity_edges(
-                cur_type, cur_id, status=status, limit=100
-            )
+            edges = self.get_entity_edges(cur_type, cur_id, status=status, limit=100)
             for edge in edges:
                 # Determine the neighbour endpoint
                 if edge.subject_type == cur_type and edge.subject_id == cur_id:

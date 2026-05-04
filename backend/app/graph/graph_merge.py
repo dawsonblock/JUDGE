@@ -29,8 +29,8 @@ class MergeResult:
     """Result of a merge proposal or execution."""
 
     success: bool
-    source_id: int      # entity being merged away
-    target_id: int      # entity that survives
+    source_id: int  # entity being merged away
+    target_id: int  # entity that survives
     confidence: float
     reason: str
     committed: bool = False  # True only after execute_merge
@@ -104,6 +104,7 @@ def propose_merge(
         reason = "exact_name_match"
     else:
         import difflib
+
         ratio = difflib.SequenceMatcher(None, norm_a, norm_b).ratio()
         if ratio >= 0.90:
             confidence = 0.80
@@ -149,7 +150,10 @@ def execute_merge(
     Returns:
         MergeResult with committed=True on success.
     """
-    from app.models.entities import CanonicalEntity, EntitySourceRecord  # avoid circular
+    from app.models.entities import (
+        CanonicalEntity,
+        EntitySourceRecord,
+    )  # avoid circular
 
     source = db.get(CanonicalEntity, source_id)
     target = db.get(CanonicalEntity, target_id)

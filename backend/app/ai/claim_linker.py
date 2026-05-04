@@ -48,7 +48,9 @@ def _similarity(a: str, b: str) -> float:
     return intersection / union
 
 
-def _try_link(claim: MemoryClaim, candidates: list[CanonicalEntity]) -> Optional[ClaimLink]:
+def _try_link(
+    claim: MemoryClaim, candidates: list[CanonicalEntity]
+) -> Optional[ClaimLink]:
     """Return the best ClaimLink for this claim, or None if below threshold."""
     norm_val = normalize_text(claim.claim_value)
     best_score = 0.0
@@ -103,9 +105,7 @@ def link_claim_to_entity(db: Session, claim_id: int) -> Optional[ClaimLink]:
         )
 
     candidates: list[CanonicalEntity] = (
-        db.query(CanonicalEntity)
-        .filter(CanonicalEntity.status == "active")
-        .all()
+        db.query(CanonicalEntity).filter(CanonicalEntity.status == "active").all()
     )
     return _try_link(claim, candidates)
 
@@ -119,9 +119,7 @@ def bulk_link_unlinked(db: Session, limit: int = 100) -> list[ClaimLink]:
         .all()
     )
     candidates: list[CanonicalEntity] = (
-        db.query(CanonicalEntity)
-        .filter(CanonicalEntity.status == "active")
-        .all()
+        db.query(CanonicalEntity).filter(CanonicalEntity.status == "active").all()
     )
     links: list[ClaimLink] = []
     for claim in claims:

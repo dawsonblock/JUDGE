@@ -83,9 +83,7 @@ class GraphQueryService:
         Returns:
             List of GraphEdge objects
         """
-        query = self.db.query(EntityGraphEdge).filter(
-            EntityGraphEdge.status == status
-        )
+        query = self.db.query(EntityGraphEdge).filter(EntityGraphEdge.status == status)
 
         # Build the filter for subject or object
         if as_subject and as_object:

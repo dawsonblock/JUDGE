@@ -11,7 +11,10 @@ legacy helpers for backward compatibility.
 from __future__ import annotations
 
 # Shim: expose graph-package classes through this module
-from app.graph.graph_resolver import GraphResolver, ResolveResult as GraphResolveResult  # noqa: F401
+from app.graph.graph_resolver import (
+    GraphResolver,
+    ResolveResult as GraphResolveResult,
+)  # noqa: F401
 
 import difflib
 from dataclasses import dataclass
@@ -122,8 +125,7 @@ class CanonicalResolver:
                 court_link = (
                     self.db.query(EntitySourceRecord)
                     .filter(
-                        EntitySourceRecord.canonical_entity_id
-                        == exact_match.id,
+                        EntitySourceRecord.canonical_entity_id == exact_match.id,
                         EntitySourceRecord.source_table == "courts",
                         EntitySourceRecord.source_record_id == court_id,
                     )
@@ -394,9 +396,11 @@ class CanonicalResolver:
             .all()
         )
 
-        avg_confidence = sum(e.merge_confidence for e in entities) / len(
-            entities
-        ) if entities else 0.0
+        avg_confidence = (
+            sum(e.merge_confidence for e in entities) / len(entities)
+            if entities
+            else 0.0
+        )
 
         return MergeProposal(
             entity_ids=entity_ids,
@@ -428,9 +432,7 @@ class CanonicalResolver:
         )
 
         if not target:
-            raise ValueError(
-                f"Target entity {proposal.target_canonical_id} not found"
-            )
+            raise ValueError(f"Target entity {proposal.target_canonical_id} not found")
 
         # Update other entities to point to target
         for entity_id in proposal.entity_ids:
@@ -450,13 +452,13 @@ class CanonicalResolver:
                 # Update source records to point to target
                 self.db.query(EntitySourceRecord).filter(
                     EntitySourceRecord.canonical_entity_id == entity_id
-                ).update(
-                    {"canonical_entity_id": proposal.target_canonical_id}
-                )
+                ).update({"canonical_entity_id": proposal.target_canonical_id})
 
         # Update target confidence
         target.merge_confidence = max(target.merge_confidence, proposal.confidence)
-        target.notes = f"Merged entities: {proposal.entity_ids}. Reason: {proposal.reason}"
+        target.notes = (
+            f"Merged entities: {proposal.entity_ids}. Reason: {proposal.reason}"
+        )
 
         self.db.commit()
         return target

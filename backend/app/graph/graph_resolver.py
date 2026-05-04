@@ -210,9 +210,7 @@ class GraphResolver:
             match_reason="canonical_id_match",
         )
 
-    def _lookup_exact_name(
-        self, entity_type: str, name: str
-    ) -> ResolveResult | None:
+    def _lookup_exact_name(self, entity_type: str, name: str) -> ResolveResult | None:
         from app.models.entities import CanonicalEntity
 
         norm = normalize_entity_name(name)
@@ -234,9 +232,7 @@ class GraphResolver:
                 )
         return None
 
-    def _lookup_fuzzy(
-        self, entity_type: str, name: str
-    ) -> ResolveResult | None:
+    def _lookup_fuzzy(self, entity_type: str, name: str) -> ResolveResult | None:
         from app.models.entities import CanonicalEntity
 
         norm = normalize_entity_name(name)
