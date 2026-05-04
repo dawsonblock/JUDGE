@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, func as sqlfunc, or_
+from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from app.memory import entity_summary_checksum
@@ -82,14 +82,18 @@ def _get_current_snapshots_for_entity(
     by selecting only the most-recently-fetched snapshot for each distinct
     source_key rather than accumulating all historical snapshots.
     """
+    # Use coalesce(source_key, source_url) as the grouping key so that
+    # snapshots with a NULL source_key are grouped by their URL rather than
+    # all collapsing into a single NULL bucket.
+    _group_key = sqlfunc.coalesce(SourceSnapshot.source_key, SourceSnapshot.source_url)
     subq = (
         db.query(
-            SourceSnapshot.source_key,
+            _group_key.label("group_key"),
             sqlfunc.max(SourceSnapshot.fetched_at).label("max_fetched_at"),
         )
         .join(EntityEvidenceLink, EntityEvidenceLink.snapshot_id == SourceSnapshot.id)
         .filter(EntityEvidenceLink.entity_id == entity_id)
-        .group_by(SourceSnapshot.source_key)
+        .group_by(_group_key)
         .subquery()
     )
     return (
@@ -99,15 +103,10 @@ def _get_current_snapshots_for_entity(
         .join(
             subq,
             (
-                or_(
-                    SourceSnapshot.source_key == subq.c.source_key,
-                    and_(
-                        SourceSnapshot.source_key.is_(None),
-                        subq.c.source_key.is_(None),
-                    ),
-                )
-                & (SourceSnapshot.fetched_at == subq.c.max_fetched_at)
-            ),
+                sqlfunc.coalesce(SourceSnapshot.source_key, SourceSnapshot.source_url)
+                == subq.c.group_key
+            )
+            & (SourceSnapshot.fetched_at == subq.c.max_fetched_at),
         )
         .all()
     )

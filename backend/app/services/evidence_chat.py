@@ -104,16 +104,23 @@ def chat_about_evidence(
                 CrimeIncident.is_public.is_(True),
             )
         )
-        if incident:
-            incident_found = True
-            conditions.append(
-                (RelationshipEvidence.from_entity_type == "crime_incident")
-                & (RelationshipEvidence.from_entity_id == incident_id)
+        if incident is None:
+            # Incident does not exist or is not public — return nothing rather
+            # than falling through to case_id queries and leaking related data.
+            return ChatResponse(
+                question=question,
+                answer="No public evidence records found for the specified entity.",
+                incident_found=False,
             )
-            conditions.append(
-                (RelationshipEvidence.to_entity_type == "crime_incident")
-                & (RelationshipEvidence.to_entity_id == incident_id)
-            )
+        incident_found = True
+        conditions.append(
+            (RelationshipEvidence.from_entity_type == "crime_incident")
+            & (RelationshipEvidence.from_entity_id == incident_id)
+        )
+        conditions.append(
+            (RelationshipEvidence.to_entity_type == "crime_incident")
+            & (RelationshipEvidence.to_entity_id == incident_id)
+        )
 
     if case_id is not None:
         conditions.append(

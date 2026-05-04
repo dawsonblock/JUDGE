@@ -94,6 +94,7 @@ def write_snapshot(
     ingestion_run_id: int | None = None,
     extractor_name: str | None = None,
     extractor_version: str | None = None,
+    source_key: str | None = None,
 ) -> SourceSnapshot:
     """Write a source snapshot using canonical storage logic.
 
@@ -114,6 +115,7 @@ def write_snapshot(
         ingestion_run_id: ID of the ingestion run that created this snapshot (optional)
         extractor_name: Name of the text extractor used (optional)
         extractor_version: Version of the text extractor used (optional)
+        source_key: Source registry key identifying the crawl target (optional)
 
     Returns:
         SourceSnapshot: Created snapshot record (not yet committed)
@@ -182,6 +184,7 @@ def write_snapshot(
         is_truncated=False,
         extractor_name=extractor_name,
         extractor_version=extractor_version,
+        source_key=source_key,
     )
 
     db.add(snapshot)

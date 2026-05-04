@@ -54,6 +54,8 @@ def _serialize_source_link(source: LegalSource, supports_claim: str | None = Non
         "source_type": source.source_type,
         "supports_claim": supports_claim or "",
         "retrieved_at": source.retrieved_at.isoformat() if source.retrieved_at else None,
+        "snapshot_hash": source.url_hash,
+        "is_context_only": source.source_type in _NEWS_SOURCE_TYPES,
     }
 
 
@@ -188,6 +190,7 @@ def _incident_detail(record_id: str, db: Session) -> dict:
             continue
         judge = ev.judge
         case = ev.case
+        _ev_url = (ev.cl_provenance or {}).get("absolute_url") or (ev.cl_provenance or {}).get("url")
         related_court_records.append({
             "event_id": ev.event_id,
             "case_name": sanitize_case_caption(case, ev) if case else None,
@@ -195,7 +198,7 @@ def _incident_detail(record_id: str, db: Session) -> dict:
             "decision_type": ev.event_type,
             "date": ev.decision_date.isoformat() if ev.decision_date else None,
             "relationship_status": link.relationship_status,
-            "url": None,
+            "url": _ev_url,
         })
 
     audit_date = incident.reviewed_at

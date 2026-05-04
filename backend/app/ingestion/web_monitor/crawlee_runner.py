@@ -48,6 +48,9 @@ class CrawleeRunner:
         self.request_count = 0
         self.snapshots: list[SourceSnapshot] = []
         self.errors: list[str] = []
+        self._seen_urls: set[str] = set()   # within-run URL dedup
+        self._seen_hashes: set[str] = set() # within-run content-hash dedup
+        self._db_tier: str | None = None    # set in run() from SourceRegistry
 
     def _is_url_allowed(self, url: str) -> bool:
         """Check if URL is in the allowed domains list.
@@ -113,6 +116,7 @@ class CrawleeRunner:
             error_message=None,
             ingestion_run_id=ingestion_run_id,
             extractor_name=self.target.name,
+            source_key=self.target.source_key,
         )
         self.db.flush()  # Get snapshot.id assigned
         return snapshot
@@ -167,16 +171,33 @@ class CrawleeRunner:
             "extraction_confidence": candidate.confidence,
         }
 
+        # Use auto_review to derive publish_recommendation and confidence
+        from app.services.auto_review import auto_review as _auto_review
+        from app.services.publish_rules import source_tier as _source_tier
+        db_tier = self._db_tier or _source_tier(self.target.name)
+        ar = _auto_review(
+            candidate,
+            self.target.name,
+            has_snapshot_hash=bool(snapshot.content_hash),
+            db_tier=db_tier,
+        )
+        if ar.action == "block":
+            ri_rec = "block"
+            ri_status = "blocked"
+        else:
+            ri_rec = "review_required"
+            ri_status = "pending"
+
         review_item = ReviewItem(
             record_type=candidate.candidate_type,
             source_snapshot_id=snapshot.id,
             suggested_payload_json=suggested_payload,
             source_url=candidate.source_url,
             source_quality=self.target.source_tier,
-            confidence=min(candidate.confidence, 0.5),  # Hard cap at 0.5
+            confidence=ar.confidence,
             privacy_status=privacy_status,
-            publish_recommendation="review_required",  # Never auto-publish crawled content
-            status="pending",  # Always requires admin review
+            publish_recommendation=ri_rec,
+            status=ri_status,
             ingestion_run_id=ingestion_run_id,
         )
         return review_item
@@ -200,6 +221,9 @@ class CrawleeRunner:
         )
 
         allowed, reason = check_ingestion_allowed(registry)
+        # Pre-compute source tier for review items (used by _create_review_item)
+        from app.services.publish_rules import source_tier as _source_tier
+        self._db_tier = _source_tier(self.target.name, registry=registry)
         if not allowed:
             run = IngestionRun(
                 source_name=self.target.source_key,
@@ -260,12 +284,36 @@ class CrawleeRunner:
                     context.log.warning(f"URL not in allowlist: {url}")
                     return
 
+                # Within-run URL dedup
+                if url in self._seen_urls:
+                    context.log.debug(f"Skipping already-seen URL: {url}")
+                    return
+                self._seen_urls.add(url)
+
                 try:
                     # Extract content
                     response = context.http.response
                     content = await response.text()
                     content_type = response.headers.get("content-type", "unknown")
                     http_status = response.status_code
+
+                    # Skip non-HTML content types (images, CSS, JS, fonts, etc.)
+                    _ct_lower = content_type.lower()
+                    if not any(t in _ct_lower for t in ("text/html", "application/xhtml", "text/plain")):
+                        context.log.info(f"Skipping non-HTML content: {url} ({content_type})")
+                        return
+
+                    # Within-run content-hash dedup
+                    import hashlib as _hashlib
+                    _content_bytes = content.encode("utf-8") if isinstance(content, str) else content
+                    _content_sig = _hashlib.sha256(_content_bytes).hexdigest()
+                    if _content_sig in self._seen_hashes:
+                        context.log.debug(f"Skipping duplicate content from {url}")
+                        return
+                    self._seen_hashes.add(_content_sig)
+
+                    # Enqueue links within same hostname (depth controlled by HttpCrawler)
+                    await context.enqueue_links(strategy="same-hostname")
 
                     # Try to extract title from HTML
                     title = None

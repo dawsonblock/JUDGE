@@ -184,14 +184,14 @@ class WebMonitorTarget(BaseModel):
 
 SASKATOON_POLICE_NEWS_TARGET = WebMonitorTarget(
     name="Saskatoon Police News Releases",
-    source_type="official_police_media",
+    source_type="news_only_context",
     base_url="https://saskatoonpolice.ca",
     allowed_domains=["saskatoonpolice.ca"],
     start_urls=["https://saskatoonpolice.ca/news/"],
     max_depth=1,
     max_requests=25,
     concurrency=2,
-    source_tier="official_police_open_data",
+    source_tier="news_only_context",
     enabled=False,  # Disabled by default - must be enabled by admin
     extractor_type="police_release_index",
     source_key="web_monitor_saskatoon_police_news",

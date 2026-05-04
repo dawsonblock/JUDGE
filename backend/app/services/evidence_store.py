@@ -161,8 +161,16 @@ class EvidenceStore:
         # Check for deduplication
         storage_path = self._get_storage_path(content_hash)
         if storage_path and storage_path.exists():
-            # Content already stored, return existing path
-            return self._get_relative_path(content_hash)
+            # Re-verify the existing file's integrity before trusting the dedup hit.
+            # A corrupted or misplaced file would silently return bad provenance data.
+            try:
+                existing_bytes = storage_path.read_bytes()
+                existing_hash = hashlib.sha256(existing_bytes).hexdigest()
+            except OSError:
+                existing_hash = ""  # force overwrite on unreadable file
+            if existing_hash == content_hash:
+                return self._get_relative_path(content_hash)
+            # Hash mismatch — fall through to overwrite the corrupt file.
 
         # Create directory structure and write atomically via temp file + rename
         if storage_path:

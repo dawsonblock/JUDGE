@@ -1,13 +1,55 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { CrimeIncident, MapFilterState } from "@/lib/types";
-import { MOCK_INCIDENTS } from "@/lib/mock-data";
+import { fetchCrimeIncidents } from "@/lib/api";
+import type { CrimeIncidentFeature } from "@/lib/api";
 import { MapFilters } from "@/components/map/MapFilters";
 import { MapCanvasClient } from "@/components/map/MapCanvasClient";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
+
+function _mapVerificationStatus(vs: string): CrimeIncident["status"] {
+  if (vs === "verified") return "verified" as CrimeIncident["status"];
+  if (vs === "pending_review") return "pending" as CrimeIncident["status"];
+  return "pending" as CrimeIncident["status"];
+}
+
+function _mapConfidence(vs: string): CrimeIncident["confidence"] {
+  if (vs === "verified") return "verified" as CrimeIncident["confidence"];
+  if (vs === "pending_review") return "pending" as CrimeIncident["confidence"];
+  return "unverified" as CrimeIncident["confidence"];
+}
+
+function _mapFeatureToCrimeIncident(f: CrimeIncidentFeature): CrimeIncident {
+  const p = f.properties;
+  const [lng, lat] = f.geometry.coordinates;
+  return {
+    id: String(p.incident_id),
+    title: [p.area_label ?? p.city, p.incident_type].filter(Boolean).join(" – ") || "Incident",
+    summary: p.disclaimer ?? "",
+    category: (p.incident_category as CrimeIncident["category"]) ?? "other",
+    status: _mapVerificationStatus(p.verification_status),
+    confidence: _mapConfidence(p.verification_status),
+    date: p.occurred_at ?? p.reported_at ?? "",
+    location: {
+      lat,
+      lng,
+      precision: (p.precision_level as CrimeIncident["location"]["precision"]) ?? "city",
+      city: p.city ?? "",
+      province: p.province_state ?? "",
+      country: p.country ?? "CA",
+    },
+    sourceCount: p.source_count,
+    evidenceCount: p.source_count,
+    linkedCases: p.has_court_links ? ["__linked__"] : [],
+    linkedJudges: [],
+    linkedDefendants: [],
+    tags: [],
+    sensitive: false,
+  } as unknown as CrimeIncident;
+}
 
 const DEFAULT_FILTERS: MapFilterState = {
   search: "",
@@ -43,8 +85,15 @@ function applyFilters(incidents: CrimeIncident[], filters: MapFilterState): Crim
 export function CrimeMapWorkspace() {
   const [filters, setFilters] = useState<MapFilterState>(DEFAULT_FILTERS);
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null);
+  const [incidents, setIncidents] = useState<CrimeIncident[]>([]);
 
-  const filtered = useMemo(() => applyFilters(MOCK_INCIDENTS, filters), [filters]);
+  useEffect(() => {
+    fetchCrimeIncidents()
+      .then((fc) => setIncidents(fc.features.map(_mapFeatureToCrimeIncident)))
+      .catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => applyFilters(incidents, filters), [incidents, filters]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">

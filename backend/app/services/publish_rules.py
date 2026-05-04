@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from app.models.entities import SourceRegistry
+
 # ---------------------------------------------------------------------------
 # Source tier constants
 # ---------------------------------------------------------------------------
@@ -97,6 +99,25 @@ _SOURCE_TIER_MAP: dict[str, str] = {
     # Anything unknown defaults to HOLD
 }
 
+# Tiers that allow auto-publish when SourceRegistry explicitly grants it
+_TRUSTED_OFFICIAL_TIERS: frozenset[str] = frozenset(
+    {
+        "court_record",
+        "official_police_open_data",
+        "official_government_statistics",
+    }
+)
+
+# Tiers that are never auto-publishable regardless of registry settings
+_NEVER_AUTO_TIERS: frozenset[str] = frozenset(
+    {
+        "news_only_context",
+        "news_rss",
+        "scraped_media",
+        "social_media",
+    }
+)
+
 # ---------------------------------------------------------------------------
 # Heuristic patterns that force a record to BLOCK regardless of source tier
 # ---------------------------------------------------------------------------
@@ -135,8 +156,25 @@ _TEXT_FIELDS = ("notes", "docket_text", "entry_description", "title", "summary",
 # ---------------------------------------------------------------------------
 
 
-def source_tier(source_name: str) -> str:
-    """Return the default publish tier for a given source name."""
+def source_tier(source_name: str, registry: SourceRegistry | None = None) -> str:
+    """Return the publish tier for a given source name.
+
+    If a SourceRegistry row is supplied it takes precedence over the static map:
+    - Sources in _NEVER_AUTO_TIERS are always held for review.
+    - Active sources with auto_publish_enabled, a trusted tier, and no
+      requires_manual_review flag → TIER_AUTO.
+    """
+    if registry is not None:
+        reg_tier = registry.source_tier
+        if reg_tier in _NEVER_AUTO_TIERS:
+            return TIER_HOLD
+        if (
+            registry.is_active
+            and registry.auto_publish_enabled
+            and not registry.requires_manual_review
+            and reg_tier in _TRUSTED_OFFICIAL_TIERS
+        ):
+            return TIER_AUTO
     return _SOURCE_TIER_MAP.get(source_name, TIER_HOLD)
 
 

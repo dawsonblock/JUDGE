@@ -190,14 +190,15 @@ def seed_source_registry(db: Session) -> None:
 
 # Fields whose DB value must match the spec.
 # is_active is intentionally excluded — admins manage it via the frontend UI.
+# auto_publish_enabled and requires_manual_review are intentionally excluded —
+# these are operational flags controlled by operators and should never be
+# silently reverted by a seed/repair run.
 _REPAIR_FIELDS: tuple[str, ...] = (
     "source_name",
     "source_type",
     "source_tier",
     "fetch_method",
     "update_cadence",
-    "auto_publish_enabled",
-    "requires_manual_review",
     "country",
     "province_state",
     "city",

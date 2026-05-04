@@ -48,6 +48,7 @@ def persist_crime_incident(
     db: Session,
     record: CrimeIncidentRecord,
     source_key: str | None = None,
+    import_batch_hash: str | None = None,
 ) -> CrimeIncident:
     _validate_record(record)
     external_id = record.external_id or derive_external_id(record)
@@ -101,7 +102,7 @@ def persist_crime_incident(
     review = auto_review(
         record,
         record.source_name,
-        has_snapshot_hash=False,  # crime incidents don't carry snapshots
+        has_snapshot_hash=import_batch_hash is not None,
         db_tier=db_tier,
     )
     if review.action == "block":

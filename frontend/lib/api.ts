@@ -105,6 +105,8 @@ export type SourceLink = {
   source_type: string;
   supports_claim: string;
   retrieved_at: string | null;
+  snapshot_hash?: string;
+  is_context_only?: boolean;
 };
 
 export type RelatedCourtRecord = {
@@ -229,4 +231,39 @@ export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T>
     throw new Error(`API request failed: ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+export type ChatCitation = {
+  evidence_id: number;
+  relationship_type: string;
+  evidence_type: string;
+  evidence_source: string;
+  excerpt: string | null;
+  confidence: number;
+};
+
+export type ChatResponse = {
+  question: string;
+  answer: string;
+  citations: ChatCitation[];
+  disclaimer: string;
+  incident_found: boolean;
+};
+
+export async function fetchCrimeIncidents(
+  filters?: Record<string, string>,
+): Promise<CrimeIncidentFeatureCollection> {
+  const params = filters ? "?" + new URLSearchParams(filters).toString() : "";
+  return fetchJson<CrimeIncidentFeatureCollection>(`/api/map/crime-incidents${params}`);
+}
+
+export async function chatAboutEvidence(
+  question: string,
+  opts?: { incident_id?: number; case_id?: number },
+): Promise<ChatResponse> {
+  return fetchJson<ChatResponse>("/api/chat/evidence", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, ...opts }),
+  });
 }

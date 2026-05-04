@@ -14,6 +14,7 @@ Actions:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,18 @@ _CONTEXT_ONLY_SOURCES: frozenset[str] = frozenset(
 
 # Minimum confidence threshold to qualify for direct publish
 _PUBLISH_CONFIDENCE_THRESHOLD = 0.70
+
+# Sources that produce static reference data and never require snapshot hashes
+_STATIC_REF_SOURCES: frozenset[str] = frozenset(
+    {"natural_earth", "geonames", "court_location_registry",
+     "statistics_canada", "fbi_crime_data"}
+)
+
+# Causation language: links a judge directly to causing a crime — hard block
+_CAUSATION_RE = re.compile(
+    r"\b(judge|ruled?|sentenced?|convicted?)\s+(caused?|responsible)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -85,6 +98,48 @@ def auto_review(
     reasons: list[str] = []
     warnings: list[str] = []
     confidence = 1.0
+
+    # ------------------------------------------------------------------
+    # Gate 0a: Missing source URL → cannot establish provenance (quarantine)
+    # ------------------------------------------------------------------
+    source_url = _get_field(record, "source_url")
+    if not source_url or (isinstance(source_url, str) and not source_url.strip()):
+        return AutoReviewResult(
+            action="quarantine",
+            review_status="pending_review",
+            public_visibility=False,
+            confidence=0.0,
+            reasons=["missing_source_url"],
+        )
+
+    # ------------------------------------------------------------------
+    # Gate 0b: Non-reference source with no snapshot hash → evidence gap
+    # ------------------------------------------------------------------
+    if source_name not in _STATIC_REF_SOURCES and not has_snapshot_hash:
+        return AutoReviewResult(
+            action="quarantine",
+            review_status="pending_review",
+            public_visibility=False,
+            confidence=0.0,
+            reasons=["no_snapshot_hash"],
+        )
+
+    # ------------------------------------------------------------------
+    # Gate 0c: Causation language linking judge to crime — hard block
+    # ------------------------------------------------------------------
+    _text_blob_0c = " ".join(
+        str(_get_field(record, fld) or "")
+        for fld in ("notes", "docket_text", "entry_description",
+                    "title", "summary", "caption", "description")
+    )
+    if _CAUSATION_RE.search(_text_blob_0c):
+        return AutoReviewResult(
+            action="block",
+            review_status="rejected",
+            public_visibility=False,
+            confidence=1.0,
+            reasons=["causation_language_detected"],
+        )
 
     # ------------------------------------------------------------------
     # Gate 1: Block pattern check (highest priority, unconditional)

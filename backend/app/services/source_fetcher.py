@@ -214,6 +214,7 @@ def fetch_source(
     timeout: int = 30,
     max_bytes: int = _DEFAULT_MAX_BYTES,
     store_snapshot: bool = True,
+    source_key: str | None = None,
 ) -> FetchResult:
     """Fetch a source URL with SSRF protection and optional snapshot storage.
 
@@ -249,7 +250,7 @@ def fetch_source(
         result.error = f"SSRF blocked: {reason}"
         log.warning("source_fetcher: blocked unsafe URL %s: %s", url, reason)
         if store_snapshot:
-            _persist_snapshot(result, settings)
+            _persist_snapshot(result, settings, source_key=source_key)
         return result
 
     try:
@@ -325,12 +326,12 @@ def fetch_source(
         log.warning("source_fetcher: fetch failed for %s: %s", url, exc)
 
     if store_snapshot:
-        _persist_snapshot(result, settings)
+        _persist_snapshot(result, settings, source_key=source_key)
 
     return result
 
 
-def _persist_snapshot(result: FetchResult, settings) -> int | None:
+def _persist_snapshot(result: FetchResult, settings, source_key: str | None = None) -> int | None:
     """Persist fetch result to SourceSnapshot table using canonical writer."""
     try:
         from app.services.snapshot_writer import write_snapshot
@@ -346,6 +347,7 @@ def _persist_snapshot(result: FetchResult, settings) -> int | None:
                 http_status=result.http_status,
                 content_type=result.content_type,
                 error_message=result.error,
+                source_key=source_key,
             )
             db.flush()  # Ensure ID is generated before commit
             db.commit()  # Persist to database

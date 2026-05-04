@@ -161,6 +161,16 @@ Recent migrations (Phase 4-6 repair):
 - [x] `memory/rebuild.py` invalidates stale claims before upserting: keys absent from current extracted set are marked inactive
 - [x] `test_evidence_store.py` updated; `test_source_registry_control_plane.py` extended with runner-level block test
 
+### Phase 9 (Auto-Ingest Scheduler + Frontend Live API)
+- [x] `apscheduler>=3.10.0` added to backend dependencies
+- [x] `backend/app/workers/scheduler.py` — `build_scheduler(db_factory)` builds one `IntervalTrigger` APScheduler job per active, non-manual `SourceRegistry` row that has a matching `WebMonitorTarget`
+- [x] Scheduler wired into FastAPI `lifespan` context manager (`scheduler.start()` / `scheduler.shutdown(wait=False)`)
+- [x] `_run_source_job` catches all exceptions; scheduled job failure doesn't crash the server
+- [x] `frontend/lib/api.ts` extended: `ChatCitation`, `ChatResponse` types; `fetchCrimeIncidents()` and `chatAboutEvidence()` helpers
+- [x] `frontend/components/crime-map/CrimeMapWorkspace.tsx` — replaced mock data with live `GET /api/map/crime-incidents` via `fetchCrimeIncidents()` + feature-to-domain mapper
+- [x] `frontend/components/crime-map/EvidenceChatPanel.tsx` — new evidence chat UI panel (128 lines); calls `POST /api/chat/evidence`; renders answer + citations
+- [x] `backend/app/tests/test_scheduler.py` — 23 unit tests covering `_TARGET_BY_SOURCE_KEY`, `build_scheduler`, `_run_source_job`; 720 total tests collected
+
 ### Phase 8 (JUDGE-main 19 — Canada-First Safety Patches)
 - [x] `resolve_publication_policy()` added to `publish_rules.py` — SourceRegistry is now THE authority; fail-closed (TIER_HOLD) if source missing/inactive/review-required
 - [x] `persist_crime_incident` accepts `source_key` and calls registry-aware policy post-block
