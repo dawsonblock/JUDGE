@@ -10,6 +10,7 @@ from app.api.routes import (
     ai_review,
     auth,
     boundaries,
+    chat,
     evidence,
     evidence_store,
     graph,
@@ -34,6 +35,7 @@ router.include_router(admin_ingest.router)
 router.include_router(admin_ingestion.router)
 router.include_router(admin_sources.router)
 router.include_router(admin_memory.router)
+router.include_router(chat.router)
 router.include_router(evidence_store.router)
 router.include_router(graph.router)
 router.include_router(evidence.router)
