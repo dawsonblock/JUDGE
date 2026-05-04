@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     # Request size limits (bytes)
     max_request_size: int = 10 * 1024 * 1024  # 10MB for regular API
     max_csv_upload_size: int = 50 * 1024 * 1024  # 50MB for CSV uploads
+    # Row-count hard cap for CSV ingestion (independent of byte limit)
+    max_csv_rows: int = 1_000_000
 
     # JWT authentication
     jwt_secret_key: str = "CHANGE-ME-BEFORE-PRODUCTION"

@@ -13,6 +13,7 @@ from app.ingestion.source_registry_ctl import (
     update_source_health,
 )
 from app.models.entities import IngestionRun
+from app.services.conflict_resolution import detect_conflicts, record_conflict
 
 # Process-local ingestion lock.  Guards against concurrent runs within a single
 # process.  For multi-replica deployments the PostgreSQL advisory lock below
@@ -113,6 +114,13 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
                             result = persist_parsed_record(db, parsed)
                             if result.persisted:
                                 persisted_count += 1
+                                # Detect trust-tier conflicts for new records.
+                                # record_conflict() flushes within the savepoint.
+                                conflicts = detect_conflicts(
+                                    db, parsed, registry.id
+                                )
+                                for conflict in conflicts:
+                                    record_conflict(conflict, db)
                             if result.skipped:
                                 skipped_count += 1
                 except Exception as exc:  # noqa: BLE001 - ingestion isolates bad records by design

@@ -49,6 +49,15 @@ def _validate_production_safety(settings) -> None:
     if settings.app_env != "production":
         return  # Skip checks outside production
 
+    # Check JWT secret key is not the insecure default
+    if settings.jwt_secret_key == "CHANGE-ME-BEFORE-PRODUCTION":
+        print(
+            "ERROR: JTA_JWT_SECRET_KEY is set to the insecure default value. "
+            "Generate a cryptographically random secret and set JTA_JWT_SECRET_KEY "
+            "before running in production."
+        )
+        sys.exit(1)
+
     # Check for missing admin tokens
     if not settings.admin_token:
         print("ERROR: JTA_ADMIN_TOKEN required in production")

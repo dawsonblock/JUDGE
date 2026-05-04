@@ -782,10 +782,60 @@ class SourceRegistry(Base, TimestampMixin):
     health_score: Mapped[float] = mapped_column(
         Float, default=1.0, nullable=False
     )  # 0.0-1.0 based on recent success rate
+    reliability_score: Mapped[float] = mapped_column(
+        Float,
+        default=1.0,
+        nullable=False,
+        server_default="1.0",
+    )  # 0.0-1.0 computed from trust tier weight × health_score
     admin_notes: Mapped[str | None] = mapped_column(Text)
 
     config_json: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+
+
+class SourceTierConflict(Base, TimestampMixin):
+    """Records field-level conflicts detected when a lower-trust source tries
+    to overwrite data contributed by a higher-trust source.
+
+    The invariant enforced by conflict_resolution.py is:
+        lower trust tier NEVER overwrites higher trust tier
+    This table provides an audit trail of every suppressed overwrite.
+    """
+
+    __tablename__ = "source_tier_conflicts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # The incoming (lower-trust) source that triggered the conflict
+    incoming_source_id: Mapped[int] = mapped_column(
+        ForeignKey("source_registry.id", name="fk_stc_incoming_source"),
+        nullable=False,
+        index=True,
+    )
+    # The authoritative (higher-trust) source that owns the existing value
+    authoritative_source_id: Mapped[int] = mapped_column(
+        ForeignKey("source_registry.id", name="fk_stc_authoritative_source"),
+        nullable=False,
+        index=True,
+    )
+
+    # Which model / table the conflict occurred on
+    entity_type: Mapped[str] = mapped_column(
+        String(80), nullable=False, index=True
+    )  # e.g. "crime_incident"
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+
+    # Which field conflicted and what the values were
+    field_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    existing_value: Mapped[str | None] = mapped_column(Text)
+    incoming_value: Mapped[str | None] = mapped_column(Text)
+
+    # Resolution outcome
+    resolution: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="kept_existing"
+    )  # "kept_existing" | "accepted_incoming" | "merged"
+    resolution_reason: Mapped[str | None] = mapped_column(Text)
 
 
 class RelationshipEvidence(Base):

@@ -119,6 +119,55 @@ _NEVER_AUTO_TIERS: frozenset[str] = frozenset(
 )
 
 # ---------------------------------------------------------------------------
+# Numeric trust-tier weights (Phase B: source trust hierarchy)
+# ---------------------------------------------------------------------------
+# Higher value = more authoritative.  Used by conflict_resolution.py to decide
+# whether an incoming write should be suppressed in favour of the existing value.
+
+TRUST_TIER_PRIMARY_OFFICIAL: int = 5  # court_record, official_government_statistics
+TRUST_TIER_POLICE_OPEN_DATA: int = 4  # official_police_open_data
+TRUST_TIER_VERIFIED_NEWS: int = 3  # verified_news_context
+TRUST_TIER_AGGREGATED_MEDIA: int = 2  # news_rss, news_only_context, media_cloud
+TRUST_TIER_UNVERIFIED: int = 1  # scraped_media, social_media, unknown / default
+
+_NUMERIC_TIER_MAP: dict[str, int] = {
+    "court_record": TRUST_TIER_PRIMARY_OFFICIAL,
+    "official_government_statistics": TRUST_TIER_PRIMARY_OFFICIAL,
+    "official_police_open_data": TRUST_TIER_POLICE_OPEN_DATA,
+    "verified_news_context": TRUST_TIER_VERIFIED_NEWS,
+    "news_rss": TRUST_TIER_AGGREGATED_MEDIA,
+    "news_only_context": TRUST_TIER_AGGREGATED_MEDIA,
+    "media_cloud": TRUST_TIER_AGGREGATED_MEDIA,
+    "scraped_media": TRUST_TIER_UNVERIFIED,
+    "social_media": TRUST_TIER_UNVERIFIED,
+}
+
+
+def numeric_trust_tier(source_tier_str: str) -> int:
+    """Return the integer trust-tier weight for a *source_tier* string value.
+
+    Returns ``TRUST_TIER_UNVERIFIED`` (1) as a safe default for unknown tiers.
+    """
+    return _NUMERIC_TIER_MAP.get(source_tier_str, TRUST_TIER_UNVERIFIED)
+
+
+def compute_reliability_score(source: "SourceRegistry") -> float:
+    """Return a 0.0–1.0 reliability score: (tier_weight / max_weight) × health_score.
+
+    Examples:
+    - court_record  source at full health (1.0) → 1.0
+    - unverified    source at full health (1.0) → 0.2  (1/5)
+    - any source at zero health              → 0.0
+
+    The health_score is clamped to [0.0, 1.0] before multiplication so
+    out-of-range DB values cannot produce a result outside [0.0, 1.0].
+    """
+    tier_num = _NUMERIC_TIER_MAP.get(source.source_tier, TRUST_TIER_UNVERIFIED)
+    weight = tier_num / TRUST_TIER_PRIMARY_OFFICIAL  # normalise to (0.0, 1.0]
+    return round(weight * max(0.0, min(1.0, source.health_score)), 4)
+
+
+# ---------------------------------------------------------------------------
 # Heuristic patterns that force a record to BLOCK regardless of source tier
 # ---------------------------------------------------------------------------
 
