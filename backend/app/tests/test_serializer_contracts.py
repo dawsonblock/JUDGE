@@ -36,7 +36,9 @@ class TestFieldDescriptor:
         assert fd.default is None
 
     def test_custom_default(self):
-        fd = FieldDescriptor(name="score", field_type=FieldType.FLOAT, required=False, default=0.0)
+        fd = FieldDescriptor(
+            name="score", field_type=FieldType.FLOAT, required=False, default=0.0
+        )
         assert fd.default == 0.0
 
     def test_field_type_enum_values(self):
@@ -49,7 +51,9 @@ class TestSerializerContract:
     def _make(self) -> SerializerContract:
         c = SerializerContract(name="Test")
         c.add_field(FieldDescriptor("name", FieldType.STRING))
-        c.add_field(FieldDescriptor("age", FieldType.INTEGER, required=False, default=0))
+        c.add_field(
+            FieldDescriptor("age", FieldType.INTEGER, required=False, default=0)
+        )
         return c
 
     def test_add_field(self):
@@ -150,7 +154,11 @@ class TestSerializerContract:
 # ---------------------------------------------------------------------------
 # export_formats
 # ---------------------------------------------------------------------------
-from app.serializers.export_formats import ExportFormat, ExportFormatRegistry, FormatDescriptor
+from app.serializers.export_formats import (
+    ExportFormat,
+    ExportFormatRegistry,
+    FormatDescriptor,
+)
 
 
 class TestExportFormats:
@@ -211,12 +219,16 @@ class TestExportFormats:
 
     def test_register_custom_descriptor(self):
         reg = ExportFormatRegistry()
-        desc = FormatDescriptor(fmt=ExportFormat.TEXT, mime_type="text/plain", extension="txt")
+        desc = FormatDescriptor(
+            fmt=ExportFormat.TEXT, mime_type="text/plain", extension="txt"
+        )
         reg.register(desc)
         assert reg.get(ExportFormat.TEXT) == desc
 
     def test_accepts_mime_on_descriptor(self):
-        desc = FormatDescriptor(fmt=ExportFormat.JSON, mime_type="application/json", extension="json")
+        desc = FormatDescriptor(
+            fmt=ExportFormat.JSON, mime_type="application/json", extension="json"
+        )
         assert desc.accepts_mime("application/json")
         assert not desc.accepts_mime("text/csv")
 
@@ -224,7 +236,11 @@ class TestExportFormats:
 # ---------------------------------------------------------------------------
 # schema_version
 # ---------------------------------------------------------------------------
-from app.serializers.schema_version import SchemaVersion, SchemaVersionRegistry, VersionedSchema
+from app.serializers.schema_version import (
+    SchemaVersion,
+    SchemaVersionRegistry,
+    VersionedSchema,
+)
 
 
 class TestSchemaVersion:
@@ -336,7 +352,12 @@ class TestSchemaVersionRegistry:
 # ---------------------------------------------------------------------------
 # field_filters
 # ---------------------------------------------------------------------------
-from app.serializers.field_filters import FieldFilterPipeline, FieldMask, FieldRedactor, FieldTransformer
+from app.serializers.field_filters import (
+    FieldFilterPipeline,
+    FieldMask,
+    FieldRedactor,
+    FieldTransformer,
+)
 
 
 class TestFieldMask:
@@ -436,8 +457,12 @@ class TestFieldFilterPipeline:
         redactor = FieldRedactor(sensitive_fields={"secret"})
         transformer = FieldTransformer()
         transformer.register("name", str.upper)
-        pipeline = FieldFilterPipeline(mask=mask, redactor=redactor, transformer=transformer)
-        result = pipeline.apply({"name": "alice", "score": 9, "secret": "xyz", "extra": 1})
+        pipeline = FieldFilterPipeline(
+            mask=mask, redactor=redactor, transformer=transformer
+        )
+        result = pipeline.apply(
+            {"name": "alice", "score": 9, "secret": "xyz", "extra": 1}
+        )
         assert result["name"] == "ALICE"
         assert result["secret"] == redactor.placeholder
         assert "extra" not in result
@@ -532,7 +557,9 @@ class TestPageMeta:
         assert meta.total_pages == 3
 
     def test_total_pages_none_when_no_total(self):
-        meta = PageMeta(page=1, page_size=10, total_items=None, has_next=True, has_prev=False)
+        meta = PageMeta(
+            page=1, page_size=10, total_items=None, has_next=True, has_prev=False
+        )
         assert meta.total_pages is None
 
     def test_last_page_has_no_next(self):
@@ -578,7 +605,11 @@ class TestPage:
 # ---------------------------------------------------------------------------
 # validation_report
 # ---------------------------------------------------------------------------
-from app.serializers.validation_report import Severity, ValidationIssue, ValidationReport
+from app.serializers.validation_report import (
+    Severity,
+    ValidationIssue,
+    ValidationReport,
+)
 
 
 class TestValidationIssue:
@@ -589,7 +620,9 @@ class TestValidationIssue:
         assert not issue.is_warning()
 
     def test_warning_severity(self):
-        issue = ValidationIssue(field_path="notes", message="too long", severity=Severity.WARNING)
+        issue = ValidationIssue(
+            field_path="notes", message="too long", severity=Severity.WARNING
+        )
         assert issue.is_warning()
         assert not issue.is_error()
 
