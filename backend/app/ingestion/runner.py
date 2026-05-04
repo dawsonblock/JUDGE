@@ -68,7 +68,9 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
                     source_name="courtlistener",
                     started_at=datetime.now(timezone.utc),
                     status="failed",
-                    errors=["Concurrent ingestion already in progress (advisory lock held by another replica)"],
+                    errors=[
+                        "Concurrent ingestion already in progress (advisory lock held by another replica)"
+                    ],
                 )
                 run.error_count = 1
                 run.finished_at = datetime.now(timezone.utc)
@@ -77,7 +79,12 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
                 db.refresh(run)
                 return run
 
-            run = IngestionRun(source_name="courtlistener", started_at=datetime.now(timezone.utc), status="running", errors=[])
+            run = IngestionRun(
+                source_name="courtlistener",
+                started_at=datetime.now(timezone.utc),
+                status="running",
+                errors=[],
+            )
             db.add(run)
             db.flush()
 
@@ -88,13 +95,20 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
             fetched_count = 0
             errors: list[str] = []
             try:
+                run.pipeline_stage = "fetch"
+                db.flush()
                 records = adapter.fetch(since)
                 # Apply dockets per run cap
                 records = records[:max_dockets]
                 fetched_count = len(records)
             except Exception as exc:  # noqa: BLE001
                 db.rollback()
-                run = IngestionRun(source_name="courtlistener", started_at=datetime.now(timezone.utc), status="completed_with_errors", errors=[str(exc)])
+                run = IngestionRun(
+                    source_name="courtlistener",
+                    started_at=datetime.now(timezone.utc),
+                    status="completed_with_errors",
+                    errors=[str(exc)],
+                )
                 run.error_count = 1
                 run.finished_at = datetime.now(timezone.utc)
                 db.add(run)
@@ -102,6 +116,8 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
                 db.refresh(run)
                 return run
 
+            run.pipeline_stage = "parse"
+            db.flush()
             for raw in records:
                 try:
                     with db.begin_nested():
@@ -116,17 +132,18 @@ def run_courtlistener_ingestion(db: Session, since: datetime) -> IngestionRun:
                                 persisted_count += 1
                                 # Detect trust-tier conflicts for new records.
                                 # record_conflict() flushes within the savepoint.
-                                conflicts = detect_conflicts(
-                                    db, parsed, registry.id
-                                )
+                                conflicts = detect_conflicts(db, parsed, registry.id)
                                 for conflict in conflicts:
                                     record_conflict(conflict, db)
                             if result.skipped:
                                 skipped_count += 1
-                except Exception as exc:  # noqa: BLE001 - ingestion isolates bad records by design
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 - ingestion isolates bad records by design
                     errors.append(str(exc))
 
             errors.extend(adapter.errors)
+            run.pipeline_stage = "complete"
             run.fetched_count = fetched_count
             run.parsed_count = parsed_count
             run.persisted_count = persisted_count

@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     # Background scheduler (APScheduler); disabled by default for safe deploys
     enable_scheduler: bool = False
 
+    # Canadian case law (CanLII REST API v1)
+    canlii_api_key: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="JTA_",

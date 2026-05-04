@@ -188,6 +188,12 @@ def write_snapshot(
     )
 
     db.add(snapshot)
+    # Flush to populate snapshot.id so the custody log FK resolves.
+    db.flush()
+    # Record the "created" custody event (append-only provenance chain).
+    from app.evidence.provenance import record_custody_event  # noqa: PLC0415
+
+    record_custody_event(db, snapshot, "created")
     # Caller is responsible for commit/refresh
 
     return snapshot

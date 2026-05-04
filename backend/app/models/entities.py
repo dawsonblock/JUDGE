@@ -460,6 +460,10 @@ class IngestionRun(Base, TimestampMixin):
     skipped_count: Mapped[int] = mapped_column(Integer, default=0)
     error_count: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[list | None] = mapped_column(JSON)
+    pipeline_stage: Mapped[str | None] = mapped_column(
+        String(80), nullable=True, index=True
+    )
+    quarantine_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class AuditLog(Base):
@@ -723,6 +727,14 @@ class SourceSnapshot(Base):
     )
     extractor_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     extractor_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # Chain-of-custody log entries for this snapshot
+    custody_log: Mapped[list["ChainOfCustodyLog"]] = relationship(
+        "ChainOfCustodyLog",
+        back_populates="snapshot",
+        order_by="ChainOfCustodyLog.created_at",
+        cascade="all, delete-orphan",
+    )
 
 
 class SourceRegistry(Base, TimestampMixin):
@@ -1396,6 +1408,43 @@ class CourtEvent(Base):
     case: Mapped["Case"] = relationship(back_populates="court_events")
     judge: Mapped["CanonicalEntity | None"] = relationship(foreign_keys=[judge_id])
     court: Mapped["CanonicalEntity | None"] = relationship(foreign_keys=[court_id])
+
+
+class ChainOfCustodyLog(Base):
+    """Immutable audit trail entry for a :class:`SourceSnapshot`.
+
+    Each row records a discrete custody event: creation, access, verification,
+    or quarantine.  Rows are append-only; the application must never UPDATE or
+    DELETE rows in this table.
+    """
+
+    __tablename__ = "chain_of_custody_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("source_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Custody action label.
+    # Values: created | accessed | verified | failed_verification |
+    #         exported | quarantined
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    actor: Mapped[str] = mapped_column(String(120), nullable=False, default="system")
+    actor_type: Mapped[str] = mapped_column(
+        String(80), nullable=False, default="system"
+    )
+    # SHA-256 of the content at the time of this event (for later comparison)
+    hash_at_event: Mapped[str | None] = mapped_column(String(64))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+    snapshot: Mapped["SourceSnapshot"] = relationship(
+        "SourceSnapshot", back_populates="custody_log"
+    )
 
 
 class User(Base):

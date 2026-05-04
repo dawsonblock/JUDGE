@@ -4,6 +4,7 @@ from app.api.routes import (
     admin_ingest,
     admin_ingestion,
     admin_memory,
+    admin_quarantine,
     admin_review,
     admin_sources,
     ai_correctness,
@@ -33,6 +34,7 @@ router.include_router(ai_review.router)
 router.include_router(admin_review.router)
 router.include_router(admin_ingest.router)
 router.include_router(admin_ingestion.router)
+router.include_router(admin_quarantine.router)
 router.include_router(admin_sources.router)
 router.include_router(admin_memory.router)
 router.include_router(chat.router)

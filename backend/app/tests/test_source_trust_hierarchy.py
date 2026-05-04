@@ -29,7 +29,6 @@ from app.services.publish_rules import (
     numeric_trust_tier,
 )
 
-
 # ---------------------------------------------------------------------------
 # numeric_trust_tier ordering
 # ---------------------------------------------------------------------------
@@ -40,11 +39,16 @@ def test_court_record_has_max_tier():
 
 
 def test_official_government_statistics_has_max_tier():
-    assert numeric_trust_tier("official_government_statistics") == TRUST_TIER_PRIMARY_OFFICIAL
+    assert (
+        numeric_trust_tier("official_government_statistics")
+        == TRUST_TIER_PRIMARY_OFFICIAL
+    )
 
 
 def test_official_police_open_data_tier():
-    assert numeric_trust_tier("official_police_open_data") == TRUST_TIER_POLICE_OPEN_DATA
+    assert (
+        numeric_trust_tier("official_police_open_data") == TRUST_TIER_POLICE_OPEN_DATA
+    )
 
 
 def test_verified_news_tier():
@@ -156,19 +160,25 @@ def test_unknown_tier_reliability_uses_unverified_weight():
 
 
 def test_resolve_keeps_existing_when_incoming_lower():
-    val, label = resolve_conflict("court_value", "news_value", existing_tier=5, incoming_tier=2)
+    val, label = resolve_conflict(
+        "court_value", "news_value", existing_tier=5, incoming_tier=2
+    )
     assert val == "court_value"
     assert label == "kept_existing"
 
 
 def test_resolve_accepts_incoming_when_incoming_higher():
-    val, label = resolve_conflict("old_low", "new_high", existing_tier=1, incoming_tier=5)
+    val, label = resolve_conflict(
+        "old_low", "new_high", existing_tier=1, incoming_tier=5
+    )
     assert val == "new_high"
     assert label == "accepted_incoming"
 
 
 def test_resolve_keeps_existing_on_equal_tiers():
-    val, label = resolve_conflict("existing", "incoming", existing_tier=3, incoming_tier=3)
+    val, label = resolve_conflict(
+        "existing", "incoming", existing_tier=3, incoming_tier=3
+    )
     assert val == "existing"
     assert label == "kept_existing"
 
@@ -201,11 +211,7 @@ def test_source_tier_conflict_model_persists(db_session):
     db_session.add(conflict)
     db_session.flush()
 
-    found = (
-        db_session.query(SourceTierConflict)
-        .filter_by(field_name="title")
-        .first()
-    )
+    found = db_session.query(SourceTierConflict).filter_by(field_name="title").first()
     assert found is not None
     assert found.resolution == "kept_existing"
     assert found.existing_value == "existing text"
