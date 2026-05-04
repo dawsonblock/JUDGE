@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
@@ -37,8 +37,7 @@ class IngestionRunSummary(BaseModel):
     error_count: int
     duration_seconds: float | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IngestionRunDetail(BaseModel):
@@ -58,8 +57,7 @@ class IngestionRunDetail(BaseModel):
     duration_seconds: float | None = None
     success_rate: float | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DailyStats(BaseModel):
