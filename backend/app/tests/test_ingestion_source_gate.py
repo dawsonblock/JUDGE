@@ -29,9 +29,7 @@ class TestIngestionSourceGate:
         """Running ingestion for an unregistered source_key raises RuntimeError."""
         key = f"ghost-source-{_uid()}"
         with SessionLocal() as db:
-            db.query(SourceRegistry).filter(
-                SourceRegistry.source_key == key
-            ).delete()
+            db.query(SourceRegistry).filter(SourceRegistry.source_key == key).delete()
             db.commit()
 
         mock_adapter = MagicMock()
