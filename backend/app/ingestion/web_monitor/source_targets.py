@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.ingestion.source_keys import WEB_MONITOR_SASKATOON_POLICE_NEWS
+
 _ALLOWED_SCHEMES = {"http", "https"}
 
 
@@ -194,7 +196,7 @@ SASKATOON_POLICE_NEWS_TARGET = WebMonitorTarget(
     source_tier="news_only_context",
     enabled=False,  # Disabled by default - must be enabled by admin
     extractor_type="police_release_index",
-    source_key="web_monitor_saskatoon_police_news",
+    source_key=WEB_MONITOR_SASKATOON_POLICE_NEWS,
 )
 
 # Additional example targets (all disabled)

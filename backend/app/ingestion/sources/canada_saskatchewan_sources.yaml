@@ -387,7 +387,11 @@ sources:
     public_publish_default: true
     precision_level: national
     priority: 3
-    source_class: machine_ingest
+    # Downgraded from machine_ingest: base_url is portal root with no resource_id;
+    # factory cannot build a functional CKAN request without it. Re-promote to
+    # machine_ingest in Phase 3 once factory config_json passthrough is wired and
+    # a resource_id is added to config_json for this source.
+    source_class: portal_reference
 
   # ── RCMP ──────────────────────────────────────────────────────────────────
 

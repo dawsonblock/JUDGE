@@ -28,6 +28,8 @@ import logging
 import pathlib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+
+from app.ingestion.source_keys import COURTLISTENER_BULK
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -643,7 +645,7 @@ def _flush_clusters(
                 case_id=case.id,
                 primary_location_id=court.location_id,
                 event_type="published_opinion",
-                event_subtype="courtlistener_bulk",
+                event_subtype=COURTLISTENER_BULK,
                 decision_date=decision_date,
                 posted_date=decision_date,
                 title=title[:500],
@@ -657,7 +659,7 @@ def _flush_clusters(
                 classifier_metadata={
                     "courtlistener_cluster_id": cluster_id,
                     "courtlistener_docket_id": docket_id,
-                    "source": "courtlistener_bulk",
+                    "source": COURTLISTENER_BULK,
                 },
             )
             db.add(event)

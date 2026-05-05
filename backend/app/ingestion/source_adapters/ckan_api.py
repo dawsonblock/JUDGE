@@ -22,6 +22,7 @@ from app.ingestion.adapters import (
     IngestionResult,
     ParsedRecord,
 )
+from app.ingestion.source_keys import CANADA_OPEN_DATA_CRIME, SASKATOON_OPEN_DATA_PORTAL
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
 logger = logging.getLogger(__name__)
@@ -29,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 _RECORD_TYPE_MAP: dict[str, str] = {
     # Maps source_key prefix → default record type
-    "canada_open_data_crime": "CrimeIncident",
-    "saskatoon_open_data_portal": "ReviewItem",
+    CANADA_OPEN_DATA_CRIME: "CrimeIncident",
+    SASKATOON_OPEN_DATA_PORTAL: "ReviewItem",
 }
 
 

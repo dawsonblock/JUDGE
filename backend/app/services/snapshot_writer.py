@@ -129,6 +129,14 @@ def write_snapshot(
     else:
         content_bytes = content
 
+    # Guard: reject empty payloads from named sources so silent zero-byte
+    # snapshots cannot mask adapter failures.
+    if not content_bytes and source_key is not None:
+        raise ValueError(
+            f"Empty content from {source_key!r}: adapter produced no bytes. "
+            "Refusing to write a zero-byte snapshot."
+        )
+
     # Compute SHA256 hash of full original content
     original_hash = hashlib.sha256(content_bytes).hexdigest()
     content_size = len(content_bytes)

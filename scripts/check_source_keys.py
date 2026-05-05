@@ -3,7 +3,11 @@
 
 Scans all .py files under backend/app and fails if any file other than
 source_keys.py contains a bare string literal that matches a canonical
-source key (e.g. "saskatoon_police", "courtlistener", etc.).
+source key.
+
+The enforced key set is derived at runtime from
+``backend/app/ingestion/source_keys.py`` so this script never drifts out
+of sync with the actual registry.
 
 Usage:
     python scripts/check_source_keys.py
@@ -14,29 +18,25 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 import sys
 from pathlib import Path
 
-# These are the canonical source key literals that must not appear hardcoded
-# outside of source_keys.py or test files.
-_CANONICAL_KEYS = {
-    "saskatoon_police",
-    "regina_police",
-    "winnipeg_police",
-    "edmonton_police",
-    "calgary_police",
-    "vancouver_police",
-    "toronto_police",
-    "ottawa_police",
-    "montreal_police",
-    "rcmp",
-    "courtlistener",
-    "courtlistener_bulk",
-    "pacer",
-    "csv_import",
-    "manual_entry",
-    "unknown",
-}
+
+def _load_canonical_keys(repo_root: Path) -> frozenset[str]:
+    """Import source_keys.py at runtime and return CANONICAL_SOURCE_KEYS."""
+    module_path = repo_root / "backend" / "app" / "ingestion" / "source_keys.py"
+    if not module_path.is_file():
+        print(
+            f"ERROR: could not find source_keys.py at {module_path}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    spec = importlib.util.spec_from_file_location("source_keys", module_path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return frozenset(mod.CANONICAL_SOURCE_KEYS)  # type: ignore[attr-defined]
 
 _ALLOWED_SUFFIXES = {
     "source_keys.py",
@@ -61,7 +61,7 @@ def _string_literals(tree: ast.AST) -> list[tuple[int, str]]:
     return results
 
 
-def check(root: Path) -> int:
+def check(root: Path, canonical_keys: frozenset[str]) -> int:
     violations: list[str] = []
     for py_file in root.rglob("*.py"):
         if _is_allowed_path(py_file):
@@ -72,7 +72,7 @@ def check(root: Path) -> int:
         except SyntaxError:
             continue
         for lineno, value in _string_literals(tree):
-            if value in _CANONICAL_KEYS:
+            if value in canonical_keys:
                 violations.append(f"{py_file}:{lineno}: hardcoded source key {value!r}")
     if violations:
         print(
@@ -92,12 +92,19 @@ def main() -> None:
         default="backend/app",
         help="Directory to scan (default: backend/app)",
     )
+    parser.add_argument(
+        "--repo-root",
+        default=".",
+        help="Repo root for locating source_keys.py (default: .)",
+    )
     args = parser.parse_args()
     root = Path(args.root)
+    repo_root = Path(args.repo_root)
     if not root.is_dir():
         print(f"ERROR: {root} is not a directory", file=sys.stderr)
         sys.exit(2)
-    sys.exit(check(root))
+    canonical_keys = _load_canonical_keys(repo_root)
+    sys.exit(check(root, canonical_keys))
 
 
 if __name__ == "__main__":

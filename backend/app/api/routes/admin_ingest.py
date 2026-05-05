@@ -26,7 +26,7 @@ from app.ingestion.crime_sources.statscan import (
     import_statscan_csv,
 )
 from app.ingestion.crime_sources.fbi_crime_data import import_fbi_json
-from app.ingestion.source_keys import resolve_source_key
+from app.ingestion.source_keys import COURTLISTENER_BULK, resolve_source_key
 from app.ingestion.source_registry_ctl import (
     check_ingestion_allowed,
     require_source_registry,
@@ -221,7 +221,7 @@ def ingest_fbi(
 @router.get("/courtlistener-bulk/runs")
 def cl_bulk_runs(db: Session = Depends(_require_imports)):
     """List all CourtListener bulk import run records."""
-    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
+    _check_source_active(COURTLISTENER_BULK, "CourtListener Bulk", db)
     from sqlalchemy import select as _select
     from app.models.entities import CourtListenerBulkRun
 
@@ -248,7 +248,7 @@ def cl_bulk_runs(db: Session = Depends(_require_imports)):
 @router.post("/courtlistener-bulk/list")
 def cl_bulk_list(db: Session = Depends(_require_imports)):
     """List CSV files available in the configured bulk_data_dir."""
-    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
+    _check_source_active(COURTLISTENER_BULK, "CourtListener Bulk", db)
     import os
 
     settings = get_settings()
@@ -277,7 +277,7 @@ def cl_bulk_import(
         {"snapshot_date": "2026-03-31", "files": ["courts","dockets"],
          "force": false, "include_opinions": false}
     """
-    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
+    _check_source_active(COURTLISTENER_BULK, "CourtListener Bulk", db)
     import os
     from app.ingestion.courtlistener_bulk_normalizer import (
         get_or_create_bulk_run,
@@ -397,7 +397,7 @@ def cl_bulk_normalize(
 
     Delegates to /import with force=True but only for already-downloaded files.
     """
-    _check_source_active("courtlistener_bulk", "CourtListener Bulk", db)
+    _check_source_active(COURTLISTENER_BULK, "CourtListener Bulk", db)
     body = dict(payload or {})
     body["force"] = True
     return cl_bulk_import(body, db)

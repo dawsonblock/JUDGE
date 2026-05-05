@@ -114,6 +114,16 @@ jobs:
           source ./backend/.venv/bin/activate
           python scripts/validate_workflows.py
 
+      - name: Guard — no hardcoded source keys
+        run: |
+          source ./backend/.venv/bin/activate
+          python scripts/check_source_keys.py --root backend/app --repo-root .
+
+      - name: Guard — no hardcoded status literals
+        run: |
+          source ./backend/.venv/bin/activate
+          python scripts/check_statuses.py --root backend/app
+
       - name: Quality Gate Summary
         if: always()
         run: |

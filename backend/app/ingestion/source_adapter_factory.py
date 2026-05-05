@@ -21,6 +21,7 @@ Usage::
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -77,6 +78,22 @@ def build_adapter(
 
     if parser_key in _API_KEY_ADAPTERS:
         common_kwargs["api_key"] = settings.canlii_api_key
+
+    # Parse config_json once and forward adapter-specific fields.
+    config: dict = {}
+    if source.config_json:
+        try:
+            config = json.loads(source.config_json)
+        except json.JSONDecodeError:
+            logger.warning(
+                "Source %r has malformed config_json; ignoring extra config.",
+                source.source_key,
+            )
+
+    if parser_key == "ckan_api":
+        resource_id = config.get("resource_id")
+        if resource_id:
+            common_kwargs["resource_id"] = resource_id
 
     source_class = getattr(source, "source_class", None)
     if source_class != "machine_ingest":

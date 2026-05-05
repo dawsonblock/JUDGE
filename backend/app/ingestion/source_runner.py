@@ -50,20 +50,25 @@ def _create_snapshot(
     from app.services.snapshot_writer import write_snapshot  # noqa: PLC0415
 
     content = raw_content if raw_content is not None else b""
-    return write_snapshot(
-        db=db,
-        source_url=(
-            fetch_url
-            or source.base_url
-            or f"internal://adapter/{source.source_key}"
-        ),
-        fetched_at=datetime.now(timezone.utc),
-        content=content,
-        http_status=http_status,
-        content_type=content_type,
-        ingestion_run_id=run_record.id,
-        source_key=source.source_key,
-    )
+    try:
+        return write_snapshot(
+            db=db,
+            source_url=(
+                fetch_url
+                or source.base_url
+                or f"internal://adapter/{source.source_key}"
+            ),
+            fetched_at=datetime.now(timezone.utc),
+            content=content,
+            http_status=http_status,
+            content_type=content_type,
+            ingestion_run_id=run_record.id,
+            source_key=source.source_key,
+        )
+    except ValueError:
+        run_record.status = "quarantined"
+        run_record.quarantine_reason = "no_raw_content"
+        raise
 
 
 def _insert_crime_incident(
