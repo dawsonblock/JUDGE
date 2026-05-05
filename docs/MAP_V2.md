@@ -67,14 +67,14 @@ for children rendered inside `<JudgeMap>`.
 |---|---|
 | `TILE_STYLE_URL` | `https://tiles.openfreemap.org/styles/liberty` |
 | `SOURCE_ID.INCIDENTS` | `"judge-incidents"` |
-| `LAYER_ID.CLUSTERS` | `"judge-clusters"` |
-| `LAYER_ID.CLUSTER_COUNT` | `"judge-cluster-count"` |
-| `LAYER_ID.UNCLUSTERED` | `"judge-unclustered"` |
+| `LAYER_ID.INCIDENTS_CLUSTER` | `"incidents-cluster"` |
+| `LAYER_ID.INCIDENTS_CLUSTER_COUNT` | `"incidents-cluster-count"` |
+| `LAYER_ID.INCIDENTS_UNCLUSTERED` | `"incidents-unclustered"` |
 | `DOT_COLOR.court_event` | `#3b82f6` (blue) |
 | `DOT_COLOR.reported_incident` | `#f59e0b` (amber) |
 | `DOT_COLOR.cluster` | `#6366f1` (indigo) |
-| `DEFAULT_BOUNDS.center` | `[-96, 38]` (continental US) |
-| `DEFAULT_BOUNDS.zoom` | `4` |
+| `DEFAULT_BOUNDS.center` | `[-106.6702, 52.1579]` (Saskatoon, SK — default; zoom 11) |
+| `DEFAULT_BOUNDS.zoom` | `11` |
 
 ## Known Gaps / Roadmap
 

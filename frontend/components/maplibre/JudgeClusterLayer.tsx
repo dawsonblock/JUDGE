@@ -21,6 +21,7 @@ import {
   DOT_COLOR,
 } from "./constants";
 import type { JudgeMapRecord } from "./types";
+import { sourceQualityToConfidence } from "./types";
 import type { CrimeIncidentFeatureCollection, FeatureCollection } from "@/lib/api";
 
 type Props = {
@@ -38,6 +39,10 @@ function toGeoJson(
 
   if (incidents) {
     for (const f of incidents.features) {
+      const [lng, lat] = f.geometry.coordinates;
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+      if (lng === 0 && lat === 0) continue;
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) continue;
       features.push({
         type: "Feature",
         geometry: f.geometry,
@@ -50,6 +55,10 @@ function toGeoJson(
   }
   if (events) {
     for (const f of events.features) {
+      const [lng, lat] = f.geometry.coordinates;
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+      if (lng === 0 && lat === 0) continue;
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) continue;
       features.push({
         type: "Feature",
         geometry: f.geometry,
@@ -177,6 +186,18 @@ export default function JudgeClusterLayer({ incidents, events, onSelectRecord }:
         has_news: props.has_news ?? false,
         has_links: props.has_court_links ?? props.has_incident_links ?? false,
         disclaimer: props.disclaimer ?? "",
+        review_status: props.review_status ?? "pending_review",
+        public_visibility: true,
+        confidence: sourceQualityToConfidence(
+          props.source_quality ?? props.verification_status ?? null,
+          Boolean(props.verified_flag),
+        ),
+        evidence_count: props.source_count ?? 0,
+        relationship_warning: props.repeat_offender_indicator
+          ? "Repeat-offender indicator present — see source for context."
+          : props.has_court_links
+          ? "This incident has linked court records — verify via sources."
+          : null,
       };
       onSelectRecord(record);
     };

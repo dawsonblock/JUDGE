@@ -31,10 +31,10 @@ export const DOT_COLOR = {
   cluster: "#6366f1",          // indigo-500
 } as const;
 
-/** Default map viewport: continental North America */
+/** Default map viewport: Saskatoon, SK */
 export const DEFAULT_BOUNDS = {
-  center: [-96, 38] as [number, number],
-  zoom: 4,
+  center: [-106.6702, 52.1579] as [number, number], // Saskatoon, SK
+  zoom: 11,
 };
 
 /** Mandatory disclaimer shown in the legend. */
