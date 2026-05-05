@@ -373,6 +373,7 @@ def get_source_health(
 class RunResult(BaseModel):
     """Result of a manually triggered ingestion run."""
 
+    run_id: int
     source_key: str
     records_fetched: int
     records_skipped: int
@@ -495,6 +496,7 @@ def run_source_now(
     )
 
     return {
+        "run_id": run_record.id,
         "source_key": source_key,
         "records_fetched": result.records_fetched,
         "records_skipped": result.records_skipped,

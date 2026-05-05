@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Play,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { AdminSourceItem, SourceRunResult } from "@/lib/api";
 import { authorityColour, sourceClassLabel, sourceClassColour } from "@/lib/sourceContracts";
@@ -36,6 +37,7 @@ export function SourceControlCard({
   const [source, setSource] = useState<AdminSourceItem>(initialSource);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
   const [runResult, setRunResult] = useState<SourceRunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +98,29 @@ export function SourceControlCard({
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {
       setRunLoading(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (!runResult?.run_id) return;
+    setRetryLoading(true);
+    setError(null);
+    try {
+      const resp = await fetch(
+        `/api/admin/ingestion-runs/${runResult.run_id}/retry`,
+        { method: "POST" },
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(
+          data?.detail || data?.error || `Retry failed: ${resp.status}`,
+        );
+      }
+      setRunResult(data as SourceRunResult);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setRetryLoading(false);
     }
   }
 
@@ -284,6 +309,22 @@ export function SourceControlCard({
                   <li key={i}>{e}</li>
                 ))}
               </ul>
+            )}
+            {canRun && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={retryLoading}
+                onClick={handleRetry}
+                className="mt-2 h-7 text-xs"
+              >
+                {retryLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Retry
+              </Button>
             )}
           </div>
         )}

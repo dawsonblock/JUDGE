@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { CrimeIncidentFeatureCollection, FeatureCollection, MapDotRecord, apiBase } from "@/lib/api";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { CrimeIncidentFeatureCollection, FeatureCollection, MapDotRecord, RelationshipArcFeatureCollection, apiBase } from "@/lib/api";
 import SourcePanel from "@/components/SourcePanel";
 import MapRecordDrawer from "@/components/map/MapRecordDrawer";
 
@@ -125,6 +125,10 @@ export default function JudgeNorthAmericaMap({
   const [showCourtDecisions, setShowCourtDecisions] = useState(true);
   const [showReportedIncidents, setShowReportedIncidents] = useState(true);
   const [showAggregateStats, setShowAggregateStats] = useState(false);
+  const [showRelationshipArcs, setShowRelationshipArcs] = useState(false);
+  const [arcData, setArcData] = useState<RelationshipArcFeatureCollection | null>(null);
+  const [arcLoading, setArcLoading] = useState(false);
+  const [arcErrorMessage, setArcErrorMessage] = useState<string | null>(null);
   const [crimeRange, setCrimeRange] = useState("720");
   const [boundsQuery, setBoundsQuery] = useState<string | undefined>(undefined);
   const [drawerRecord, setDrawerRecord] = useState<MapDotRecord | null>(null);
@@ -242,9 +246,40 @@ export default function JudgeNorthAmericaMap({
     return () => controller.abort();
   }, [aggregateQueryString, resolvedApiBase, showAggregateStats]); // Refetch when toggle changes
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadRelationshipArcs() {
+      if (!showRelationshipArcs) return;
+      setArcLoading(true);
+      setArcErrorMessage(null);
+      const url = `${resolvedApiBase}/api/map/relationship-arcs`;
+
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error(`Relationship arc request failed with status ${response.status}`);
+        }
+        setArcData((await response.json()) as RelationshipArcFeatureCollection);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setArcErrorMessage(error instanceof Error ? error.message : "Relationship arc request failed");
+      } finally {
+        setArcLoading(false);
+      }
+    }
+
+    loadRelationshipArcs();
+    return () => controller.abort();
+  }, [resolvedApiBase, showRelationshipArcs]);
+
   const featureCount = data?.features.length ?? 0;
   const crimeFeatureCount = crimeData?.features.length ?? 0;
   const aggregateFeatureCount = aggregateData?.features.length ?? 0;
+  const arcFeatureCount = arcData?.features.length ?? 0;
 
   return (
     <section className="north-america-map">
@@ -258,6 +293,7 @@ export default function JudgeNorthAmericaMap({
           <br />
           {crimeLoading ? "Loading incidents..." : `${crimeFeatureCount} incident${crimeFeatureCount === 1 ? "" : "s"}`}
           {aggregateLoading ? " / Loading aggregates..." : showAggregateStats ? ` / ${aggregateFeatureCount} aggregate${aggregateFeatureCount === 1 ? "" : "s"}` : ""}
+          {arcLoading ? " / Loading arcs..." : showRelationshipArcs ? ` / ${arcFeatureCount} arc${arcFeatureCount === 1 ? "" : "s"}` : ""}
         </div>
       </div>
       <div className="map-layer-controls" aria-label="Map layer controls">
@@ -272,6 +308,10 @@ export default function JudgeNorthAmericaMap({
         <label className="toggle-row">
           <input type="checkbox" checked={showAggregateStats} onChange={(event) => setShowAggregateStats(event.target.checked)} />
           Aggregate Stats
+        </label>
+        <label className="toggle-row">
+          <input type="checkbox" checked={showRelationshipArcs} onChange={(event) => setShowRelationshipArcs(event.target.checked)} />
+          Relationship Arcs
         </label>
         <label className="toggle-row muted-toggle" title="Heatmap rendering is planned for a later phase.">
           <input type="checkbox" disabled />
@@ -289,6 +329,7 @@ export default function JudgeNorthAmericaMap({
       {errorMessage ? <div className="map-error">Map failed to load: {errorMessage}</div> : null}
       {crimeErrorMessage ? <div className="map-error">Reported incidents layer failed to load: {crimeErrorMessage}</div> : null}
       {aggregateErrorMessage ? <div className="map-error">Aggregate stats layer failed to load: {aggregateErrorMessage}</div> : null}
+      {arcErrorMessage ? <div className="map-error">Relationship arc layer failed to load: {arcErrorMessage}</div> : null}
       <div className="north-america-map-canvas">
         <MapContainer center={[39, -98]} zoom={3} minZoom={2} maxZoom={12} scrollWheelZoom className="map-fill">
           <FitNorthAmerica />
@@ -431,6 +472,33 @@ export default function JudgeNorthAmericaMap({
               </CircleMarker>
             );
           })}
+          {showRelationshipArcs && arcData?.features.map((feature) => {
+            const [[lon1, lat1], [lon2, lat2]] = feature.geometry.coordinates;
+            const p = feature.properties;
+            return (
+              <Polyline
+                key={`arc-${p.edge_id}`}
+                positions={[[lat1, lon1], [lat2, lon2]]}
+                pathOptions={{
+                  color: "#e06c00",
+                  weight: 2,
+                  opacity: 0.65,
+                  dashArray: "6 4",
+                }}
+              >
+                <Popup>
+                  <div className="map-popup">
+                    <div className="map-popup-title">Relationship Arc</div>
+                    <div><strong>Predicate:</strong> {p.predicate.replaceAll("_", " ")}</div>
+                    <div><strong>Subject:</strong> {p.subject_type} #{p.subject_id}</div>
+                    <div><strong>Object:</strong> {p.object_type} #{p.object_id}</div>
+                    {p.valid_from ? <div><strong>From:</strong> {p.valid_from.slice(0, 10)}</div> : null}
+                    {p.valid_until ? <div><strong>Until:</strong> {p.valid_until.slice(0, 10)}</div> : null}
+                  </div>
+                </Popup>
+              </Polyline>
+            );
+          })}
         </MapContainer>
       </div>
       <div className="map-legend" aria-label="Map legend">
@@ -441,6 +509,7 @@ export default function JudgeNorthAmericaMap({
         <span><span className="legend-dot legend-dot-other" />Other court event</span>
         <span><span className="legend-dot legend-dot-incident" />Reported incident</span>
         <span><span className="legend-dot-agg" />Aggregate stat (hidden by default)</span>
+        <span><span className="legend-arc" />Relationship arc (hidden by default)</span>
       </div>
       <div className="map-disclaimer">
         Court events use courthouse or jurisdiction locations — never personal addresses. Reported incident locations are generalized public areas. Aggregate statistics are regional counts, not individual incidents. Records may change due to reclassification, correction, or unfounded reports. These layers are not legally linked to each other.

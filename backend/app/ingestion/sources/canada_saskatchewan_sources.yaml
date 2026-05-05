@@ -24,6 +24,12 @@ sources:
 
   # ── Saskatchewan / Saskatoon official open data ───────────────────────────
 
+  # RESEARCH NOTE (2026-05-04): opendata.saskatoon.ca (ArcGIS Hub orgId eJz9754Ox6TaFSC2,
+  # urlKey CitySaskatoon) publishes 121 Feature Services — all infrastructure (roads, water,
+  # snow program, sanitary, arts). Searched crime/police/incident/offence/violation keywords
+  # against the org: 0 results in every case. The City of Saskatoon does NOT publish crime
+  # incident data via its open data portal. Remains portal_reference until an actual
+  # CSV/API dataset appears on opendata.saskatoon.ca.
   - source_key: saskatoon_open_data_crime
     source_name: "City of Saskatoon Open Data – Crime Incidents"
     jurisdiction: "Saskatoon, Saskatchewan, Canada"
@@ -52,6 +58,14 @@ sources:
     priority: 1
     source_class: portal_reference
 
+  # RESEARCH NOTE (2026-05-04): map.saskatoonpolice.ca is the Saskatoon Police Service's
+  # crime map (Ext JS 7.7.0 + deck.gl 9.2.3 + Google Maps, Imperva/Incapsula WAF). No public
+  # REST API or ArcGIS FeatureServer endpoint is discoverable; the JS bundle is loaded dynamically
+  # with no static paths.  The site's ToS (2026) explicitly prohibits:
+  #   (1) use for comparison over time, (2) use for commercial purposes.
+  # Machine ingestion is not legally permissible under these terms.
+  # ArcGIS Online search for SPS org returned 0 results — SPS has no public ArcGIS org.
+  # Remains portal_reference until SPS publishes an Open Government Licence bulk-download.
   - source_key: saskatoon_police_open_data
     source_name: "Saskatoon Police Service – Open Data Portal"
     jurisdiction: "Saskatoon, Saskatchewan, Canada"

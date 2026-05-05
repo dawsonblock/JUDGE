@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.rate_limit import rate_limit_map
 from app.db.session import get_db
-from app.models.entities import CrimeIncident, CrimeIncidentSource, Location
+from app.models.entities import (
+    Court,
+    CrimeIncident,
+    CrimeIncidentSource,
+    EntityGraphEdge,
+    Judge,
+    Location,
+)
 from app.serializers.public import (
     crime_incident_to_geojson_feature,
     event_to_geojson_feature,
@@ -397,4 +404,107 @@ def map_crime_aggregates(
         "filters_applied": filters_applied,
         "disclaimer": PLATFORM_DISCLAIMER,
         "features": [crime_incident_to_geojson_feature(agg) for agg in aggregates],
+    }
+
+
+_ARC_COORD_TYPES = ("court", "judge")
+
+
+@router.get("/api/map/relationship-arcs")
+def map_relationship_arcs(
+    predicate: str | None = None,
+    limit: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    """Return GeoJSON FeatureCollection of entity relationship arcs.
+
+    Each feature is a LineString connecting two entities (courts or judges)
+    via an active EntityGraphEdge. Edges where either endpoint lacks a
+    resolvable geographic coordinate are omitted silently.
+    """
+    stmt = (
+        select(EntityGraphEdge)
+        .where(
+            EntityGraphEdge.status == "active",
+            EntityGraphEdge.subject_type.in_(_ARC_COORD_TYPES),
+            EntityGraphEdge.object_type.in_(_ARC_COORD_TYPES),
+        )
+        .order_by(EntityGraphEdge.id.desc())
+        .limit(limit)
+    )
+    if predicate:
+        stmt = stmt.where(EntityGraphEdge.predicate == predicate)
+    edges = db.scalars(stmt).all()
+
+    # Collect IDs for batch-loading
+    court_ids: set[int] = set()
+    judge_ids: set[int] = set()
+    for e in edges:
+        (court_ids if e.subject_type == "court" else judge_ids).add(e.subject_id)
+        (court_ids if e.object_type == "court" else judge_ids).add(e.object_id)
+
+    courts: dict[int, Court] = {}
+    if court_ids:
+        courts = {
+            c.id: c
+            for c in db.scalars(
+                select(Court)
+                .options(selectinload(Court.location))
+                .where(Court.id.in_(court_ids))
+            ).all()
+        }
+
+    judges: dict[int, Judge] = {}
+    if judge_ids:
+        judges = {
+            j.id: j
+            for j in db.scalars(
+                select(Judge)
+                .options(selectinload(Judge.court).selectinload(Court.location))
+                .where(Judge.id.in_(judge_ids))
+            ).all()
+        }
+
+    def _resolve_coords(entity_type: str, entity_id: int) -> tuple[float, float] | None:
+        if entity_type == "court":
+            c = courts.get(entity_id)
+            if c and c.location:
+                return (c.location.longitude, c.location.latitude)
+        elif entity_type == "judge":
+            j = judges.get(entity_id)
+            if j and j.court and j.court.location:
+                return (j.court.location.longitude, j.court.location.latitude)
+        return None
+
+    features = []
+    for e in edges:
+        src = _resolve_coords(e.subject_type, e.subject_id)
+        dst = _resolve_coords(e.object_type, e.object_id)
+        if src is None or dst is None or src == dst:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [list(src), list(dst)],
+                },
+                "properties": {
+                    "edge_id": e.id,
+                    "predicate": e.predicate,
+                    "subject_type": e.subject_type,
+                    "subject_id": e.subject_id,
+                    "object_type": e.object_type,
+                    "object_id": e.object_id,
+                    "valid_from": e.valid_from.isoformat() if e.valid_from else None,
+                    "valid_until": e.valid_until.isoformat() if e.valid_until else None,
+                },
+            }
+        )
+
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+        "returned_count": len(features),
+        "disclaimer": PLATFORM_DISCLAIMER,
     }

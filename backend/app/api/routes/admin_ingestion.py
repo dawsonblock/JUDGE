@@ -6,7 +6,7 @@ Provides observability into the data ingestion pipeline.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.auth.admin import require_admin_token
 from app.auth.actor import AdminActor
 from app.db.session import get_db
-from app.models.entities import IngestionRun, ReviewItem, SourceSnapshot
+from app.models.entities import IngestionRun, ReviewItem, SourceRegistry, SourceSnapshot
 
 router = APIRouter(prefix="/api/admin/ingestion-runs", tags=["admin"])
 
@@ -312,9 +312,12 @@ def retry_ingestion_run(
     db: Session = Depends(get_db),
     _: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
-    """Queue a retry of a failed ingestion run.
+    """Re-trigger ingestion for the source that produced a given run.
 
-    Note: Background worker not yet implemented. Manual retry required.
+    Creates a new IngestionRun; the original run is not mutated.
+    Returns 404 if the run does not exist, 403 if the source is disabled,
+    400 if the run is currently active, 422 if the source is not machine_ingest,
+    and 501 if no adapter is registered for the source parser.
     """
     run = db.query(IngestionRun).filter(IngestionRun.id == run_id).first()
 
@@ -334,8 +337,86 @@ def retry_ingestion_run(
             status_code=400, detail="Cannot retry a run that is currently running"
         )
 
-    # Background worker not implemented - direct re-trigger required
-    raise HTTPException(
-        status_code=501,
-        detail="Retry queue not implemented. Use POST /{source_key}/run to re-trigger manually.",
+    # Look up the SourceRegistry entry so we can build the adapter.
+    source = (
+        db.query(SourceRegistry)
+        .filter(SourceRegistry.source_key == run.source_name)
+        .first()
     )
+    if not source:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Source '{run.source_name}' no longer exists in registry; cannot retry.",
+        )
+
+    source_class = getattr(source, "source_class", None)
+    if source_class != "machine_ingest":
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "source_key": source.source_key,
+                "source_class": source_class,
+                "reason": "Only machine_ingest sources can be retried.",
+            },
+        )
+
+    from app.core.config import get_settings
+    from app.ingestion.source_adapter_factory import build_adapter
+    from app.ingestion.source_runner import persist_ingestion_result
+    from app.ingestion.statuses import COMPLETED, COMPLETED_WITH_ERRORS, FAILED
+    from app.ingestion.source_registry_ctl import update_source_health
+
+    adapter = build_adapter(source, get_settings())
+    if adapter is None:
+        raise HTTPException(
+            status_code=501,
+            detail=f"No adapter registered for parser '{source.parser}'. Cannot retry.",
+        )
+
+    new_run = IngestionRun(
+        source_name=source.source_key,
+        started_at=datetime.now(timezone.utc),
+        status="running",
+    )
+    db.add(new_run)
+    db.commit()
+
+    try:
+        result = adapter.run()
+    except Exception as exc:
+        new_run.status = FAILED
+        new_run.finished_at = datetime.now(timezone.utc)
+        new_run.error_count = 1
+        new_run.errors = [str(exc)]
+        update_source_health(db, source.source_key, new_run)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Adapter error: {exc}") from exc
+
+    new_run.status = COMPLETED if result.success else COMPLETED_WITH_ERRORS
+    new_run.finished_at = datetime.now(timezone.utc)
+    new_run.fetched_count = result.records_fetched
+    new_run.parsed_count = len(result.created_records) + len(result.review_items)
+    new_run.skipped_count = result.records_skipped
+    new_run.error_count = len(result.errors)
+    new_run.errors = result.errors or None
+
+    persist_summary = persist_ingestion_result(db, source, new_run, result)
+    db.commit()
+
+    update_source_health(db, source.source_key, new_run)
+    db.commit()
+
+    return {
+        "retried_run_id": run_id,
+        "new_run_id": new_run.id,
+        "run_id": new_run.id,
+        "source_key": source.source_key,
+        "records_fetched": result.records_fetched,
+        "records_skipped": result.records_skipped,
+        "adapter_records": len(result.created_records),
+        "created_records": persist_summary.persisted_incidents,
+        "duplicates_skipped": persist_summary.skipped_duplicates,
+        "review_items": persist_summary.persisted_review_items,
+        "errors": result.errors,
+        "success": result.success,
+    }

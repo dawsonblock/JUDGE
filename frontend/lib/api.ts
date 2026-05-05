@@ -218,6 +218,28 @@ export type CrimeIncidentFeatureCollection = {
   disclaimer: string;
 };
 
+export type RelationshipArcFeature = {
+  type: "Feature";
+  geometry: { type: "LineString"; coordinates: [[number, number], [number, number]] };
+  properties: {
+    edge_id: number;
+    predicate: string;
+    subject_type: string;
+    subject_id: number;
+    object_type: string;
+    object_id: number;
+    valid_from: string | null;
+    valid_until: string | null;
+  };
+};
+
+export type RelationshipArcFeatureCollection = {
+  type: "FeatureCollection";
+  features: RelationshipArcFeature[];
+  returned_count: number;
+  disclaimer: string;
+};
+
 const publicBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const serverBase = process.env.BACKEND_INTERNAL_URL || publicBase;
 
@@ -335,6 +357,7 @@ export type AdminSourceItem = {
 };
 
 export type SourceRunResult = {
+  run_id: number;
   source_key: string;
   records_fetched: number;
   records_skipped: number;
