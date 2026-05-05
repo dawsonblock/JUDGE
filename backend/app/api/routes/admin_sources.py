@@ -19,6 +19,7 @@ from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
 from app.models.entities import IngestionRun, SourceRegistry
+from app.ingestion.statuses import COMPLETED, COMPLETED_WITH_ERRORS, FAILED
 
 router = APIRouter(prefix="/api/admin/sources", tags=["admin"])
 
@@ -403,14 +404,14 @@ def run_source_now(
     try:
         result = adapter.run()
     except Exception as exc:
-        run_record.status = "error"
+        run_record.status = FAILED
         run_record.finished_at = datetime.now(timezone.utc)
         run_record.error_count = 1
         run_record.errors = [str(exc)]
         db.commit()
         raise HTTPException(status_code=500, detail=f"Adapter error: {exc}") from exc
 
-    run_record.status = "success" if result.success else "partial"
+    run_record.status = COMPLETED if result.success else COMPLETED_WITH_ERRORS
     run_record.finished_at = datetime.now(timezone.utc)
     run_record.fetched_count = result.records_fetched
     run_record.parsed_count = len(result.created_records) + len(result.review_items)

@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models.entities import IngestionRun
+from app.ingestion.statuses import COMPLETED, COMPLETED_WITH_ERRORS
 
 _log = logging.getLogger(__name__)
 
@@ -23,10 +24,10 @@ _log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 STATUS_RUNNING = "running"
-STATUS_COMPLETE = "complete"
+STATUS_COMPLETE = COMPLETED
 STATUS_FAILED = "failed"
 STATUS_QUARANTINED = "quarantined"
-STATUS_PARTIAL = "partial"
+STATUS_PARTIAL = COMPLETED_WITH_ERRORS
 
 
 def open_run(

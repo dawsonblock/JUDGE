@@ -26,6 +26,7 @@ from app.ingestion.crime_sources.statscan import (
     import_statscan_csv,
 )
 from app.ingestion.crime_sources.fbi_crime_data import import_fbi_json
+from app.ingestion.source_keys import resolve_source_key
 from app.ingestion.source_registry_ctl import (
     check_ingestion_allowed,
     require_source_registry,
@@ -78,7 +79,7 @@ def ingest_gdelt(db: Session = Depends(_require_imports)):
             status_code=403,
             detail="GDELT global circuit breaker off (set JTA_GDELT_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("gdelt", "GDELT News Feed", db)
+    _check_source_active(resolve_source_key("gdelt"), "GDELT News Feed", db)
     articles = fetch_gdelt_articles()
     if articles is None:
         raise HTTPException(status_code=502, detail="GDELT fetch failed")
@@ -98,7 +99,7 @@ async def ingest_chicago(
             status_code=403,
             detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("chicago_crime", "Chicago Data Portal", db)
+    _check_source_active(resolve_source_key("chicago_crime"), "Chicago Data Portal", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     _check_csv_row_limit(content, settings.max_csv_rows, "Chicago")
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -118,7 +119,9 @@ async def ingest_toronto(
             status_code=403,
             detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("toronto_crime", "Toronto Police Service", db)
+    _check_source_active(
+        resolve_source_key("toronto_crime"), "Toronto Police Service", db
+    )
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     _check_csv_row_limit(content, settings.max_csv_rows, "Toronto")
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -138,7 +141,9 @@ async def ingest_saskatoon(
             status_code=403,
             detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("saskatoon_crime", "Saskatoon Police Service", db)
+    _check_source_active(
+        resolve_source_key("saskatoon_crime"), "Saskatoon Police Service", db
+    )
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     _check_csv_row_limit(content, settings.max_csv_rows, "Saskatoon")
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -158,7 +163,7 @@ async def ingest_los_angeles(
             status_code=403,
             detail="Local feeds circuit breaker off (set JTA_LOCAL_FEEDS_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("la_crime", "LA Open Data", db)
+    _check_source_active(resolve_source_key("la_crime"), "LA Open Data", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     _check_csv_row_limit(content, settings.max_csv_rows, "Los Angeles")
     stream = io.StringIO(content.decode("utf-8-sig"))
@@ -178,7 +183,7 @@ async def ingest_statscan(
             status_code=403,
             detail="StatsCan global circuit breaker off (set JTA_STATSCAN_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("statscan", "Statistics Canada", db)
+    _check_source_active(resolve_source_key("statscan"), "Statistics Canada", db)
     content = await read_upload_file_limited(file, settings.max_csv_upload_size)
     csv_text = extract_csv_from_bytes(content)
     if csv_text is None:
@@ -203,7 +208,7 @@ def ingest_fbi(
             status_code=403,
             detail="FBI Crime global circuit breaker off (set JTA_FBI_CRIME_ENABLED=true). Ensure source is also active in SourceRegistry.",
         )
-    _check_source_active("fbi_crime", "FBI Crime Data", db)
+    _check_source_active(resolve_source_key("fbi_crime"), "FBI Crime Data", db)
     result = import_fbi_json(db, payload)
     return result.__dict__
 

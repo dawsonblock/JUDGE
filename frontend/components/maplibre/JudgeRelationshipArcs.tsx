@@ -1,5 +1,7 @@
 "use client";
 
+// FEATURE NOT ENABLED: relationship arc data endpoint not yet implemented.
+
 /**
  * JudgeRelationshipArcs.tsx — STUB.
  *

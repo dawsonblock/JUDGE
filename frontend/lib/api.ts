@@ -307,7 +307,7 @@ export type AdminSourceItem = {
   country: string | null;
   province_state: string | null;
   city: string | null;
-  source_tier: string;
+  source_tier: import("./sourceContracts").SourceTier | string;
   is_active: boolean;
   rate_limit_rpm: number | null;
   health_score: number;
@@ -323,7 +323,7 @@ export type AdminSourceItem = {
   category: string | null;
   priority: number;
   enabled_default: boolean;
-  public_record_authority: string;
+  public_record_authority: import("./sourceContracts").PublicRecordAuthority | string;
   base_url: string | null;
   allowed_domains: string | null;
   refresh_interval_minutes: number | null;

@@ -3,20 +3,12 @@ import { SectionCard } from "@/components/shared/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, CheckCircle, XCircle, Clock, ShieldCheck } from "lucide-react";
 import { fetchAdminSourcesList, AdminSourceItem } from "@/lib/api";
+import { authorityColour } from "@/lib/sourceContracts";
 
 function AuthorityBadge({ authority }: { authority: string }) {
-  const colour: Record<string, string> = {
-    official_open_data: "bg-blue-100 text-blue-800",
-    official_statistics: "bg-indigo-100 text-indigo-800",
-    official_government: "bg-violet-100 text-violet-800",
-    official_legislation: "bg-purple-100 text-purple-800",
-    official_court_record: "bg-cyan-100 text-cyan-800",
-    news_context: "bg-amber-100 text-amber-800",
-    unknown: "bg-gray-100 text-gray-600",
-  };
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${colour[authority] ?? colour.unknown}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${authorityColour(authority)}`}
     >
       <ShieldCheck className="h-3 w-3" />
       {authority.replace(/_/g, " ")}

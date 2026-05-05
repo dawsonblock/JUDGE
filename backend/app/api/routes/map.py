@@ -2,11 +2,11 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.rate_limit import rate_limit_map
 from app.db.session import get_db
-from app.models.entities import CrimeIncident, Location
+from app.models.entities import CrimeIncident, CrimeIncidentSource, Location
 from app.serializers.public import (
     crime_incident_to_geojson_feature,
     event_to_geojson_feature,
@@ -44,13 +44,22 @@ def _parse_bbox(
         return None
     parts = bbox.split(",")
     if len(parts) != 4:
-        raise HTTPException(status_code=422, detail="bbox must be 'west,south,east,north'")
+        raise HTTPException(
+            status_code=422, detail="bbox must be 'west,south,east,north'"
+        )
     try:
         west, south, east, north = (float(p.strip()) for p in parts)
     except ValueError:
         raise HTTPException(status_code=422, detail="bbox values must be numeric")
-    if not (-180 <= west <= 180 and -180 <= east <= 180 and -90 <= south <= 90 and -90 <= north <= 90):
-        raise HTTPException(status_code=422, detail="bbox values out of valid WGS84 range")
+    if not (
+        -180 <= west <= 180
+        and -180 <= east <= 180
+        and -90 <= south <= 90
+        and -90 <= north <= 90
+    ):
+        raise HTTPException(
+            status_code=422, detail="bbox values out of valid WGS84 range"
+        )
     if south > north:
         raise HTTPException(status_code=422, detail="bbox south must be <= north")
     if west > east:
@@ -77,9 +86,11 @@ def _is_postgres(db: Session) -> bool:
     return dialect_name == "postgresql"
 
 
-def _apply_bbox_filter_location(stmt, bbox_parsed: tuple[float, float, float, float] | None, db: Session):
+def _apply_bbox_filter_location(
+    stmt, bbox_parsed: tuple[float, float, float, float] | None, db: Session
+):
     """Apply bbox filter using lat/lon comparisons only.
-    
+
     NOTE: Location.geom is not used for bbox filtering because it can be NULL
     for rows inserted after the migration. Until geom is trigger-maintained or
     a generated column, bbox filtering uses only latitude/longitude columns.
@@ -108,15 +119,32 @@ def map_events(
     repeat_offender: bool | None = None,
     verified_only: bool = False,
     source_type: str | None = None,
-    bbox: str | None = Query(None, description="west,south,east,north in WGS84 decimal degrees"),
+    bbox: str | None = Query(
+        None, description="west,south,east,north in WGS84 decimal degrees"
+    ),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    indicator_filter = repeat_offender_indicator if repeat_offender_indicator is not None else repeat_offender
+    indicator_filter = (
+        repeat_offender_indicator
+        if repeat_offender_indicator is not None
+        else repeat_offender
+    )
     # map_events returns public court records — no privacy-based area cap needed.
     bbox_parsed = _parse_bbox(bbox, max_area=None)
-    stmt = filtered_events_query(start, end, court_id, judge_id, event_type, indicator_filter, verified_only, source_type, limit + 1, offset)
+    stmt = filtered_events_query(
+        start,
+        end,
+        court_id,
+        judge_id,
+        event_type,
+        indicator_filter,
+        verified_only,
+        source_type,
+        limit + 1,
+        offset,
+    )
     stmt = stmt.where(
         Location.location_type.not_in(["court_placeholder", "unmapped_court"]),
         Location.latitude.is_not(None),
@@ -128,7 +156,10 @@ def map_events(
     rows = db.scalars(stmt).unique().all()
     truncated = len(rows) > limit
     events = rows[:limit]
-    filters_applied: dict = {"public_visibility": True, "review_status": list(PUBLIC_REVIEW_STATUSES)}
+    filters_applied: dict = {
+        "public_visibility": True,
+        "review_status": list(PUBLIC_REVIEW_STATUSES),
+    }
     if start:
         filters_applied["start"] = start.isoformat()
     if end:
@@ -167,30 +198,48 @@ def map_crime_incidents(
     incident_category: str | None = None,
     verification_status: str | None = None,
     source_name: str | None = None,
-    aggregate_only: bool | None = Query(None, description="True = aggregate stats only"),
-    exclude_aggregate: bool | None = Query(None, description="True = exclude aggregate stats"),
+    aggregate_only: bool | None = Query(
+        None, description="True = aggregate stats only"
+    ),
+    exclude_aggregate: bool | None = Query(
+        None, description="True = exclude aggregate stats"
+    ),
     last_hours: int | None = Query(None, ge=1, le=24 * 365),
-    bbox: str | None = Query(None, description="west,south,east,north in WGS84 decimal degrees"),
+    bbox: str | None = Query(
+        None, description="west,south,east,north in WGS84 decimal degrees"
+    ),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     bbox_parsed = _parse_bbox(bbox)
-    stmt = select(CrimeIncident).where(
-        CrimeIncident.is_public.is_(True),
-        CrimeIncident.review_status.in_(PUBLIC_REVIEW_STATUSES),
-        CrimeIncident.latitude_public.is_not(None),
-        CrimeIncident.longitude_public.is_not(None),
-        CrimeIncident.latitude_public != 0.0,
-        CrimeIncident.longitude_public != 0.0,
-        CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
+    stmt = (
+        select(CrimeIncident)
+        .options(
+            selectinload(CrimeIncident.source_links).selectinload(
+                CrimeIncidentSource.source
+            ),
+            selectinload(CrimeIncident.event_links),
+        )
+        .where(
+            CrimeIncident.is_public.is_(True),
+            CrimeIncident.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            CrimeIncident.latitude_public.is_not(None),
+            CrimeIncident.longitude_public.is_not(None),
+            CrimeIncident.latitude_public != 0.0,
+            CrimeIncident.longitude_public != 0.0,
+            CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
+        )
     )
     if start:
         stmt = stmt.where(CrimeIncident.reported_at >= start)
     if end:
         stmt = stmt.where(CrimeIncident.reported_at <= end)
     if last_hours:
-        stmt = stmt.where(CrimeIncident.reported_at >= datetime.now(timezone.utc) - timedelta(hours=last_hours))
+        stmt = stmt.where(
+            CrimeIncident.reported_at
+            >= datetime.now(timezone.utc) - timedelta(hours=last_hours)
+        )
     if city:
         stmt = stmt.where(CrimeIncident.city == city)
     if province_state:
@@ -216,11 +265,20 @@ def map_crime_incidents(
             CrimeIncident.latitude_public >= south,
             CrimeIncident.latitude_public <= north,
         )
-    stmt = stmt.order_by(CrimeIncident.reported_at.desc().nullslast(), CrimeIncident.id.desc()).offset(offset).limit(limit + 1)
+    stmt = (
+        stmt.order_by(
+            CrimeIncident.reported_at.desc().nullslast(), CrimeIncident.id.desc()
+        )
+        .offset(offset)
+        .limit(limit + 1)
+    )
     rows = db.scalars(stmt).all()
     truncated = len(rows) > limit
     incidents = [r for r in rows[:limit] if is_public_crime_incident_mappable(r)]
-    filters_applied: dict = {"is_public": True, "review_status": list(PUBLIC_REVIEW_STATUSES)}
+    filters_applied: dict = {
+        "is_public": True,
+        "review_status": list(PUBLIC_REVIEW_STATUSES),
+    }
     if city:
         filters_applied["city"] = city
     if incident_category:
@@ -237,7 +295,9 @@ def map_crime_incidents(
         "truncated": truncated,
         "filters_applied": filters_applied,
         "disclaimer": PLATFORM_DISCLAIMER,
-        "features": [crime_incident_to_geojson_feature(incident) for incident in incidents],
+        "features": [
+            crime_incident_to_geojson_feature(incident) for incident in incidents
+        ],
     }
 
 
@@ -252,29 +312,43 @@ def map_crime_aggregates(
     verification_status: str | None = None,
     source_name: str | None = None,
     last_hours: int | None = Query(None, ge=1, le=24 * 365),
-    bbox: str | None = Query(None, description="west,south,east,north in WGS84 decimal degrees"),
+    bbox: str | None = Query(
+        None, description="west,south,east,north in WGS84 decimal degrees"
+    ),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """Fetch aggregate crime statistics only (separate from individual incidents)."""
     bbox_parsed = _parse_bbox(bbox)
-    stmt = select(CrimeIncident).where(
-        CrimeIncident.is_public.is_(True),
-        CrimeIncident.review_status.in_(PUBLIC_REVIEW_STATUSES),
-        CrimeIncident.is_aggregate.is_(True),  # Only aggregates
-        CrimeIncident.latitude_public.is_not(None),
-        CrimeIncident.longitude_public.is_not(None),
-        CrimeIncident.latitude_public != 0.0,
-        CrimeIncident.longitude_public != 0.0,
-        CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
+    stmt = (
+        select(CrimeIncident)
+        .options(
+            selectinload(CrimeIncident.source_links).selectinload(
+                CrimeIncidentSource.source
+            ),
+            selectinload(CrimeIncident.event_links),
+        )
+        .where(
+            CrimeIncident.is_public.is_(True),
+            CrimeIncident.review_status.in_(PUBLIC_REVIEW_STATUSES),
+            CrimeIncident.is_aggregate.is_(True),  # Only aggregates
+            CrimeIncident.latitude_public.is_not(None),
+            CrimeIncident.longitude_public.is_not(None),
+            CrimeIncident.latitude_public != 0.0,
+            CrimeIncident.longitude_public != 0.0,
+            CrimeIncident.precision_level.not_in(UNSAFE_MAP_PRECISIONS),
+        )
     )
     if start:
         stmt = stmt.where(CrimeIncident.reported_at >= start)
     if end:
         stmt = stmt.where(CrimeIncident.reported_at <= end)
     if last_hours:
-        stmt = stmt.where(CrimeIncident.reported_at >= datetime.now(timezone.utc) - timedelta(hours=last_hours))
+        stmt = stmt.where(
+            CrimeIncident.reported_at
+            >= datetime.now(timezone.utc) - timedelta(hours=last_hours)
+        )
     if city:
         stmt = stmt.where(CrimeIncident.city == city)
     if province_state:
@@ -295,7 +369,13 @@ def map_crime_aggregates(
             CrimeIncident.latitude_public >= south,
             CrimeIncident.latitude_public <= north,
         )
-    stmt = stmt.order_by(CrimeIncident.reported_at.desc().nullslast(), CrimeIncident.id.desc()).offset(offset).limit(limit + 1)
+    stmt = (
+        stmt.order_by(
+            CrimeIncident.reported_at.desc().nullslast(), CrimeIncident.id.desc()
+        )
+        .offset(offset)
+        .limit(limit + 1)
+    )
     rows = db.scalars(stmt).all()
     truncated = len(rows) > limit
     aggregates = [r for r in rows[:limit] if is_public_crime_incident_mappable(r)]

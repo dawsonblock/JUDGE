@@ -22,6 +22,7 @@ from app.ingestion.adapters import (
     IngestionResult,
     ParsedRecord,
 )
+from app.ingestion.external_id import make_external_id
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
 logger = logging.getLogger(__name__)
@@ -150,7 +151,7 @@ class SaskatoonCsvAdapter(CanadianSourceAdapter):
                 coords = geom.get("coordinates") or []
                 if len(coords) >= 2:
                     lon, lat = float(coords[0]), float(coords[1])
-                    precision = "exact"
+                    precision = "neighbourhood_centroid"
 
             incident_type = _pick_prop(props, _COL_INCIDENT_TYPE) or "unknown"
             reported_date = _pick_prop(props, _COL_REPORTED_DATE)
@@ -159,11 +160,14 @@ class SaskatoonCsvAdapter(CanadianSourceAdapter):
 
             # Prefer OBJECTID as external_id; fall back to content hash.
             if objectid:
-                external_id = f"{self._source_key}:{objectid}"
+                external_id = make_external_id(self._source_key, objectid)
             else:
-                external_id = hashlib.sha256(
-                    f"{incident_type}:{reported_date}:{neighbourhood}:{lat}:{lon}".encode()
-                ).hexdigest()
+                external_id = make_external_id(
+                    self._source_key,
+                    hashlib.sha256(
+                        f"{incident_type}:{reported_date}:{neighbourhood}:{lat}:{lon}".encode()
+                    ).hexdigest(),
+                )
 
             # Parse reported_at from date string if present.
             reported_at: datetime | None = None

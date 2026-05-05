@@ -218,6 +218,21 @@ Recent migrations (Phase 4-6 repair):
 - [x] "All admin mutations audited"
 - [x] "Source registry is fail-closed: new sources start disabled"
 - [x] "Memory rebuilds scoped per-entity via EntityEvidenceLink"
+
+## Phase 11 (Ingestion Architecture Hardening)
+- [x] `app/ingestion/statuses.py` — canonical status constants (`PENDING`, `RUNNING`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, `FAILED`, `CANCELLED`, `QUARANTINED`); `normalize_status()`; replaces all bare string literals in `admin_sources.py` and `ingestion_log.py`
+- [x] `app/ingestion/source_keys.py` — 16 canonical source key constants + `COURTLISTENER_BULK` + `LEGACY_SOURCE_ALIASES` + `resolve_source_key()` + `is_canonical_source_key()`; `admin_ingest.py` updated to use `resolve_source_key()`
+- [x] `app/ingestion/external_id.py` — `make_external_id(source_key, raw_id)` and `split_external_id(external_id)` for stable `source_key:raw_id` compound IDs
+- [x] `app/ingestion/normalization.py` — `parse_datetime_safe()` (8 common date formats, UTC-naïve handling) and `normalize_coordinates()` (bounds validation, zero-island guard)
+- [x] `app/ingestion/normalized.py` — `NormalizedIncident` frozen dataclass (17 fields); `to_payload()` serializes datetimes to ISO strings
+- [x] `app/ingestion/publish_rules.py` — `PublicationDecision` frozen dataclass (typed gate result); `evaluate_publication_policy()` bridges ingestion layer to `app.services.publish_rules.is_publishable()`; re-exports `UNSAFE_MAP_PRECISIONS`
+- [x] `app/ingestion/source_adapters/saskatoon_csv.py` — precision bug fixed: `"exact"` → `"neighbourhood_centroid"`; uses `make_external_id()` for all ID construction
+- [x] `frontend/lib/sourceContracts.ts` — `PublicRecordAuthority` and `SourceTier` types, colour helpers; used in `admin/sources/page.tsx`
+- [x] `app/api/routes/map.py` — `selectinload(CrimeIncident.source_links).selectinload(CrimeIncidentSource.source)` and `selectinload(CrimeIncident.event_links)` added to both crime-incident query endpoints; eliminates N+1 lazy loading
+- [x] `scripts/check_source_keys.py` — CI guard: fails if canonical source key strings appear hardcoded outside `source_keys.py` or test files
+- [x] `scripts/check_statuses.py` — CI guard: fails if canonical ingestion status strings appear hardcoded outside `statuses.py`, `alembic/`, or test files
+- [x] `app/tests/test_ingestion_statuses.py` — 9 tests covering all status constants, `TERMINAL_STATUSES`, `ALL_STATUSES`, `normalize_status()`
+- [x] `app/tests/test_source_keys.py` — 9 tests covering constants, `resolve_source_key()`, `is_canonical_source_key()`, legacy alias resolution
 - [x] "Snapshot integrity verifiable via /verify endpoint"
 - [x] "Ready for local development and research"
 
