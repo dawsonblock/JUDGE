@@ -13,13 +13,7 @@ import {
   Play,
   Loader2,
 } from "lucide-react";
-import {
-  AdminSourceItem,
-  SourceRunResult,
-  enableSource,
-  disableSource,
-  triggerSourceRun,
-} from "@/lib/api";
+import { AdminSourceItem, SourceRunResult } from "@/lib/api";
 import { authorityColour, sourceClassLabel, sourceClassColour } from "@/lib/sourceContracts";
 
 function AuthorityBadge({ authority }: { authority: string }) {
@@ -35,10 +29,8 @@ function AuthorityBadge({ authority }: { authority: string }) {
 
 export function SourceControlCard({
   source: initialSource,
-  token,
 }: {
   source: AdminSourceItem;
-  token: string;
 }) {
   const [source, setSource] = useState<AdminSourceItem>(initialSource);
   const [toggleLoading, setToggleLoading] = useState(false);
@@ -46,7 +38,15 @@ export function SourceControlCard({
   const [runResult, setRunResult] = useState<SourceRunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const creates: string[] = source.creates ? JSON.parse(source.creates) : [];
+  const creates: string[] = (() => {
+    if (!source.creates) return [];
+    try {
+      const parsed = JSON.parse(source.creates);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  })();
   const location = [source.city, source.province_state, source.country]
     .filter(Boolean)
     .join(", ");
@@ -56,10 +56,18 @@ export function SourceControlCard({
     setToggleLoading(true);
     setError(null);
     try {
-      const updated = source.is_active
-        ? await disableSource(token, source.source_key)
-        : await enableSource(token, source.source_key);
-      setSource(updated);
+      const action = source.is_active ? "disable" : "enable";
+      const resp = await fetch(
+        `/api/admin/sources/${source.source_key}/${action}`,
+        { method: "POST" },
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(
+          data?.detail || data?.error || `${action} failed: ${resp.status}`,
+        );
+      }
+      setSource(data as AdminSourceItem);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Toggle failed");
     } finally {
@@ -72,8 +80,17 @@ export function SourceControlCard({
     setError(null);
     setRunResult(null);
     try {
-      const result = await triggerSourceRun(token, source.source_key);
-      setRunResult(result);
+      const resp = await fetch(
+        `/api/admin/sources/${source.source_key}/run`,
+        { method: "POST" },
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(
+          data?.detail || data?.error || `Run failed: ${resp.status}`,
+        );
+      }
+      setRunResult(data as SourceRunResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {

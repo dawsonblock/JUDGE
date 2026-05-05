@@ -4,8 +4,9 @@ import { SourceControlCard } from "@/components/SourceControlCard";
 
 
 export default async function AdminSourcesPage() {
-  const token = process.env.JTA_ADMIN_TOKEN ?? "";
-  const sources = await fetchAdminSourcesList(token).catch(() => [] as AdminSourceItem[]);
+  const sources = await fetchAdminSourcesList(
+    process.env.JTA_ADMIN_TOKEN ?? "",
+  ).catch(() => [] as AdminSourceItem[]);
 
   const activeSources = sources.filter((s) => s.is_active);
   const byAuthority = sources.reduce<Record<string, number>>((acc, s) => {
@@ -31,7 +32,7 @@ export default async function AdminSourcesPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map((source) => (
-          <SourceControlCard key={source.id} source={source} token={token} />
+          <SourceControlCard key={source.id} source={source} />
         ))}
       </div>
 
