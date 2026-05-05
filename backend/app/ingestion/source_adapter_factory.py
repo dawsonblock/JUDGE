@@ -78,6 +78,14 @@ def build_adapter(
     if parser_key in _API_KEY_ADAPTERS:
         common_kwargs["api_key"] = settings.canlii_api_key
 
+    source_class = getattr(source, "source_class", None)
+    if source_class == "portal_reference":
+        raise ValueError(
+            f"Source '{source.source_key}' is classified as portal_reference "
+            f"and cannot be auto-ingested. Update base_url to a machine-readable "
+            f"API endpoint and change source_class to 'machine_ingest' first."
+        )
+
     try:
         adapter: CanadianSourceAdapter = adapter_cls(**common_kwargs)
     except TypeError as exc:

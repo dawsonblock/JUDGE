@@ -84,6 +84,9 @@ class IngestionResult:
     errors: list[str] = field(default_factory=list)
     raw_snapshot_bytes: bytes | None = None
     content_type: str = "application/octet-stream"
+    fetch_http_status: int | None = None
+    fetch_content_type: str | None = None
+    fetch_url: str | None = None
 
     @property
     def success(self) -> bool:

@@ -63,7 +63,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 ### 6. Proof System Has Known Bug
 - `scripts/proof_all.sh` uses `DATABASE_URL` instead of `JTA_DATABASE_URL`
 - Alembic reads `JTA_DATABASE_URL`, so migration proof may not test intended database
-- Proof artifacts are from 19 migrations; repo now has 28
+- Proof artifacts are from 19 migrations; repo now has 39
 - **Fixed in recent commit**
 
 ### 7. Crawlee Web Monitor Is Alpha
@@ -83,7 +83,7 @@ Judge Atlas is a map-first legal & public-record transparency prototype. It show
 
 ## Migration Status
 
-**Total Migrations:** 28 (as of 2026-05-02 repair)
+**Total Migrations:** 39 (as of 2026-05-02 repair; Phase 11 added 11 further migrations)
 
 Recent migrations (Phase 4-6 repair):
 - `20260502_0005_add_memory_tables.py` — core memory tables
@@ -197,6 +197,16 @@ Recent migrations (Phase 4-6 repair):
 - [x] `evidence_chat.py` — case guard: verifies ≥1 public `CrimeIncident` linked to `case_id` via `CrimeIncidentEventLink`→`Event` before surfacing evidence; visibility filter: `public_visibility IS TRUE`; confidence floor: `confidence >= 0.25`
 - [x] `frontend/app/map/page.tsx` — replaced `CrimeMapWorkspace` import with `JudgeNorthAmericaMapClient`
 - [x] `frontend/components/map/MapRecordDrawer.tsx` — added `"evidence"` tab type; `EvidenceChatPanel` tab shown for incident records
+
+## Known Limitations (Phase 12 Audit)
+
+> ⚠ The following items were identified in the Phase 12 external audit and are queued for repair:
+> - **Auth role bypass:** `require_viewer/reviewer/source_admin` wrappers overwrite the JWT role instead of enforcing minimum rank — a viewer token passes source_admin guards.
+> - **Portal-root URLs:** `saskatoon_open_data_crime`, `saskatoon_police_open_data`, `canlii_sk`, `statscan_ccjs_crime_sk`, `statscan_ucr_national` have site-root base_urls; adapters will fail to fetch machine-readable data.
+> - **Invalid review recommendation:** `source_runner.py` falls back to `"hold"` (not in `AI_PUBLISH_RECOMMENDATIONS`) instead of `"review_required"`.
+> - **Misleading run counts:** `run_source_now` returns adapter output count as `created_records` instead of the persisted DB count.
+> - **Read-only admin UI:** `/admin/sources` page has no enable/disable or run-now controls.
+> - **Missing deps:** `email-validator` and `html2text` absent from `pyproject.toml`.
 
 ## Do Not Yet Claim
 

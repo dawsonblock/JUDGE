@@ -18,6 +18,24 @@ _TOKEN_ROLE_IMPORTS = "import"
 _TOKEN_ROLE_REVIEW = "review"
 _TOKEN_ROLE_ADMIN = "admin"
 
+# Role hierarchy: lower rank = fewer privileges.
+ROLE_RANK: dict[str, int] = {
+    "viewer": 0,
+    "reviewer": 1,
+    "source_admin": 2,
+    "system_admin": 3,
+}
+
+
+def enforce_min_role(actor: "AdminActor", required: str) -> "AdminActor":
+    """Raise 403 if actor's role does not meet *required* rank; else return actor."""
+    if ROLE_RANK.get(actor.role, -1) < ROLE_RANK[required]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role '{actor.role}' is insufficient; '{required}' or higher required.",
+        )
+    return actor
+
 
 def _compare_token(provided: str | None, expected: str | None) -> bool:
     """Constant-time token comparison using hmac.compare_digest."""
@@ -56,9 +74,7 @@ def require_admin_imports(
 ) -> None:
     settings = get_settings()
     if not settings.enable_admin_imports:
-        raise HTTPException(
-            status_code=403, detail="Admin imports are disabled"
-        )
+        raise HTTPException(status_code=403, detail="Admin imports are disabled")
     _require_token_for_role(settings, x_jta_admin_token, _TOKEN_ROLE_IMPORTS)
 
 
@@ -67,9 +83,7 @@ def require_admin_review(
 ) -> None:
     settings = get_settings()
     if not settings.enable_admin_review:
-        raise HTTPException(
-            status_code=403, detail="Admin review is disabled"
-        )
+        raise HTTPException(status_code=403, detail="Admin review is disabled")
     _require_token_for_role(settings, x_jta_admin_token, _TOKEN_ROLE_REVIEW)
 
 
@@ -98,7 +112,11 @@ def require_admin_token(
     settings = get_settings()
 
     # --- JWT path (preferred when jwt_auth_enabled) ---------------------------
-    if settings.jwt_auth_enabled and authorization and authorization.startswith("Bearer "):
+    if (
+        settings.jwt_auth_enabled
+        and authorization
+        and authorization.startswith("Bearer ")
+    ):
         raw_token = authorization.removeprefix("Bearer ").strip()
         try:
             payload = decode_token(raw_token)
@@ -118,9 +136,7 @@ def require_admin_token(
     token = settings.admin_token or settings.admin_review_token
 
     if not token:
-        raise HTTPException(
-            status_code=403, detail="Admin token not configured"
-        )
+        raise HTTPException(status_code=403, detail="Admin token not configured")
 
     if not _compare_token(x_jta_admin_token, token):
         raise HTTPException(status_code=403, detail="Invalid admin token")
@@ -139,45 +155,27 @@ def require_viewer(
     x_jta_admin_token: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ) -> AdminActor:
-    """Require valid admin token; returns actor with viewer role."""
+    """Require valid admin token with at least viewer role."""
     actor = require_admin_token(x_jta_admin_token, authorization)
-    return AdminActor(
-        actor_id=actor.actor_id,
-        actor_type=actor.actor_type,
-        role="viewer",
-        auth_method=actor.auth_method,
-        email=actor.email,
-    )
+    return enforce_min_role(actor, "viewer")
 
 
 def require_reviewer(
     x_jta_admin_token: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ) -> AdminActor:
-    """Require valid admin token; returns actor with reviewer role."""
+    """Require valid admin token with at least reviewer role."""
     actor = require_admin_token(x_jta_admin_token, authorization)
-    return AdminActor(
-        actor_id=actor.actor_id,
-        actor_type=actor.actor_type,
-        role="reviewer",
-        auth_method=actor.auth_method,
-        email=actor.email,
-    )
+    return enforce_min_role(actor, "reviewer")
 
 
 def require_source_admin(
     x_jta_admin_token: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ) -> AdminActor:
-    """Require valid admin token; returns actor with source_admin role."""
+    """Require valid admin token with at least source_admin role."""
     actor = require_admin_token(x_jta_admin_token, authorization)
-    return AdminActor(
-        actor_id=actor.actor_id,
-        actor_type=actor.actor_type,
-        role="source_admin",
-        auth_method=actor.auth_method,
-        email=actor.email,
-    )
+    return enforce_min_role(actor, "source_admin")
 
 
 def require_system_admin(
@@ -194,9 +192,7 @@ def require_public_event_post(
     """Require admin token when public event posting is enabled."""
     settings = get_settings()
     if not settings.enable_public_event_post:
-        raise HTTPException(
-            status_code=403, detail="Public event posting is disabled"
-        )
+        raise HTTPException(status_code=403, detail="Public event posting is disabled")
     _require_token_for_role(settings, x_jta_admin_token, _TOKEN_ROLE_ADMIN)
 
 
@@ -232,11 +228,7 @@ def log_mutation(
             entity_type=entity_type,
             entity_id=entity_id,
             payload=full_payload,
-            actor_ip=(
-                request.client.host
-                if request and request.client
-                else None
-            ),
+            actor_ip=(request.client.host if request and request.client else None),
             created_at=datetime.now(timezone.utc),
             # Actor identity — never store raw token values
             actor_id=actor.actor_id if actor else None,
@@ -252,4 +244,3 @@ def log_mutation(
         db.rollback()
     finally:
         db.close()
-

@@ -819,6 +819,9 @@ class SourceRegistry(Base, TimestampMixin):
         Boolean, nullable=False, default=False, server_default="false"
     )
     terms_url: Mapped[str | None] = mapped_column(String(2048))
+    source_class: Mapped[str | None] = mapped_column(
+        String(40)
+    )  # 'portal_reference' | 'machine_ingest' | None (legacy = machine_ingest)
 
 
 class SourceTierConflict(Base, TimestampMixin):

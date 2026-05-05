@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.auth.admin import require_admin_token, log_mutation
+from app.auth.admin import require_admin_token, require_source_admin, log_mutation
 from app.auth.actor import AdminActor
 from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
@@ -239,7 +239,7 @@ def enable_source(
     source_key: str,
     request: Request,
     db: Session = Depends(get_db),
-    actor: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_source_admin),
 ) -> SourceRegistry:
     """Enable a source for ingestion."""
     source = (
@@ -276,7 +276,7 @@ def disable_source(
     source_key: str,
     request: Request,
     db: Session = Depends(get_db),
-    actor: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_source_admin),
 ) -> SourceRegistry:
     """Disable a source (stops active crawls)."""
     source = (
@@ -350,7 +350,9 @@ class RunResult(BaseModel):
     source_key: str
     records_fetched: int
     records_skipped: int
-    created_records: int
+    adapter_records: int  # rows the adapter returned before dedup
+    created_records: int  # rows actually persisted to DB (after dedup)
+    duplicates_skipped: int  # rows skipped as duplicates during persist
     review_items: int
     errors: list[str]
     success: bool
@@ -365,7 +367,7 @@ def run_source_now(
     source_key: str,
     request: Request,
     db: Session = Depends(get_db),
-    actor: AdminActor = Depends(require_admin_token),
+    actor: AdminActor = Depends(require_source_admin),
 ) -> dict[str, Any]:
     """Manually trigger an ingestion run for a source."""
     source = (
@@ -379,6 +381,17 @@ def run_source_now(
         raise HTTPException(
             status_code=409,
             detail=f"Source '{source_key}' is disabled; enable it before running.",
+        )
+
+    source_class = getattr(source, "source_class", None)
+    if source_class == "portal_reference":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Source '{source_key}' is a portal_reference and cannot be "
+                "auto-run. Update base_url to a machine-readable API endpoint "
+                "and set source_class to 'machine_ingest'."
+            ),
         )
 
     from app.core.config import get_settings
@@ -442,7 +455,9 @@ def run_source_now(
         "source_key": source_key,
         "records_fetched": result.records_fetched,
         "records_skipped": result.records_skipped,
-        "created_records": len(result.created_records),
+        "adapter_records": len(result.created_records),
+        "created_records": persist_summary.persisted_incidents,
+        "duplicates_skipped": persist_summary.skipped_duplicates,
         "review_items": len(result.review_items),
         "errors": result.errors,
         "success": result.success,

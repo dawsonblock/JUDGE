@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.ingestion.adapters import CreatedRecord, CreatedReviewItem, IngestionResult
+from app.services.constants import AI_PUBLISH_RECOMMENDATIONS
 from app.models.entities import (
     CrimeIncident,
     IngestionRun,
@@ -38,6 +39,10 @@ def _create_snapshot(
     source: SourceRegistry,
     run_record: IngestionRun,
     raw_content: bytes | None = None,
+    *,
+    http_status: int | None = None,
+    content_type: str | None = None,
+    fetch_url: str | None = None,
 ) -> SourceSnapshot:
     """Create a SourceSnapshot entry for this run.
 
@@ -52,12 +57,16 @@ def _create_snapshot(
         digest = _content_hash(placeholder)
     snapshot = SourceSnapshot(
         source_key=source.source_key,
-        source_url=source.base_url or f"internal://adapter/{source.source_key}",
+        source_url=fetch_url
+        or source.base_url
+        or f"internal://adapter/{source.source_key}",
         fetched_at=datetime.now(timezone.utc),
         content_hash=digest,
         original_content_hash=digest,
         stored_content_hash=digest,
         ingestion_run_id=run_record.id,
+        http_status=http_status,
+        content_type=content_type,
     )
     db.add(snapshot)
     db.flush()  # populate snapshot.id before referencing it on child rows
@@ -114,6 +123,9 @@ def _insert_review_item(
     snapshot: SourceSnapshot,
     run_record: IngestionRun,
 ) -> None:
+    recommendation = item.payload.get("publish_recommendation") or "review_required"
+    if recommendation not in AI_PUBLISH_RECOMMENDATIONS:
+        recommendation = "review_required"
     rv = ReviewItem(
         record_type=item.payload.get("record_type") or "unknown",
         source_snapshot_id=snapshot.id,
@@ -122,7 +134,7 @@ def _insert_review_item(
         source_quality=item.payload.get("source_quality") or "unverified",
         confidence=item.confidence_score,
         privacy_status=item.payload.get("privacy_status") or "unknown",
-        publish_recommendation=item.payload.get("publish_recommendation") or "hold",
+        publish_recommendation=recommendation,
         public_visibility=False,
         status="pending",
         ingestion_run_id=run_record.id,
@@ -149,7 +161,15 @@ def persist_ingestion_result(
     if not result.created_records and not result.review_items:
         return summary
 
-    snapshot = _create_snapshot(db, source, run_record, result.raw_snapshot_bytes)
+    snapshot = _create_snapshot(
+        db,
+        source,
+        run_record,
+        result.raw_snapshot_bytes,
+        http_status=result.fetch_http_status,
+        content_type=result.fetch_content_type,
+        fetch_url=result.fetch_url,
+    )
 
     for record in result.created_records:
         if _insert_crime_incident(db, record, snapshot):

@@ -50,6 +50,7 @@ sources:
     public_publish_default: false
     precision_level: city_block
     priority: 1
+    source_class: portal_reference
 
   - source_key: saskatoon_police_open_data
     source_name: "Saskatoon Police Service – Open Data Portal"
@@ -77,6 +78,7 @@ sources:
     public_publish_default: false
     precision_level: city_block
     priority: 1
+    source_class: portal_reference
 
   - source_key: web_monitor_saskatoon_police_news
     source_name: "Saskatoon Police Service – News Releases (Web Monitor)"
@@ -103,6 +105,7 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 2
+    source_class: machine_ingest
 
   - source_key: sk_courts_qb_decisions
     source_name: "Saskatchewan Court of King's Bench – Decisions"
@@ -129,6 +132,7 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 2
+    source_class: machine_ingest
 
   - source_key: sk_courts_ca_decisions
     source_name: "Saskatchewan Court of Appeal – Decisions"
@@ -155,6 +159,7 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 2
+    source_class: machine_ingest
 
   # ── Statistics Canada ─────────────────────────────────────────────────────
 
@@ -184,6 +189,7 @@ sources:
     public_publish_default: true
     precision_level: province
     priority: 2
+    source_class: portal_reference
 
   - source_key: statscan_ucr_national
     source_name: "Statistics Canada – Uniform Crime Reporting Survey (national)"
@@ -211,6 +217,7 @@ sources:
     public_publish_default: true
     precision_level: national
     priority: 3
+    source_class: portal_reference
 
   # ── CanLII / Federal Courts ───────────────────────────────────────────────
 
@@ -227,8 +234,8 @@ sources:
     license: "CanLII Licence"
     license_url: "https://www.canlii.org/en/info/terms.html"
     terms_url: "https://www.canlii.org/en/info/terms.html"
-    base_url: "https://www.canlii.org"
-    allowed_domains: ["canlii.org", "www.canlii.org"]
+    base_url: "https://api.canlii.org/v1"
+    allowed_domains: ["canlii.org", "www.canlii.org", "api.canlii.org"]
     fetch_method: api
     update_cadence: daily
     refresh_interval_minutes: 1440
@@ -240,6 +247,7 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 2
+    source_class: portal_reference
 
   - source_key: federal_court_canada
     source_name: "Federal Court of Canada – Decisions"
@@ -258,6 +266,7 @@ sources:
     fetch_method: web_scrape
     update_cadence: daily
     refresh_interval_minutes: 1440
+    source_class: machine_ingest
     parser: federal_court_html
     creates: ["ReviewItem"]
     enabled_default: false
@@ -292,6 +301,7 @@ sources:
     public_publish_default: false
     precision_level: national
     priority: 3
+    source_class: machine_ingest
 
   # ── Saskatchewan Government ───────────────────────────────────────────────
 
@@ -320,6 +330,7 @@ sources:
     public_publish_default: false
     precision_level: province
     priority: 3
+    source_class: machine_ingest
 
   - source_key: sk_legislature_hansard
     source_name: "Saskatchewan Legislative Assembly – Hansard"
@@ -346,6 +357,7 @@ sources:
     public_publish_default: true
     precision_level: province
     priority: 4
+    source_class: machine_ingest
 
   # ── Open Government Canada ────────────────────────────────────────────────
 
@@ -375,6 +387,7 @@ sources:
     public_publish_default: true
     precision_level: national
     priority: 3
+    source_class: machine_ingest
 
   # ── RCMP ──────────────────────────────────────────────────────────────────
 
@@ -403,6 +416,7 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 3
+    source_class: machine_ingest
 
   # ── Canada Department of Justice – Legislation ───────────────────────────
 
@@ -432,6 +446,7 @@ sources:
     public_publish_default: true
     precision_level: national
     priority: 4
+    source_class: machine_ingest
 
   # ── City of Saskatoon Open Data (general) ─────────────────────────────────
 
@@ -461,3 +476,4 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 3
+    source_class: machine_ingest

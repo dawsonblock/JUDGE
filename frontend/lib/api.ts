@@ -331,6 +331,7 @@ export type AdminSourceItem = {
   creates: string | null;
   public_publish_default: boolean;
   terms_url: string | null;
+  source_class: string | null;
 };
 
 export type SourceRunResult = {
@@ -341,6 +342,8 @@ export type SourceRunResult = {
   review_items: number;
   errors: string[];
   success: boolean;
+  adapter_records: number;
+  duplicates_skipped: number;
 };
 
 export type DefendantItem = {
@@ -426,6 +429,26 @@ export async function triggerSourceRun(
   sourceKey: string,
 ): Promise<SourceRunResult> {
   return fetchJson<SourceRunResult>(`/api/admin/sources/${sourceKey}/run`, {
+    method: "POST",
+    headers: { "x-jta-admin-token": token },
+  });
+}
+
+export async function enableSource(
+  token: string,
+  sourceKey: string,
+): Promise<AdminSourceItem> {
+  return fetchJson<AdminSourceItem>(`/api/admin/sources/${sourceKey}/enable`, {
+    method: "POST",
+    headers: { "x-jta-admin-token": token },
+  });
+}
+
+export async function disableSource(
+  token: string,
+  sourceKey: string,
+): Promise<AdminSourceItem> {
+  return fetchJson<AdminSourceItem>(`/api/admin/sources/${sourceKey}/disable`, {
     method: "POST",
     headers: { "x-jta-admin-token": token },
   });

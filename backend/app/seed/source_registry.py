@@ -111,6 +111,7 @@ _REPAIR_FIELDS: tuple[str, ...] = (
     "terms_url",
     "creates",
     "public_publish_default",
+    "source_class",
 )
 
 
