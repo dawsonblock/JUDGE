@@ -366,7 +366,7 @@ def run_source_now(
     db: Session = Depends(get_db),
     actor: AdminActor = Depends(require_admin_token),
 ) -> dict[str, Any]:
-    """Manually trigger an ingestion run for a source (stub — adapter wiring pending)."""
+    """Manually trigger an ingestion run for a source."""
     source = (
         db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
     )
@@ -380,31 +380,51 @@ def run_source_now(
             detail=f"Source '{source_key}' is disabled; enable it before running.",
         )
 
-    # Import adapter registry lazily to avoid circular imports
-    from app.ingestion.source_adapters import ADAPTER_REGISTRY
+    from app.core.config import get_settings
+    from app.ingestion.source_adapter_factory import build_adapter
 
-    parser_key = source.parser
-    adapter_cls = ADAPTER_REGISTRY.get(parser_key) if parser_key else None
-
-    if adapter_cls is None:
+    adapter = build_adapter(source, get_settings())
+    if adapter is None:
         raise HTTPException(
             status_code=501,
-            detail=f"No adapter registered for parser '{parser_key}'. Run not started.",
+            detail=f"No adapter registered for parser '{source.parser}'. Run not started.",
         )
 
-    adapter = adapter_cls(
-        source_key=source.source_key,
-        base_url=source.base_url or "",
-        allowed_domains_json=source.allowed_domains or "[]",
-        public_record_authority=source.public_record_authority,
+    # Persist an IngestionRun record before executing
+    run_record = IngestionRun(
+        source_name=source.source_key,
+        started_at=datetime.now(timezone.utc),
+        status="running",
     )
-    result = adapter.run()
+    db.add(run_record)
+    db.commit()
+
+    try:
+        result = adapter.run()
+    except Exception as exc:
+        run_record.status = "error"
+        run_record.finished_at = datetime.now(timezone.utc)
+        run_record.error_count = 1
+        run_record.errors = [str(exc)]
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Adapter error: {exc}") from exc
+
+    run_record.status = "success" if result.success else "partial"
+    run_record.finished_at = datetime.now(timezone.utc)
+    run_record.fetched_count = result.records_fetched
+    run_record.parsed_count = len(result.created_records) + len(result.review_items)
+    run_record.persisted_count = len(result.created_records)
+    run_record.skipped_count = result.records_skipped
+    run_record.error_count = len(result.errors)
+    run_record.errors = result.errors or None
+    db.commit()
 
     log_mutation(
         action="source.run",
         entity_type="source_registry",
         entity_id=source.source_key,
         payload={
+            "ingestion_run_id": run_record.id,
             "records_fetched": result.records_fetched,
             "created_records": len(result.created_records),
             "review_items": len(result.review_items),

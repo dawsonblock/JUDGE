@@ -16,11 +16,11 @@ from typing import Any
 import httpx
 
 from app.ingestion.adapters import (
+    CanadianSourceAdapter,
     CreatedRecord,
     CreatedReviewItem,
     IngestionResult,
     ParsedRecord,
-    SourceAdapter,
 )
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
@@ -34,7 +34,7 @@ _RECORD_TYPE_MAP: dict[str, str] = {
 }
 
 
-class CKANApiAdapter(SourceAdapter):
+class CKANApiAdapter(CanadianSourceAdapter):
     """Fetch records from a CKAN-based open data portal.
 
     Both open.canada.ca and the Saskatoon Open Data Portal run CKAN.  This

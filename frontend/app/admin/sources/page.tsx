@@ -125,7 +125,7 @@ function SourceCard({ source }: { source: AdminSourceItem }) {
 }
 
 export default async function AdminSourcesPage() {
-  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const token = process.env.JTA_ADMIN_TOKEN ?? "";
   const sources = await fetchAdminSourcesList(token).catch(() => [] as AdminSourceItem[]);
 
   const activeSources = sources.filter((s) => s.is_active);

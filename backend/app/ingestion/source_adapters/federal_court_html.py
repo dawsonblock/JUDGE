@@ -17,10 +17,10 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.ingestion.adapters import (
+    CanadianSourceAdapter,
     CreatedReviewItem,
     IngestionResult,
     ParsedRecord,
-    SourceAdapter,
 )
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
@@ -30,7 +30,7 @@ _RECORD_TYPE = "ReviewItem"
 _PUBLIC_RECORD_AUTHORITY = "official_court_record"
 
 
-class FederalCourtHtmlAdapter(SourceAdapter):
+class FederalCourtHtmlAdapter(CanadianSourceAdapter):
     """Scrape Federal Court of Canada decision index for ReviewItem candidates.
 
     The Federal Court publishes decisions through a bilingual web interface.
@@ -51,12 +51,14 @@ class FederalCourtHtmlAdapter(SourceAdapter):
         source_key: str,
         base_url: str,
         allowed_domains_json: str | None = None,
+        public_record_authority: str | None = None,
     ) -> None:
         self._source_key = source_key
         self._base_url = base_url
         self._allowed_domains_json = (
             allowed_domains_json or '["decisions.fct-cf.gc.ca", "fct-cf.gc.ca"]'
         )
+        self._public_record_authority = public_record_authority
 
     def _parse_index(self, html: str) -> list[dict[str, Any]]:
         """Extract decision entries from the Federal Court index HTML.

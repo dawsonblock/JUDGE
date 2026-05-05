@@ -13,7 +13,7 @@ async function decideAction(formData: FormData) {
   const entityType = formData.get("entity_type") as string;
   const entityId = formData.get("entity_id") as string;
   const decision = formData.get("decision") as string;
-  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const token = process.env.JTA_ADMIN_TOKEN ?? "";
   const base =
     process.env.BACKEND_INTERNAL_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -33,7 +33,7 @@ async function decideAction(formData: FormData) {
 }
 
 export default async function AdminReviewPage() {
-  const token = process.env.JTA_ADMIN_REVIEW_TOKEN ?? "";
+  const token = process.env.JTA_ADMIN_TOKEN ?? "";
   const queue = await fetchAdminReviewQueue(token).catch(() => ({
     items: [],
     total_count: 0,

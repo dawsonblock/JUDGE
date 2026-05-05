@@ -15,7 +15,7 @@ from typing import Any
 
 import httpx
 
-from app.ingestion.adapters import IngestionResult, ParsedRecord, SourceAdapter
+from app.ingestion.adapters import CanadianSourceAdapter, IngestionResult, ParsedRecord
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _RECORD_TYPE = "CrimeIncident"
 
 
-class SaskatoonCsvAdapter(SourceAdapter):
+class SaskatoonCsvAdapter(CanadianSourceAdapter):
     """Fetch and parse Saskatoon Open Data crime CSV.
 
     The City of Saskatoon publishes crime incident data as a downloadable CSV
@@ -39,11 +39,16 @@ class SaskatoonCsvAdapter(SourceAdapter):
     """
 
     def __init__(
-        self, source_key: str, base_url: str, allowed_domains_json: str | None = None
+        self,
+        source_key: str,
+        base_url: str,
+        allowed_domains_json: str | None = None,
+        public_record_authority: str | None = None,
     ) -> None:
         self._source_key = source_key
         self._base_url = base_url
         self._allowed_domains_json = allowed_domains_json or "[]"
+        self._public_record_authority = public_record_authority
 
     # ── SourceAdapter interface ──────────────────────────────────────────────
 

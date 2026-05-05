@@ -16,10 +16,10 @@ from typing import Any
 import httpx
 
 from app.ingestion.adapters import (
+    CanadianSourceAdapter,
     CreatedRecord,
     IngestionResult,
     ParsedRecord,
-    SourceAdapter,
 )
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 _RECORD_TYPE = "CrimeIncident"
 
 
-class SaskatoonPoliceCsvAdapter(SourceAdapter):
+class SaskatoonPoliceCsvAdapter(CanadianSourceAdapter):
     """Fetch and parse the Saskatoon Police Service open-data crime CSV.
 
     The Saskatoon Police Service publishes crime statistics on its open-data
@@ -43,11 +43,16 @@ class SaskatoonPoliceCsvAdapter(SourceAdapter):
     """
 
     def __init__(
-        self, source_key: str, base_url: str, allowed_domains_json: str | None = None
+        self,
+        source_key: str,
+        base_url: str,
+        allowed_domains_json: str | None = None,
+        public_record_authority: str | None = None,
     ) -> None:
         self._source_key = source_key
         self._base_url = base_url
         self._allowed_domains_json = allowed_domains_json or "[]"
+        self._public_record_authority = public_record_authority
 
     def fetch(self) -> list[dict[str, Any]]:
         violation = check_domain_allowed(self._base_url, self._allowed_domains_json)

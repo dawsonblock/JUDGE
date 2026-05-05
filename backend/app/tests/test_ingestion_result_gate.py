@@ -36,7 +36,14 @@ class TestIngestionResult:
         assert result.success is False
 
     def test_counts_consistent(self) -> None:
-        records = [CreatedRecord(model="CrimeIncident", external_id="1", data={})]
+        records = [
+            CreatedRecord(
+                source_key="test",
+                record_type="CrimeIncident",
+                external_id="1",
+                payload={},
+            )
+        ]
         result = IngestionResult(
             source_key="test",
             records_fetched=3,
@@ -49,7 +56,9 @@ class TestIngestionResult:
         assert result.records_skipped == 2
 
     def test_review_item_stored(self) -> None:
-        item = CreatedReviewItem(external_id="r1", raw_data={}, source_key="test")
+        item = CreatedReviewItem(
+            source_key="test", headline=None, url=None, extracted_text=None
+        )
         result = IngestionResult(
             source_key="test",
             records_fetched=1,

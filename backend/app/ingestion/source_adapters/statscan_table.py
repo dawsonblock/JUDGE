@@ -16,10 +16,10 @@ from typing import Any
 import httpx
 
 from app.ingestion.adapters import (
+    CanadianSourceAdapter,
     CreatedRecord,
     IngestionResult,
     ParsedRecord,
-    SourceAdapter,
 )
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
@@ -34,7 +34,7 @@ _STATSCAN_API_BASE = (
 )
 
 
-class StatscanTableAdapter(SourceAdapter):
+class StatscanTableAdapter(CanadianSourceAdapter):
     """Fetch Statistics Canada CANSIM table data and produce CrimeIncident records.
 
     Statistics Canada publishes crime statistics through its CANSIM table
@@ -56,12 +56,14 @@ class StatscanTableAdapter(SourceAdapter):
         source_key: str,
         base_url: str,
         allowed_domains_json: str | None = None,
+        public_record_authority: str | None = None,
     ) -> None:
         self._source_key = source_key
         self._base_url = base_url
         self._allowed_domains_json = (
             allowed_domains_json or '["www150.statcan.gc.ca", "statcan.gc.ca"]'
         )
+        self._public_record_authority = public_record_authority
 
     def fetch(self) -> list[dict[str, Any]]:
         violation = check_domain_allowed(self._base_url, self._allowed_domains_json)

@@ -32,6 +32,11 @@ class ParsedRecord:
     parties: list[dict[str, Any]] = field(default_factory=list)
     source_url: str | None = None
     source_api_url: str | None = None
+    # Fields required by Canadian source adapters
+    source_key: str | None = None
+    record_type: str | None = None
+    external_id: str | None = None
+    payload: dict[str, Any] = field(default_factory=dict)
     source_public_url: str | None = None
     source_quality: str = "court_record"
     raw: dict[str, Any] = field(default_factory=dict)
@@ -124,3 +129,35 @@ class NewsAdapter(SourceAdapter):
         return ParsedRecord(
             source_name="news", source_quality="secondary_context", raw=raw.payload
         )
+
+
+# ── Canadian Source Adapter ABC ───────────────────────────────────────────────
+
+
+class CanadianSourceAdapter(ABC):
+    """Base class for all Canadian / Saskatchewan source adapters.
+
+    Unlike the CourtListener-era ``SourceAdapter``, these adapters operate on
+    lists of plain row dicts rather than ``RawRecord`` objects, and the
+    ``run()`` method is part of the public contract so callers can invoke it
+    uniformly through the factory.
+    """
+
+    @abstractmethod
+    def fetch(self) -> list[dict[str, Any]]:
+        """Fetch raw records from the source. Returns a list of raw row dicts."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def parse(self, raw: list[dict[str, Any]]) -> list[ParsedRecord]:
+        """Transform raw rows into :class:`ParsedRecord` objects."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def run(self) -> IngestionResult:
+        """Execute a full fetch → parse → persist cycle and return an
+        :class:`IngestionResult`.  Implementations must populate
+        ``created_records`` or ``review_items`` as appropriate for their
+        source type.
+        """
+        raise NotImplementedError

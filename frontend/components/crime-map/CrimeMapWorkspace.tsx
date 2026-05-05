@@ -11,7 +11,15 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 
 function _mapVerificationStatus(vs: string): CrimeIncident["status"] {
-  if (vs === "verified") return "verified" as CrimeIncident["status"];
+  if (
+    vs === "verified" ||
+    vs === "official_police_open_data_report" ||
+    vs === "verified_court_record" ||
+    vs === "official_court_record" ||
+    vs === "official_open_data"
+  ) {
+    return "verified" as CrimeIncident["status"];
+  }
   if (vs === "pending_review") return "pending" as CrimeIncident["status"];
   return "pending" as CrimeIncident["status"];
 }

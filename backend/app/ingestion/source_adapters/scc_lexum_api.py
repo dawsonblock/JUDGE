@@ -17,10 +17,10 @@ from typing import Any
 import httpx
 
 from app.ingestion.adapters import (
+    CanadianSourceAdapter,
     CreatedReviewItem,
     IngestionResult,
     ParsedRecord,
-    SourceAdapter,
 )
 from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
 
@@ -33,7 +33,7 @@ _PUBLIC_RECORD_AUTHORITY = "official_court_record"
 _SCC_RSS_URL = "https://decisions.scc-csc.ca/scc-csc/scc-csc/en/rss.do"
 
 
-class SCCLexumApiAdapter(SourceAdapter):
+class SCCLexumApiAdapter(CanadianSourceAdapter):
     """Fetch Supreme Court of Canada decisions and produce ReviewItem candidates.
 
     The SCC publishes decisions through decisions.scc-csc.ca.  This adapter
@@ -56,6 +56,7 @@ class SCCLexumApiAdapter(SourceAdapter):
         base_url: str,
         api_key: str | None = None,
         allowed_domains_json: str | None = None,
+        public_record_authority: str | None = None,
     ) -> None:
         self._source_key = source_key
         self._base_url = base_url
@@ -64,6 +65,7 @@ class SCCLexumApiAdapter(SourceAdapter):
             allowed_domains_json
             or '["decisions.scc-csc.ca", "scc-csc.ca", "lexum.com"]'
         )
+        self._public_record_authority = public_record_authority
 
     def _fetch_rss(self) -> list[dict[str, Any]]:
         """Fetch and parse the SCC RSS feed for recent decisions."""
