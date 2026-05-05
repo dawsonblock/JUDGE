@@ -135,6 +135,38 @@ fi
 
 echo ""
 
+# 4. Security & governance checks
+echo "🔒 Step 4: Security & Governance Checks"
+echo "----------------------------------------"
+
+# 4a. Admin token must not leak into frontend components or lib
+echo "Checking admin token confinement..."
+LEAKED=$(grep -rl "JTA_ADMIN_TOKEN" \
+    "$PROJECT_ROOT/frontend/components/" \
+    "$PROJECT_ROOT/frontend/lib/" \
+    2>/dev/null | wc -l | tr -d ' ')
+if [ "$LEAKED" -eq 0 ]; then
+    echo -e "${GREEN}✓ JTA_ADMIN_TOKEN not found in frontend/components/ or frontend/lib/${NC}"
+else
+    echo -e "${RED}✗ JTA_ADMIN_TOKEN leaked into frontend non-route files (${LEAKED} file(s))${NC}"
+    grep -rl "JTA_ADMIN_TOKEN" \
+        "$PROJECT_ROOT/frontend/components/" \
+        "$PROJECT_ROOT/frontend/lib/" \
+        2>/dev/null
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 4b. YAML source workflow validator
+echo "Running YAML source validator..."
+if python3 "$PROJECT_ROOT/scripts/validate_workflows.py" 2>&1; then
+    echo -e "${GREEN}✓ YAML source validator passed${NC}"
+else
+    echo -e "${RED}✗ YAML source validator failed${NC}"
+    FAILURES=$((FAILURES + 1))
+fi
+
+echo ""
+
 # Summary
 echo "========================================"
 if [ $FAILURES -eq 0 ]; then

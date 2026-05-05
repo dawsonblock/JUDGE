@@ -6,7 +6,6 @@ Called from the admin ``/run`` endpoint and Celery tasks after
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -30,10 +29,6 @@ class RunPersistSummary:
     persisted_review_items: int = 0
 
 
-def _content_hash(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
-
-
 def _create_snapshot(
     db: Session,
     source: SourceRegistry,
@@ -44,33 +39,31 @@ def _create_snapshot(
     content_type: str | None = None,
     fetch_url: str | None = None,
 ) -> SourceSnapshot:
-    """Create a SourceSnapshot entry for this run.
+    """Create a SourceSnapshot for this run via the canonical snapshot writer.
 
-    If *raw_content* is provided, the content hash is derived from the actual
-    fetched bytes; otherwise a deterministic fallback hash of the run/source
-    identifiers is used so unique snapshots are still created per run.
+    Routes through :func:`app.services.snapshot_writer.write_snapshot` so that
+    all hash / integrity / evidence-store logic lives in one place.  When
+    *raw_content* is ``None`` (the adapter did not produce raw bytes), an
+    empty-bytes placeholder is written so snapshot integrity constraints are
+    still satisfied.
     """
-    if raw_content is not None:
-        digest = hashlib.sha256(raw_content).hexdigest()
-    else:
-        placeholder = f"run:{run_record.id}:source:{source.source_key}"
-        digest = _content_hash(placeholder)
-    snapshot = SourceSnapshot(
-        source_key=source.source_key,
-        source_url=fetch_url
-        or source.base_url
-        or f"internal://adapter/{source.source_key}",
+    from app.services.snapshot_writer import write_snapshot  # noqa: PLC0415
+
+    content = raw_content if raw_content is not None else b""
+    return write_snapshot(
+        db=db,
+        source_url=(
+            fetch_url
+            or source.base_url
+            or f"internal://adapter/{source.source_key}"
+        ),
         fetched_at=datetime.now(timezone.utc),
-        content_hash=digest,
-        original_content_hash=digest,
-        stored_content_hash=digest,
-        ingestion_run_id=run_record.id,
+        content=content,
         http_status=http_status,
         content_type=content_type,
+        ingestion_run_id=run_record.id,
+        source_key=source.source_key,
     )
-    db.add(snapshot)
-    db.flush()  # populate snapshot.id before referencing it on child rows
-    return snapshot
 
 
 def _insert_crime_incident(

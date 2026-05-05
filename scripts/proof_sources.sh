@@ -13,6 +13,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# ── Python validator (canonical checks including dup-key detection) ───────────
+echo "=== validate_workflows.py ==="
+python3 "$REPO_ROOT/scripts/validate_workflows.py"
+echo ""
+
 YAML_FILE="$REPO_ROOT/backend/app/ingestion/sources/canada_saskatchewan_sources.yaml"
 ADAPTER_INIT="$REPO_ROOT/backend/app/ingestion/source_adapters/__init__.py"
 

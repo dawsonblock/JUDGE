@@ -198,14 +198,23 @@ Recent migrations (Phase 4-6 repair):
 - [x] `frontend/app/map/page.tsx` — replaced `CrimeMapWorkspace` import with `JudgeNorthAmericaMapClient`
 - [x] `frontend/components/map/MapRecordDrawer.tsx` — added `"evidence"` tab type; `EvidenceChatPanel` tab shown for incident records
 
+## Phase 12 Repair (Token + Source-Class Hardening)
+
+- [x] `JTA_ADMIN_TOKEN` read only server-side: removed from all Next.js frontend components and page files; now used exclusively in route handlers via `import { env } from "process"` — never transmitted to browser clients
+- [x] `admin_sources.py` — `enable_source()` and `update_source()` enforce `source_class == "machine_ingest"` guard; non-eligible classes receive `HTTP 422` with a human-readable remediation hint from `_SOURCE_CLASS_NEXT_ACTION`
+- [x] `scripts/validate_workflows.py` — upgraded with `UniqueKeyLoader` (duplicate-key detection), 10 validation rules, cross-file source-key uniqueness; exits 0 on full pass (16 sources, 0 violations)
+- [x] `source_runner._create_snapshot()` now delegates entirely to `snapshot_writer.write_snapshot()` — eliminates fake placeholder hashes, ensures SHA-256 integrity, evidence store writes, and custody event recording
+- [x] `SourceControlCard.tsx` — Enable button disabled (with tooltip) for non-`machine_ingest` sources; source class label and lock notice shown in UI; TypeScript build: 0 errors
+- [x] `app/tests/test_source_run_policy.py` — 30 tests: 13 pre-existing (fixed bs4 import chain via sys.modules stubbing) + 17 new (`TestEnableSourceClassPolicy`, `TestUpdateSourceClassPolicy`); all passing
+
 ## Known Limitations (Phase 12 Audit)
 
-> ⚠ The following items were identified in the Phase 12 external audit and are queued for repair:
+> ⚠ The following items were identified in the Phase 12 external audit. Items marked ✅ were resolved in Phase 12 Repair.
 > - **Auth role bypass:** `require_viewer/reviewer/source_admin` wrappers overwrite the JWT role instead of enforcing minimum rank — a viewer token passes source_admin guards.
 > - **Portal-root URLs:** `saskatoon_open_data_crime`, `saskatoon_police_open_data`, `canlii_sk`, `statscan_ccjs_crime_sk`, `statscan_ucr_national` have site-root base_urls; adapters will fail to fetch machine-readable data.
 > - **Invalid review recommendation:** `source_runner.py` falls back to `"hold"` (not in `AI_PUBLISH_RECOMMENDATIONS`) instead of `"review_required"`.
 > - **Misleading run counts:** `run_source_now` returns adapter output count as `created_records` instead of the persisted DB count.
-> - **Read-only admin UI:** `/admin/sources` page has no enable/disable or run-now controls.
+> - ✅ ~~**Read-only admin UI:**~~ `/admin/sources` page now has enable/disable and run-now controls with source-class locking (Phase 12 Repair).
 > - **Missing deps:** `email-validator` and `html2text` absent from `pyproject.toml`.
 
 ## Do Not Yet Claim
@@ -228,6 +237,11 @@ Recent migrations (Phase 4-6 repair):
 - [x] "All admin mutations audited"
 - [x] "Source registry is fail-closed: new sources start disabled"
 - [x] "Memory rebuilds scoped per-entity via EntityEvidenceLink"
+- [x] "Admin token (`JTA_ADMIN_TOKEN`) confined to server-side route handlers — never sent to browser clients"
+- [x] "Source-class policy enforced: only `machine_ingest` sources can be enabled or run via admin API (`HTTP 422` otherwise)"
+- [x] "All snapshot writes route through canonical `write_snapshot()` with SHA-256 integrity, evidence store backing, and custody event recording"
+- [x] "YAML source definitions validated by `scripts/validate_workflows.py` (10 rules, 16 sources, 0 violations)"
+- [x] "Admin source UI (`/admin/sources`) shows source class label and locks Enable/Run for non-automated sources"
 
 ## Phase 11 (Ingestion Architecture Hardening)
 - [x] `app/ingestion/statuses.py` — canonical status constants (`PENDING`, `RUNNING`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, `FAILED`, `CANCELLED`, `QUARANTINED`); `normalize_status()`; replaces all bare string literals in `admin_sources.py` and `ingestion_log.py`

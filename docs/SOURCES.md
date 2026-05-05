@@ -73,6 +73,23 @@ Before using Canadian law in production:
 
 The adapter classes (`JusticeLawsAdapter`, `SaskatchewanLawAdapter`) define the correct interfaces. They can be extended to implement real fetching without changing the API.
 
+## Source Classes
+
+Each source registry entry carries a `source_class` that determines whether automated ingestion is eligible. Only `machine_ingest` sources can be enabled or triggered via the admin API; all other classes are reference or stub entries only.
+
+| `source_class` | Description | Automated ingestion |
+|----------------|-------------|---------------------|
+| `machine_ingest` | Fully automated HTTP/CSV adapter with a working fetcher | ✅ Eligible |
+| `portal_reference` | A known public portal that requires human-driven import | ❌ Not eligible |
+| `manual_reference` | A data source managed by manual CSV upload | ❌ Not eligible |
+| `disabled_stub` | Placeholder entry intentionally kept inactive | ❌ Not eligible |
+| `archive_only` | Historical snapshot — no ongoing ingestion | ❌ Not eligible |
+| `research_scope_only` | In-scope for research; ingestion not yet implemented | ❌ Not eligible |
+
+Attempting to enable or run a non-`machine_ingest` source via `POST /api/admin/sources/{id}/enable` or `POST /api/admin/sources/{id}/run` returns `HTTP 422` with a remediation hint.
+
+The admin UI (`/admin/sources`) displays the source class label and disables the Enable button with an explanatory tooltip for non-eligible sources.
+
 ## Review Workflow
 
 New ingested legal events, legal sources, and crime incidents enter `pending_review` by default. Public endpoints only show records with public review statuses: `verified_court_record`, `official_police_open_data_report`, `news_only_context`, or `corrected`. Statuses `pending_review`, `disputed`, `rejected`, and `removed_from_public` are never exposed on public endpoints.

@@ -104,6 +104,17 @@ TRUSTED_PROXY_CONFIG = {
 
 - `.env` files with plain text values
 - `JTA_ADMIN_REVIEW_TOKEN` in environment
+- `JTA_ADMIN_TOKEN` in environment — **read exclusively by server-side Next.js route handlers** (`import { env } from "process"`); never included in client bundles or fetched by browser code
+
+### Source Class Policy
+
+Source activation and ingestion triggering are gated by `source_class` at the API layer:
+
+- Only sources with `source_class == "machine_ingest"` can be enabled via `POST /api/admin/sources/{id}/enable` or triggered via `POST /api/admin/sources/{id}/run`
+- All other classes (`portal_reference`, `manual_reference`, `disabled_stub`, `archive_only`, `research_scope_only`) return `HTTP 422` with a human-readable remediation hint
+- The admin UI disables the Enable button and shows a lock notice for non-eligible sources
+
+This is a defense-in-depth measure: even if a request bypasses the UI, the backend enforces the policy.
 
 ### Production Requirements
 

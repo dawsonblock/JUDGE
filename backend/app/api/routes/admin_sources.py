@@ -173,6 +173,19 @@ def update_source(
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
 
+    # Guard: only machine_ingest sources may be activated
+    if update.is_active is True:
+        source_class = getattr(source, "source_class", None)
+        if source_class != "machine_ingest":
+            next_action = _SOURCE_CLASS_NEXT_ACTION.get(
+                source_class, "Classify this source before enabling."
+            )
+            raise HTTPException(
+                status_code=422,
+                detail=f"Source '{source_key}' has class {source_class!r} and cannot be "
+                       f"activated. {next_action}",
+            )
+
     # Apply updates
     if update.is_active is not None:
         source.is_active = update.is_active
@@ -250,6 +263,17 @@ def enable_source(
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
+
+    source_class = getattr(source, "source_class", None)
+    if source_class != "machine_ingest":
+        next_action = _SOURCE_CLASS_NEXT_ACTION.get(
+            source_class, "Classify this source before enabling."
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"Source '{source_key}' has class {source_class!r} and cannot be "
+                   f"enabled for automated ingestion. {next_action}",
+        )
 
     source.is_active = True
     source.updated_at = datetime.now(timezone.utc)

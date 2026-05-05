@@ -95,6 +95,25 @@ jobs:
           chmod +x scripts/check_no_pyc.sh
           ./scripts/check_no_pyc.sh
 
+      - name: Check admin token not leaked into frontend components
+        run: |
+          LEAKED=$(grep -rl "JTA_ADMIN_TOKEN" \
+            frontend/components/ \
+            frontend/lib/ \
+            2>/dev/null | wc -l | tr -d ' ')
+          if [ "$LEAKED" -eq 0 ]; then
+            echo "✓ JTA_ADMIN_TOKEN not found in frontend/components/ or frontend/lib/"
+          else
+            echo "ERROR: JTA_ADMIN_TOKEN leaked into frontend non-route files (${LEAKED} file(s))"
+            grep -rl "JTA_ADMIN_TOKEN" frontend/components/ frontend/lib/ 2>/dev/null
+            exit 1
+          fi
+
+      - name: Validate source YAML definitions
+        run: |
+          source ./backend/.venv/bin/activate
+          python scripts/validate_workflows.py
+
       - name: Quality Gate Summary
         if: always()
         run: |

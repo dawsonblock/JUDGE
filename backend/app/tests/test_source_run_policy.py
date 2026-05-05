@@ -55,17 +55,29 @@ def _make_adapter_result(success: bool = True) -> SimpleNamespace:
 
 def _run(source: object | None, adapter=None, adapter_error: Exception | None = None):
     """Call run_source_now with a fully mocked context."""
+    import sys
+    import types
+
+    import app.core.config as _config_mod
+    import app.ingestion.source_runner as _runner_mod
     from app.api.routes.admin_sources import run_source_now
 
     db = _make_db(source)
     request = MagicMock()
     actor = MagicMock()
 
+    # source_adapter_factory pulls in bs4 transitively and cannot be directly
+    # imported in the test environment.  We inject a stub into sys.modules so
+    # the local `from ... import build_adapter` inside run_source_now picks up
+    # our mock without triggering the real import chain.
+    _fake_factory = types.SimpleNamespace(build_adapter=MagicMock(return_value=adapter))
+
     with (
-        patch("app.api.routes.admin_sources.get_settings", return_value=MagicMock()),
-        patch("app.api.routes.admin_sources.build_adapter", return_value=adapter),
-        patch(
-            "app.api.routes.admin_sources.persist_ingestion_result",
+        patch.object(_config_mod, "get_settings", return_value=MagicMock()),
+        patch.dict(sys.modules, {"app.ingestion.source_adapter_factory": _fake_factory}),
+        patch.object(
+            _runner_mod,
+            "persist_ingestion_result",
             return_value=MagicMock(
                 persisted_incidents=0, skipped_duplicates=0, persisted_review_items=0
             ),
@@ -180,15 +192,20 @@ class TestRunSourceAdapterError:
 
     def test_adapter_exception_records_failed_run(self) -> None:
         """update_source_health must still be called even when the adapter crashes."""
+        import sys
+        import types
+
+        import app.core.config as _config_mod
+        import app.ingestion.source_runner as _runner_mod
+
         src = _make_source(source_class="machine_ingest")
         adapter = MagicMock()
+        _fake_factory = types.SimpleNamespace(build_adapter=MagicMock(return_value=adapter))
 
         with (
-            patch(
-                "app.api.routes.admin_sources.get_settings", return_value=MagicMock()
-            ),
-            patch("app.api.routes.admin_sources.build_adapter", return_value=adapter),
-            patch("app.api.routes.admin_sources.persist_ingestion_result"),
+            patch.object(_config_mod, "get_settings", return_value=MagicMock()),
+            patch.dict(sys.modules, {"app.ingestion.source_adapter_factory": _fake_factory}),
+            patch.object(_runner_mod, "persist_ingestion_result"),
             patch("app.api.routes.admin_sources.update_source_health") as mock_health,
             patch("app.api.routes.admin_sources.log_mutation"),
         ):
@@ -206,3 +223,112 @@ class TestRunSourceAdapterError:
                 )
 
             mock_health.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# enable_source — source_class guard (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+def _enable(source: object | None):
+    """Call enable_source with a fully mocked context."""
+    from app.api.routes.admin_sources import enable_source
+
+    db = _make_db(source)
+    with patch("app.api.routes.admin_sources.log_mutation"):
+        return enable_source(
+            source_key=source.source_key if source else "missing",
+            request=MagicMock(),
+            db=db,
+            actor=MagicMock(),
+        )
+
+
+class TestEnableSourceClassPolicy:
+    def test_missing_source_returns_404(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            _enable(source=None)
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.parametrize(
+        "sc",
+        [
+            "portal_reference",
+            "manual_reference",
+            "requires_api_key",
+            "disabled_stub",
+            "needs_endpoint_configuration",
+            None,
+        ],
+    )
+    def test_non_machine_ingest_enable_returns_422(self, sc: str | None) -> None:
+        src = _make_source(source_class=sc, is_active=False)
+        with pytest.raises(HTTPException) as exc_info:
+            _enable(src)
+        assert exc_info.value.status_code == 422
+
+    def test_machine_ingest_enable_succeeds(self) -> None:
+        src = _make_source(source_class="machine_ingest", is_active=False)
+        with patch("app.api.routes.admin_sources.log_mutation"):
+            result = _enable(src)
+        assert result is src
+        assert src.is_active is True
+
+
+# ---------------------------------------------------------------------------
+# update_source PATCH — is_active=True guard (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+def _patch_source(source: object | None, **kwargs):
+    """Call update_source with a mocked context."""
+    from app.api.routes.admin_sources import update_source, SourceUpdateRequest
+
+    db = _make_db(source)
+    update = SourceUpdateRequest(**kwargs)
+    with patch("app.api.routes.admin_sources.log_mutation"):
+        return update_source(
+            source_key=source.source_key if source else "missing",
+            update=update,
+            request=MagicMock(),
+            db=db,
+            actor=MagicMock(),
+        )
+
+
+class TestUpdateSourceClassPolicy:
+    @pytest.mark.parametrize(
+        "sc",
+        [
+            "portal_reference",
+            "manual_reference",
+            "requires_api_key",
+            "disabled_stub",
+            "needs_endpoint_configuration",
+            None,
+        ],
+    )
+    def test_activate_non_machine_ingest_returns_422(self, sc: str | None) -> None:
+        src = _make_source(source_class=sc, is_active=False)
+        with pytest.raises(HTTPException) as exc_info:
+            _patch_source(src, is_active=True)
+        assert exc_info.value.status_code == 422
+
+    def test_deactivate_non_machine_ingest_is_allowed(self) -> None:
+        """Disabling any source_class should always be permitted."""
+        src = _make_source(source_class="portal_reference", is_active=True)
+        result = _patch_source(src, is_active=False)
+        assert result is src
+        assert src.is_active is False
+
+    def test_activate_machine_ingest_succeeds(self) -> None:
+        src = _make_source(source_class="machine_ingest", is_active=False)
+        result = _patch_source(src, is_active=True)
+        assert result is src
+        assert src.is_active is True
+
+    def test_patch_notes_on_non_machine_ingest_allowed(self) -> None:
+        """Non-activation patches (e.g. admin_notes) must still work on any class."""
+        src = _make_source(source_class="portal_reference")
+        result = _patch_source(src, admin_notes="Updated manually")
+        assert result is src

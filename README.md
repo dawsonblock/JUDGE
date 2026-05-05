@@ -207,7 +207,7 @@ Key variables from `.env.example`:
 | `JTA_ENABLE_ADMIN_REVIEW` | `false` | Enable review queue API |
 | `JTA_ADMIN_REVIEW_TOKEN` | (empty) | Admin token for review endpoints |
 | `JTA_ENABLE_ADMIN_IMPORTS` | `false` | Enable ingestion endpoints |
-| `JTA_ADMIN_TOKEN` | (empty) | Token for import endpoints |
+| `JTA_ADMIN_TOKEN` | (empty) | Token for import endpoints — **server-side only; never sent to browser** |
 | `COURTLISTENER_API_TOKEN` | (empty) | CourtListener v4 API token |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Frontend → backend (browser) |
 | `BACKEND_INTERNAL_URL` | `http://backend:8000` | Frontend → backend (Docker) |
@@ -468,6 +468,8 @@ All decisions logged to `EvidenceReview` and queryable via `GET /api/admin/revie
 | ✅ CORS strict validation | ❌ No complete security audit |
 | ✅ Source verification with SSRF protection | |
 | ✅ SourceRegistry fail-closed ingestion | |
+| ✅ Admin token (`JTA_ADMIN_TOKEN`) server-side only | |
+| ✅ Source-class enforcement: only `machine_ingest` eligible for API enable/run | |
 
 </details>
 

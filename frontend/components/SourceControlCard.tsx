@@ -9,6 +9,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Lock,
   ShieldCheck,
   Play,
   Loader2,
@@ -218,7 +219,12 @@ export function SourceControlCard({
           <Button
             size="sm"
             variant={source.is_active ? "outline" : "default"}
-            disabled={toggleLoading}
+            disabled={toggleLoading || (!source.is_active && !canRun)}
+            title={
+              !source.is_active && !canRun && source.source_class
+                ? `Cannot activate: class "${sourceClassLabel(source.source_class)}" is not eligible for automated ingestion.`
+                : undefined
+            }
             onClick={handleToggle}
             className="h-7 text-xs"
           >
@@ -249,6 +255,15 @@ export function SourceControlCard({
             </Button>
           )}
         </div>
+
+        {/* Lock notice for non-machine_ingest sources */}
+        {!canRun && source.source_class && (
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            {sourceClassLabel(source.source_class)} — not eligible for automated
+            ingestion.
+          </p>
+        )}
 
         {/* Run result */}
         {runResult && (
