@@ -82,6 +82,8 @@ class IngestionResult:
     created_records: list[CreatedRecord] = field(default_factory=list)
     review_items: list[CreatedReviewItem] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    raw_snapshot_bytes: bytes | None = None
+    content_type: str = "application/octet-stream"
 
     @property
     def success(self) -> bool:

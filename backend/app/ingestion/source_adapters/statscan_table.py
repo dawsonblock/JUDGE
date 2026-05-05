@@ -17,7 +17,7 @@ import httpx
 
 from app.ingestion.adapters import (
     CanadianSourceAdapter,
-    CreatedRecord,
+    CreatedReviewItem,
     IngestionResult,
     ParsedRecord,
 )
@@ -25,7 +25,7 @@ from app.ingestion.source_rules import check_domain_allowed, check_record_type_a
 
 logger = logging.getLogger(__name__)
 
-_RECORD_TYPE = "CrimeIncident"
+_RECORD_TYPE = "ReviewItem"
 
 # Statistics Canada JSON API base for CANSIM table data
 _STATSCAN_API_BASE = (
@@ -63,6 +63,8 @@ class StatscanTableAdapter(CanadianSourceAdapter):
             allowed_domains_json or '["www150.statcan.gc.ca", "statcan.gc.ca"]'
         )
         self._public_record_authority = public_record_authority
+        self._raw_bytes: bytes | None = None
+        self._content_type: str = "application/octet-stream"
 
     def fetch(self) -> list[dict[str, Any]]:
         violation = check_domain_allowed(self._base_url, self._allowed_domains_json)
@@ -78,6 +80,10 @@ class StatscanTableAdapter(CanadianSourceAdapter):
                 resp = client.get(self._base_url)
                 resp.raise_for_status()
             # Attempt JSON parse; fall back to CSV stub
+            self._raw_bytes = resp.content
+            self._content_type = resp.headers.get(
+                "content-type", "application/octet-stream"
+            )
             try:
                 data = resp.json()
                 if isinstance(data, list):
@@ -142,16 +148,24 @@ class StatscanTableAdapter(CanadianSourceAdapter):
         try:
             raw = self.fetch()
             result.records_fetched = len(raw)
+            result.raw_snapshot_bytes = self._raw_bytes
+            result.content_type = self._content_type
             parsed = self.parse(raw)
             result.records_skipped = len(raw) - len(parsed)
             for p in parsed:
-                result.created_records.append(
-                    CreatedRecord(
+                ref_date = p.payload.get("raw", {}).get("REF_DATE", "")
+                geo = p.payload.get("raw", {}).get("GEO", "")
+                headline = (
+                    f"Statistics Canada crime statistics: {geo} {ref_date}".strip(" :")
+                )
+                result.review_items.append(
+                    CreatedReviewItem(
                         source_key=p.source_key,
-                        record_type=p.record_type,
-                        external_id=p.external_id,
+                        headline=headline or None,
+                        url=p.source_url,
+                        extracted_text=str(p.payload.get("raw") or {}),
+                        confidence_score=0.9,
                         payload=p.payload,
-                        source_url=p.source_url,
                     )
                 )
         except Exception as exc:  # noqa: BLE001

@@ -177,7 +177,7 @@ sources:
     update_cadence: annual
     refresh_interval_minutes: 525600
     parser: statscan_table
-    creates: ["CrimeIncident"]
+    creates: ["ReviewItem"]
     enabled_default: false
     auto_publish_enabled: false
     requires_manual_review: true
@@ -204,7 +204,7 @@ sources:
     update_cadence: annual
     refresh_interval_minutes: 525600
     parser: statscan_table
-    creates: ["CrimeIncident"]
+    creates: ["ReviewItem"]
     enabled_default: false
     auto_publish_enabled: false
     requires_manual_review: true

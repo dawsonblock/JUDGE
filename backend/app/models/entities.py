@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -1139,6 +1140,12 @@ class MemoryRebuildRun(Base, TimestampMixin):
     """Tracks memory rebuild operations."""
 
     __tablename__ = "memory_rebuild_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "rebuild_scope IN ('full', 'entity')",
+            name="ck_memory_rebuild_scope_valid",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     rebuild_scope: Mapped[str] = mapped_column(

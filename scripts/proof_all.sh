@@ -40,7 +40,7 @@ cd "$REPO_ROOT"
 
 run_step "backend_install" "cd backend && python -m pip install -e '.[test]'"
 run_step "backend_compile" "cd backend && python -m compileall -q app"
-run_step "backend_tests" "cd backend && python -m pytest -q"
+run_step "backend_tests" "cd backend && python -m pytest --tb=short -q"
 run_step "alembic_sqlite" \
     "cd backend && { JTA_DATABASE_URL=sqlite:///./proof_test.db alembic upgrade head; rc=\$?; rm -f proof_test.db; exit \$rc; }"
 run_step "alembic_single_head" \

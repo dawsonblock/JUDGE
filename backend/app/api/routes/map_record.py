@@ -71,6 +71,7 @@ def _incident_options():
         selectinload(CrimeIncident.event_links).selectinload(
             CrimeIncidentEventLink.event
         ),
+        selectinload(CrimeIncident.source_snapshot),
     )
 
 
@@ -280,6 +281,24 @@ def _incident_detail(record_id: str, db: Session) -> dict:
                 incident.reviewed_at.isoformat() if incident.reviewed_at else None
             ),
             "last_updated": audit_date.isoformat() if audit_date else None,
+        },
+        "snapshot": {
+            "source_snapshot_id": incident.source_snapshot_id,
+            "content_hash": (
+                incident.source_snapshot.content_hash
+                if incident.source_snapshot
+                else None
+            ),
+            "fetched_at": (
+                incident.source_snapshot.fetched_at.isoformat()
+                if incident.source_snapshot
+                else None
+            ),
+            "source_url": (
+                incident.source_snapshot.source_url
+                if incident.source_snapshot
+                else None
+            ),
         },
         "disclaimer": INCIDENT_DISCLAIMER,
         "news_context_note": NEWS_CONTEXT_NOTE,

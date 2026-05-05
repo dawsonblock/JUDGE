@@ -25,6 +25,30 @@ from app.ingestion.source_registry_ctl import (
 )
 from app.models.entities import IngestionRun, ReviewItem, SourceSnapshot
 
+
+def _robots_allowed(url: str, user_agent: str = "*") -> bool:
+    """Check whether *url* is permitted by the site's robots.txt.
+
+    Fetches <scheme>://<host>/robots.txt with a 5-second timeout and
+    evaluates the rule for *user_agent*.  Returns ``True`` (permissive)
+    on any network or parse error so a transient robots.txt outage never
+    blocks ingestion.
+    """
+    import urllib.request
+    from urllib.parse import urljoin
+    from urllib.robotparser import RobotFileParser
+
+    try:
+        robots_url = urljoin(url, "/robots.txt")
+        with urllib.request.urlopen(robots_url, timeout=5) as resp:  # noqa: S310
+            content = resp.read().decode("utf-8", errors="replace")
+        rp = RobotFileParser()
+        rp.parse(content.splitlines())
+        return rp.can_fetch(user_agent, url)
+    except Exception:
+        return True  # Permissive fallback on any fetch or parse error
+
+
 if TYPE_CHECKING:
     from app.ingestion.web_monitor.extractors import ExtractedCandidate
     from app.ingestion.web_monitor.source_targets import WebMonitorTarget
@@ -289,6 +313,11 @@ class CrawleeRunner:
                 url = str(context.request.url)
                 if not self._is_url_allowed(url):
                     context.log.warning(f"URL not in allowlist: {url}")
+                    return
+
+                # robots.txt enforcement
+                if self.target.robots_txt_obey and not _robots_allowed(url):
+                    context.log.info(f"Skipping URL disallowed by robots.txt: {url}")
                     return
 
                 # Within-run URL dedup

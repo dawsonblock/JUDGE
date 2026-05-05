@@ -89,10 +89,10 @@ class WebMonitorTarget(BaseModel):
     robots_txt_obey: bool = Field(
         default=True,
         description=(
-            "Policy flag: whether robots.txt should be respected for this target. "
-            "Always True for externally-hosted sources. "
-            "Note: Crawlee HttpCrawler does not expose per-crawl robots.txt enforcement; "
-            "this field records intent and is checked before enabling a target."
+            "Whether robots.txt must be respected for this target. "
+            "When True, each URL is checked via urllib.robotparser before fetching. "
+            "Enforcement uses a 5-second HTTP timeout; any error is permissive (allow). "
+            "Always True for externally-hosted sources."
         ),
     )
     extractor_type: str = Field(

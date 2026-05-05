@@ -3,6 +3,7 @@
 Called from the admin ``/run`` endpoint and Celery tasks after
 ``adapter.run()``.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -36,10 +37,19 @@ def _create_snapshot(
     db: Session,
     source: SourceRegistry,
     run_record: IngestionRun,
+    raw_content: bytes | None = None,
 ) -> SourceSnapshot:
-    """Create a minimal SourceSnapshot entry for this run."""
-    placeholder = f"run:{run_record.id}:source:{source.source_key}"
-    digest = _content_hash(placeholder)
+    """Create a SourceSnapshot entry for this run.
+
+    If *raw_content* is provided, the content hash is derived from the actual
+    fetched bytes; otherwise a deterministic fallback hash of the run/source
+    identifiers is used so unique snapshots are still created per run.
+    """
+    if raw_content is not None:
+        digest = hashlib.sha256(raw_content).hexdigest()
+    else:
+        placeholder = f"run:{run_record.id}:source:{source.source_key}"
+        digest = _content_hash(placeholder)
     snapshot = SourceSnapshot(
         source_key=source.source_key,
         source_url=source.base_url or f"internal://adapter/{source.source_key}",
@@ -139,7 +149,7 @@ def persist_ingestion_result(
     if not result.created_records and not result.review_items:
         return summary
 
-    snapshot = _create_snapshot(db, source, run_record)
+    snapshot = _create_snapshot(db, source, run_record, result.raw_snapshot_bytes)
 
     for record in result.created_records:
         if _insert_crime_incident(db, record, snapshot):
@@ -153,6 +163,8 @@ def persist_ingestion_result(
 
     # Reflect actual persist/skip counts back onto the run record before commit
     run_record.persisted_count = summary.persisted_incidents
-    run_record.skipped_count = (run_record.skipped_count or 0) + summary.skipped_duplicates
+    run_record.skipped_count = (
+        run_record.skipped_count or 0
+    ) + summary.skipped_duplicates
 
     return summary

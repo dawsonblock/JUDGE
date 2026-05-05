@@ -11,7 +11,8 @@
  * public data only. No language implies guilt, culpability, or misconduct.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useJudgeMap } from "@/components/maplibre/JudgeMap";
 import { fetchCrimeIncidents, fetchJson } from "@/lib/api";
 import type { CrimeIncidentFeatureCollection, FeatureCollection } from "@/lib/api";
 import JudgeMapClient from "@/components/maplibre/JudgeMapClient";
@@ -25,18 +26,57 @@ import type { JudgeMapRecord } from "@/components/maplibre/types";
 
 type LoadState = "idle" | "loading" | "error";
 
+/**
+ * Attaches moveend/zoomend listeners to the MapLibre instance (via context)
+ * and calls onBoundsChange with a debounced "west,south,east,north" bbox string.
+ * Must be rendered inside a JudgeMap tree to access MapLibreContext.
+ */
+function BoundsTracker({ onBoundsChange }: { onBoundsChange: (bbox: string) => void }) {
+  const map = useJudgeMap();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+    const update = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        const b = map.getBounds();
+        const bbox = [
+          b.getWest().toFixed(4),
+          b.getSouth().toFixed(4),
+          b.getEast().toFixed(4),
+          b.getNorth().toFixed(4),
+        ].join(",");
+        onBoundsChange(bbox);
+      }, 300);
+    };
+    map.on("moveend", update);
+    map.on("zoomend", update);
+    return () => {
+      map.off("moveend", update);
+      map.off("zoomend", update);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [map, onBoundsChange]);
+
+  return null;
+}
+
 export default function MapV2Workspace() {
   const [incidents, setIncidents] = useState<CrimeIncidentFeatureCollection | null>(null);
   const [events, setEvents] = useState<FeatureCollection | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [selectedRecord, setSelectedRecord] = useState<JudgeMapRecord | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [bbox, setBbox] = useState<string | null>(null);
 
   useEffect(() => {
     setLoadState("loading");
+    const bboxParams = bbox ? { bbox } : undefined;
+    const eventsUrl = bbox ? `/api/map/events?bbox=${bbox}` : "/api/map/events";
     Promise.all([
-      fetchCrimeIncidents(),
-      fetchJson<FeatureCollection>("/api/map/events"),
+      fetchCrimeIncidents(bboxParams),
+      fetchJson<FeatureCollection>(eventsUrl),
     ])
       .then(([inc, evt]) => {
         setIncidents(inc);
@@ -44,7 +84,7 @@ export default function MapV2Workspace() {
         setLoadState("idle");
       })
       .catch(() => setLoadState("error"));
-  }, []);
+  }, [bbox]);
 
   const handleSelect = useCallback((record: JudgeMapRecord) => {
     setSelectedRecord(record);
@@ -97,6 +137,7 @@ export default function MapV2Workspace() {
         {/* Map */}
         <div className="relative flex-1">
           <JudgeMapClient className="w-full h-full">
+            <BoundsTracker onBoundsChange={setBbox} />
             <JudgeClusterLayer
               incidents={incidents}
               events={events}
