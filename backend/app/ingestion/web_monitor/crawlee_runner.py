@@ -46,7 +46,7 @@ def _robots_allowed(url: str, user_agent: str = "*") -> bool:
         rp.parse(content.splitlines())
         return rp.can_fetch(user_agent, url)
     except Exception:
-        return True  # Permissive fallback on any fetch or parse error
+        return False  # Fail closed: block fetch if robots.txt cannot be verified
 
 
 if TYPE_CHECKING:

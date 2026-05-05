@@ -476,4 +476,4 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 3
-    source_class: machine_ingest
+    source_class: portal_reference

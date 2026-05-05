@@ -79,6 +79,11 @@ def check_domain_allowed(
         )
 
     parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return RuleViolation(
+            rule="domain_allowlist",
+            detail=f"Unsafe URL scheme {parsed.scheme!r}; only http/https are permitted",
+        )
     host = parsed.hostname or ""
     # Strip leading "www." for comparison
     normalised_host = host.removeprefix("www.")

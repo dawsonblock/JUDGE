@@ -57,29 +57,36 @@ export function authorityColour(authority: string): string {
 // Tier
 // ---------------------------------------------------------------------------
 
-export type SourceTier = "primary" | "secondary" | "tertiary" | "unverified";
+export type SourceTier =
+  | "court_record"
+  | "official_police_open_data"
+  | "official_government_statistics"
+  | "verified_news_context"
+  | "news_only_context";
 
 export const SOURCE_TIER_COLOURS: Record<SourceTier, string> = {
-  primary: "bg-green-100 text-green-800",
-  secondary: "bg-blue-100 text-blue-800",
-  tertiary: "bg-yellow-100 text-yellow-800",
-  unverified: "bg-gray-100 text-gray-600",
+  court_record: "bg-cyan-100 text-cyan-800",
+  official_police_open_data: "bg-blue-100 text-blue-800",
+  official_government_statistics: "bg-indigo-100 text-indigo-800",
+  verified_news_context: "bg-amber-100 text-amber-800",
+  news_only_context: "bg-gray-100 text-gray-600",
 };
 
 export const SOURCE_TIER_LABELS: Record<SourceTier, string> = {
-  primary: "Primary",
-  secondary: "Secondary",
-  tertiary: "Tertiary",
-  unverified: "Unverified",
+  court_record: "Court Record",
+  official_police_open_data: "Official Police Open Data",
+  official_government_statistics: "Official Government Statistics",
+  verified_news_context: "Verified News Context",
+  news_only_context: "News Only Context",
 };
 
 /**
  * Returns the Tailwind colour string for `tier`, falling back to
- * `unverified` when the value is not one of the canonical set.
+ * `news_only_context` when the value is not one of the canonical set.
  */
 export function tierColour(tier: string): string {
   return (
     SOURCE_TIER_COLOURS[tier as SourceTier] ??
-    SOURCE_TIER_COLOURS.unverified
+    SOURCE_TIER_COLOURS.news_only_context
   );
 }

@@ -334,11 +334,8 @@ def retry_ingestion_run(
             status_code=400, detail="Cannot retry a run that is currently running"
         )
 
-    # Background worker not implemented - manual retry required
-    return {
-        "run_id": run_id,
-        "source_name": run.source_name,
-        "original_status": run.status,
-        "retry_queued": False,
-        "message": "Background worker not implemented. Manual retry required via ingestion trigger.",
-    }
+    # Background worker not implemented - direct re-trigger required
+    raise HTTPException(
+        status_code=501,
+        detail="Retry queue not implemented. Use POST /{source_key}/run to re-trigger manually.",
+    )

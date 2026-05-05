@@ -20,6 +20,7 @@ from app.core.rate_limit import rate_limit_admin
 from app.db.session import get_db
 from app.models.entities import IngestionRun, SourceRegistry
 from app.ingestion.statuses import COMPLETED, COMPLETED_WITH_ERRORS, FAILED
+from app.ingestion.source_registry_ctl import update_source_health
 
 router = APIRouter(prefix="/api/admin/sources", tags=["admin"])
 
@@ -91,6 +92,7 @@ class SourceResponse(BaseModel):
     creates: str | None = None
     public_publish_default: bool = False
     terms_url: str | None = None
+    source_class: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -433,6 +435,9 @@ def run_source_now(
     run_record.errors = result.errors or None
 
     persist_summary = persist_ingestion_result(db, source, run_record, result)
+    db.commit()
+
+    update_source_health(db, source_key, run_record)
     db.commit()
 
     log_mutation(

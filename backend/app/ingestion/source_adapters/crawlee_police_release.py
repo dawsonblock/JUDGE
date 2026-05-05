@@ -69,12 +69,10 @@ class CrawleePoliceReleaseAdapter(CanadianSourceAdapter):
             )
             return []
 
-        # Stub — returns empty list until Crawlee integration is wired
-        logger.info(
-            "CrawleePoliceReleaseAdapter.fetch() is a stub; no data returned for %s",
-            self._source_key,
+        raise NotImplementedError(
+            f"CrawleePoliceReleaseAdapter is a stub. Disable source '{self._source_key}'"
+            " or implement the Crawlee crawler before use."
         )
-        return []
 
     def parse(self, raw: list[dict[str, Any]]) -> list[ParsedRecord]:
         records: list[ParsedRecord] = []

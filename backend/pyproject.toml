@@ -36,7 +36,7 @@ test = [
   "pytest-mock>=3.14.0",
   "coverage[toml]>=7.5.0",
 ]
-embeddings = ["openai>=1.0", "tiktoken>=0.7"]
+embeddings = ["openai>=1.0", "tiktoken>=0.7", "sentence-transformers>=2.7.0"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

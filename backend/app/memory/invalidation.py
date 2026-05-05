@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
+    EntityGraphEdge,
     MemoryClaim,
     MemoryEntityState,
     MemoryInvalidation,
@@ -39,6 +40,20 @@ def invalidate_claim(
     claim.status = "inactive"
     claim.invalidated_at = now
     claim.invalidation_reason = reason
+
+    if claim.source_snapshot_id is not None:
+        edges = (
+            db.query(EntityGraphEdge)
+            .filter(
+                EntityGraphEdge.source_snapshot_id == claim.source_snapshot_id,
+                EntityGraphEdge.subject_id == claim.entity_id,
+                EntityGraphEdge.status == "active",
+            )
+            .all()
+        )
+        for edge in edges:
+            edge.status = "retracted"
+        db.flush()
 
     audit = MemoryInvalidation(
         invalidation_type="claim",
