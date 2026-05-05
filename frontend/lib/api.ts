@@ -299,6 +299,50 @@ export type SourceItem = {
   review_status: string;
 };
 
+export type AdminSourceItem = {
+  id: number;
+  source_key: string;
+  source_name: string;
+  source_type: string;
+  country: string | null;
+  province_state: string | null;
+  city: string | null;
+  source_tier: string;
+  is_active: boolean;
+  rate_limit_rpm: number | null;
+  health_score: number;
+  last_successful_fetch: string | null;
+  last_ingested_at: string | null;
+  admin_notes: string | null;
+  auto_publish_enabled: boolean;
+  requires_manual_review: boolean;
+  created_at: string;
+  updated_at: string;
+  // Canada-first metadata
+  jurisdiction: string | null;
+  category: string | null;
+  priority: number;
+  enabled_default: boolean;
+  public_record_authority: string;
+  base_url: string | null;
+  allowed_domains: string | null;
+  refresh_interval_minutes: number | null;
+  parser: string | null;
+  creates: string | null;
+  public_publish_default: boolean;
+  terms_url: string | null;
+};
+
+export type SourceRunResult = {
+  source_key: string;
+  records_fetched: number;
+  records_skipped: number;
+  created_records: number;
+  review_items: number;
+  errors: string[];
+  success: boolean;
+};
+
 export type DefendantItem = {
   id: number;
   anonymized_id: string;
@@ -371,8 +415,18 @@ export async function fetchSources(): Promise<SourceItem[]> {
   return fetchJson<SourceItem[]>("/api/sources");
 }
 
-export async function fetchAdminSourcesList(token: string): Promise<SourceItem[]> {
-  return fetchJson<SourceItem[]>("/api/admin/sources", {
+export async function fetchAdminSourcesList(token: string): Promise<AdminSourceItem[]> {
+  return fetchJson<AdminSourceItem[]>("/api/admin/sources", {
+    headers: { "x-jta-admin-token": token },
+  });
+}
+
+export async function triggerSourceRun(
+  token: string,
+  sourceKey: string,
+): Promise<SourceRunResult> {
+  return fetchJson<SourceRunResult>(`/api/admin/sources/${sourceKey}/run`, {
+    method: "POST",
     headers: { "x-jta-admin-token": token },
   });
 }

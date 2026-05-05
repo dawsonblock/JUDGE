@@ -37,6 +37,55 @@ class ParsedRecord:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+# ── Ingestion result types ────────────────────────────────────────────────────
+
+
+@dataclass
+class CreatedRecord:
+    """Represents a structured record (e.g. CrimeIncident) created by an adapter."""
+
+    source_key: str
+    record_type: str  # e.g. "CrimeIncident"
+    external_id: str | None  # stable identifier from the source (for dedup)
+    payload: dict[str, Any]  # raw field mapping pre-ORM hydration
+    source_url: str | None = None
+
+
+@dataclass
+class CreatedReviewItem:
+    """Represents a candidate item queued for human review."""
+
+    source_key: str
+    headline: str | None
+    url: str | None
+    extracted_text: str | None
+    confidence_score: float = 0.0
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class IngestionResult:
+    """Summary of one adapter run.
+
+    The caller (e.g. a Celery task or the ``/run`` endpoint) should persist
+    these lists and pass the result to ``update_source_health``.
+    """
+
+    source_key: str
+    records_fetched: int = 0
+    records_skipped: int = 0
+    created_records: list[CreatedRecord] = field(default_factory=list)
+    review_items: list[CreatedReviewItem] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def success(self) -> bool:
+        return not self.errors
+
+
+# ── Adapter ABC ───────────────────────────────────────────────────────────────
+
+
 class SourceAdapter(ABC):
     @abstractmethod
     def fetch(self, since: datetime) -> list[RawRecord]:
@@ -72,4 +121,6 @@ class NewsAdapter(SourceAdapter):
         return []
 
     def parse(self, raw: RawRecord) -> ParsedRecord:
-        return ParsedRecord(source_name="news", source_quality="secondary_context", raw=raw.payload)
+        return ParsedRecord(
+            source_name="news", source_quality="secondary_context", raw=raw.payload
+        )

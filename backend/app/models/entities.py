@@ -797,6 +797,28 @@ class SourceRegistry(Base, TimestampMixin):
     config_json: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
 
+    # Canada/Saskatchewan-first source metadata fields (migration 0011)
+    jurisdiction: Mapped[str | None] = mapped_column(String(120))
+    category: Mapped[str | None] = mapped_column(String(80))
+    priority: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=5, server_default="5"
+    )
+    enabled_default: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    public_record_authority: Mapped[str] = mapped_column(
+        String(80), nullable=False, default="unknown", server_default="unknown"
+    )
+    base_url: Mapped[str | None] = mapped_column(String(2048))
+    allowed_domains: Mapped[str | None] = mapped_column(Text)  # JSON array
+    refresh_interval_minutes: Mapped[int | None] = mapped_column(Integer)
+    parser: Mapped[str | None] = mapped_column(String(120))
+    creates: Mapped[str | None] = mapped_column(Text)  # JSON array of record types
+    public_publish_default: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    terms_url: Mapped[str | None] = mapped_column(String(2048))
+
 
 class SourceTierConflict(Base, TimestampMixin):
     """Records field-level conflicts detected when a lower-trust source tries

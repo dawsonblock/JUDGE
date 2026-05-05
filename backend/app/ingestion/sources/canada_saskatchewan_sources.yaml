@@ -1,0 +1,463 @@
+# Canada / Saskatchewan-first source registry configuration
+# ─────────────────────────────────────────────────────────
+# Safety rules enforced for every row:
+#   • public_record_authority: "news_context" sources NEVER create CrimeIncident directly
+#   • enabled_default: false for all rows — admin must explicitly enable each source
+#   • public_publish_default: true only for aggregate / statutory records (StatCan, legislation)
+#   • All personal identifiers are excluded; coordinates are area-level only
+#
+# Relationship with SourceRegistry columns:
+#   source_key         → SourceRegistry.source_key (unique, immutable once created)
+#   jurisdiction       → SourceRegistry.jurisdiction
+#   category           → SourceRegistry.category
+#   public_record_authority → SourceRegistry.public_record_authority
+#   enabled_default    → SourceRegistry.enabled_default  (seed only; admin overrides preserved)
+#   base_url           → SourceRegistry.base_url
+#   allowed_domains    → SourceRegistry.allowed_domains  (JSON array, whitelist for web monitor)
+#   refresh_interval_minutes → SourceRegistry.refresh_interval_minutes
+#   parser             → SourceRegistry.parser
+#   creates            → SourceRegistry.creates          (JSON array of record types produced)
+#   public_publish_default → SourceRegistry.public_publish_default
+#   terms_url          → SourceRegistry.terms_url
+
+sources:
+
+  # ── Saskatchewan / Saskatoon official open data ───────────────────────────
+
+  - source_key: saskatoon_open_data_crime
+    source_name: "City of Saskatoon Open Data – Crime Incidents"
+    jurisdiction: "Saskatoon, Saskatchewan, Canada"
+    category: crime_statistics
+    country: Canada
+    province_state: Saskatchewan
+    city: Saskatoon
+    source_type: crime_incident
+    source_tier: official_police_open_data
+    public_record_authority: official_open_data
+    license: "Open Government Licence – City of Saskatoon"
+    license_url: "https://opendata.saskatoon.ca/licence"
+    terms_url: "https://opendata.saskatoon.ca/licence"
+    base_url: "https://opendata.saskatoon.ca"
+    allowed_domains: ["opendata.saskatoon.ca"]
+    fetch_method: csv_download
+    update_cadence: monthly
+    refresh_interval_minutes: 44640
+    parser: saskatoon_csv
+    creates: ["CrimeIncident"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_block
+    priority: 1
+
+  - source_key: saskatoon_police_open_data
+    source_name: "Saskatoon Police Service – Open Data Portal"
+    jurisdiction: "Saskatoon, Saskatchewan, Canada"
+    category: crime_statistics
+    country: Canada
+    province_state: Saskatchewan
+    city: Saskatoon
+    source_type: crime_incident
+    source_tier: official_police_open_data
+    public_record_authority: official_open_data
+    license: "Open Government Licence – Saskatchewan"
+    license_url: "https://www.saskatoonpolice.ca/about/open-data"
+    terms_url: "https://www.saskatoonpolice.ca/about/open-data"
+    base_url: "https://www.saskatoonpolice.ca"
+    allowed_domains: ["saskatoonpolice.ca", "www.saskatoonpolice.ca"]
+    fetch_method: csv_download
+    update_cadence: monthly
+    refresh_interval_minutes: 44640
+    parser: saskatoon_police_csv
+    creates: ["CrimeIncident"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_block
+    priority: 1
+
+  - source_key: web_monitor_saskatoon_police_news
+    source_name: "Saskatoon Police Service – News Releases (Web Monitor)"
+    jurisdiction: "Saskatoon, Saskatchewan, Canada"
+    category: news_releases
+    country: Canada
+    province_state: Saskatchewan
+    city: Saskatoon
+    source_type: news_monitor
+    source_tier: news_only_context
+    public_record_authority: news_context
+    license: all_rights_reserved
+    terms_url: "https://www.saskatoonpolice.ca"
+    base_url: "https://www.saskatoonpolice.ca"
+    allowed_domains: ["saskatoonpolice.ca", "www.saskatoonpolice.ca"]
+    fetch_method: web_monitor
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: crawlee_police_release
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 2
+
+  - source_key: sk_courts_qb_decisions
+    source_name: "Saskatchewan Court of King's Bench – Decisions"
+    jurisdiction: "Saskatchewan, Canada"
+    category: court_decisions
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: court_record
+    source_tier: court_record
+    public_record_authority: official_court_record
+    license: "Crown copyright – public access"
+    terms_url: "https://www.sasklawcourts.ca"
+    base_url: "https://www.sasklawcourts.ca"
+    allowed_domains: ["sasklawcourts.ca", "www.sasklawcourts.ca"]
+    fetch_method: web_scrape
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: sk_courts_html
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 2
+
+  - source_key: sk_courts_ca_decisions
+    source_name: "Saskatchewan Court of Appeal – Decisions"
+    jurisdiction: "Saskatchewan, Canada"
+    category: court_decisions
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: court_record
+    source_tier: court_record
+    public_record_authority: official_court_record
+    license: "Crown copyright – public access"
+    terms_url: "https://www.sasklawcourts.ca"
+    base_url: "https://www.sasklawcourts.ca/court-of-appeal"
+    allowed_domains: ["sasklawcourts.ca", "www.sasklawcourts.ca"]
+    fetch_method: web_scrape
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: sk_courts_html
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 2
+
+  # ── Statistics Canada ─────────────────────────────────────────────────────
+
+  - source_key: statscan_ccjs_crime_sk
+    source_name: "Statistics Canada – Canadian Centre for Justice Statistics (SK)"
+    jurisdiction: "Saskatchewan, Canada"
+    category: crime_statistics
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_statistics
+    license: "Statistics Canada Open Licence"
+    license_url: "https://www.statcan.gc.ca/en/reference/licence"
+    terms_url: "https://www.statcan.gc.ca/en/reference/licence"
+    base_url: "https://www150.statcan.gc.ca"
+    allowed_domains: ["statcan.gc.ca", "www150.statcan.gc.ca"]
+    fetch_method: api
+    update_cadence: annual
+    refresh_interval_minutes: 525600
+    parser: statscan_table
+    creates: ["CrimeIncident"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: true
+    precision_level: province
+    priority: 2
+
+  - source_key: statscan_ucr_national
+    source_name: "Statistics Canada – Uniform Crime Reporting Survey (national)"
+    jurisdiction: "Canada"
+    category: crime_statistics
+    country: Canada
+    province_state: null
+    city: null
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_statistics
+    license: "Statistics Canada Open Licence"
+    license_url: "https://www.statcan.gc.ca/en/reference/licence"
+    terms_url: "https://www.statcan.gc.ca/en/reference/licence"
+    base_url: "https://www150.statcan.gc.ca"
+    allowed_domains: ["statcan.gc.ca", "www150.statcan.gc.ca"]
+    fetch_method: api
+    update_cadence: annual
+    refresh_interval_minutes: 525600
+    parser: statscan_table
+    creates: ["CrimeIncident"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: true
+    precision_level: national
+    priority: 3
+
+  # ── CanLII / Federal Courts ───────────────────────────────────────────────
+
+  - source_key: canlii_sk
+    source_name: "CanLII – Saskatchewan Courts"
+    jurisdiction: "Saskatchewan, Canada"
+    category: court_decisions
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: court_record
+    source_tier: court_record
+    public_record_authority: official_court_record
+    license: "CanLII Licence"
+    license_url: "https://www.canlii.org/en/info/terms.html"
+    terms_url: "https://www.canlii.org/en/info/terms.html"
+    base_url: "https://www.canlii.org"
+    allowed_domains: ["canlii.org", "www.canlii.org"]
+    fetch_method: api
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: canlii_api
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 2
+
+  - source_key: federal_court_canada
+    source_name: "Federal Court of Canada – Decisions"
+    jurisdiction: "Canada"
+    category: court_decisions
+    country: Canada
+    province_state: null
+    city: null
+    source_type: court_record
+    source_tier: court_record
+    public_record_authority: official_court_record
+    license: "Crown copyright – public access"
+    terms_url: "https://www.fct-cf.gc.ca/en/pages/terms-and-conditions"
+    base_url: "https://decisions.fct-cf.gc.ca"
+    allowed_domains: ["fct-cf.gc.ca", "decisions.fct-cf.gc.ca"]
+    fetch_method: web_scrape
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: federal_court_html
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 3
+
+  - source_key: scc_decisions
+    source_name: "Supreme Court of Canada – Decisions"
+    jurisdiction: "Canada"
+    category: court_decisions
+    country: Canada
+    province_state: null
+    city: null
+    source_type: court_record
+    source_tier: court_record
+    public_record_authority: official_court_record
+    license: "Crown copyright – public access"
+    terms_url: "https://www.scc-csc.ca/home-accueil/index-eng.aspx"
+    base_url: "https://scc-csc.lexum.com"
+    allowed_domains: ["scc-csc.ca", "www.scc-csc.ca", "scc-csc.lexum.com"]
+    fetch_method: api
+    update_cadence: weekly
+    refresh_interval_minutes: 10080
+    parser: scc_lexum_api
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: national
+    priority: 3
+
+  # ── Saskatchewan Government ───────────────────────────────────────────────
+
+  - source_key: sk_justice_ministry
+    source_name: "Saskatchewan Ministry of Justice – News Releases"
+    jurisdiction: "Saskatchewan, Canada"
+    category: government_news
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: news_monitor
+    source_tier: news_only_context
+    public_record_authority: news_context
+    license: "Crown copyright"
+    terms_url: "https://www.saskatchewan.ca/government/about-the-government-of-saskatchewan/terms-of-use"
+    base_url: "https://www.saskatchewan.ca"
+    allowed_domains: ["saskatchewan.ca", "www.saskatchewan.ca"]
+    fetch_method: web_monitor
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: crawlee_gov_news
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: province
+    priority: 3
+
+  - source_key: sk_legislature_hansard
+    source_name: "Saskatchewan Legislative Assembly – Hansard"
+    jurisdiction: "Saskatchewan, Canada"
+    category: legislation
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_legislation
+    license: "Crown copyright – public access"
+    terms_url: "https://www.legassembly.sk.ca"
+    base_url: "https://www.legassembly.sk.ca"
+    allowed_domains: ["legassembly.sk.ca", "www.legassembly.sk.ca"]
+    fetch_method: web_scrape
+    update_cadence: weekly
+    refresh_interval_minutes: 10080
+    parser: sk_legislature_html
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: true
+    precision_level: province
+    priority: 4
+
+  # ── Open Government Canada ────────────────────────────────────────────────
+
+  - source_key: canada_open_data_crime
+    source_name: "Open Government Canada – Crime & Justice Datasets"
+    jurisdiction: "Canada"
+    category: crime_statistics
+    country: Canada
+    province_state: null
+    city: null
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_statistics
+    license: "Open Government Licence – Canada"
+    license_url: "https://open.canada.ca/en/open-government-licence-canada"
+    terms_url: "https://open.canada.ca/en/open-government-licence-canada"
+    base_url: "https://open.canada.ca"
+    allowed_domains: ["open.canada.ca", "search.open.canada.ca"]
+    fetch_method: api
+    update_cadence: annual
+    refresh_interval_minutes: 525600
+    parser: ckan_api
+    creates: ["CrimeIncident"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: true
+    precision_level: national
+    priority: 3
+
+  # ── RCMP ──────────────────────────────────────────────────────────────────
+
+  - source_key: rcmp_sk_news
+    source_name: "RCMP Saskatchewan – News Releases"
+    jurisdiction: "Saskatchewan, Canada"
+    category: news_releases
+    country: Canada
+    province_state: Saskatchewan
+    city: null
+    source_type: news_monitor
+    source_tier: news_only_context
+    public_record_authority: news_context
+    license: all_rights_reserved
+    terms_url: "https://www.rcmp-grc.gc.ca/terms-modalites-eng.htm"
+    base_url: "https://www.rcmp-grc.gc.ca"
+    allowed_domains: ["rcmp-grc.gc.ca", "www.rcmp-grc.gc.ca"]
+    fetch_method: web_monitor
+    update_cadence: daily
+    refresh_interval_minutes: 1440
+    parser: crawlee_police_release
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 3
+
+  # ── Canada Department of Justice – Legislation ───────────────────────────
+
+  - source_key: canada_justice_laws
+    source_name: "Department of Justice Canada – Justice Laws Website"
+    jurisdiction: "Canada"
+    category: legislation
+    country: Canada
+    province_state: null
+    city: null
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_legislation
+    license: "Open Government Licence – Canada"
+    license_url: "https://laws-lois.justice.gc.ca/eng/licence.html"
+    terms_url: "https://laws-lois.justice.gc.ca/eng/licence.html"
+    base_url: "https://laws-lois.justice.gc.ca"
+    allowed_domains: ["laws-lois.justice.gc.ca"]
+    fetch_method: web_scrape
+    update_cadence: monthly
+    refresh_interval_minutes: 44640
+    parser: laws_justice_html
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: true
+    precision_level: national
+    priority: 4
+
+  # ── City of Saskatoon Open Data (general) ─────────────────────────────────
+
+  - source_key: saskatoon_open_data_portal
+    source_name: "City of Saskatoon – Open Data Portal"
+    jurisdiction: "Saskatoon, Saskatchewan, Canada"
+    category: city_open_data
+    country: Canada
+    province_state: Saskatchewan
+    city: Saskatoon
+    source_type: aggregate_stats
+    source_tier: official_government_statistics
+    public_record_authority: official_open_data
+    license: "Open Government Licence – City of Saskatoon"
+    license_url: "https://opendata.saskatoon.ca/licence"
+    terms_url: "https://opendata.saskatoon.ca/licence"
+    base_url: "https://opendata.saskatoon.ca"
+    allowed_domains: ["opendata.saskatoon.ca"]
+    fetch_method: api
+    update_cadence: monthly
+    refresh_interval_minutes: 44640
+    parser: ckan_api
+    creates: ["ReviewItem"]
+    enabled_default: false
+    auto_publish_enabled: false
+    requires_manual_review: true
+    public_publish_default: false
+    precision_level: city_centroid
+    priority: 3

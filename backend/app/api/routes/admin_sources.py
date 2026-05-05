@@ -29,13 +29,19 @@ class SourceUpdateRequest(BaseModel):
     is_active: bool | None = None
     rate_limit_rpm: int | None = Field(None, ge=1, le=10000)
     source_tier: str | None = Field(
-        None, 
-        pattern=r"^(court_record|official_police_open_data|official_government_statistics|verified_news_context|news_only_context)$"
+        None,
+        pattern=r"^(court_record|official_police_open_data|official_government_statistics|verified_news_context|news_only_context)$",
     )
     admin_notes: str | None = None
     config_json: str | None = None
     auto_publish_enabled: bool | None = None
     requires_manual_review: bool | None = None
+    # New Canada-first metadata fields
+    priority: int | None = Field(None, ge=1, le=100)
+    base_url: str | None = Field(None, max_length=2048)
+    allowed_domains: str | None = None  # JSON array
+    refresh_interval_minutes: int | None = Field(None, ge=1)
+    parser: str | None = Field(None, max_length=120)
 
 
 class SourceHealthMetrics(BaseModel):
@@ -71,6 +77,19 @@ class SourceResponse(BaseModel):
     requires_manual_review: bool
     created_at: datetime
     updated_at: datetime
+    # Canada-first metadata fields
+    jurisdiction: str | None = None
+    category: str | None = None
+    priority: int = 50
+    enabled_default: bool = False
+    public_record_authority: str = "unknown"
+    base_url: str | None = None
+    allowed_domains: str | None = None
+    refresh_interval_minutes: int | None = None
+    parser: str | None = None
+    creates: str | None = None
+    public_publish_default: bool = False
+    terms_url: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -121,9 +140,9 @@ def get_source(
     _: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Get detailed information about a specific source."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
@@ -131,7 +150,11 @@ def get_source(
     return source
 
 
-@router.patch("/{source_key}", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
+@router.patch(
+    "/{source_key}",
+    response_model=SourceResponse,
+    dependencies=[Depends(rate_limit_admin)],
+)
 def update_source(
     source_key: str,
     update: SourceUpdateRequest,
@@ -140,9 +163,9 @@ def update_source(
     actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Update source configuration (enable/disable, rate limit, tier, notes)."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
@@ -158,6 +181,7 @@ def update_source(
         source.admin_notes = update.admin_notes
     if update.config_json is not None:
         import json
+
         try:
             json.loads(update.config_json)
         except (json.JSONDecodeError, TypeError) as exc:
@@ -169,6 +193,24 @@ def update_source(
         source.auto_publish_enabled = update.auto_publish_enabled
     if update.requires_manual_review is not None:
         source.requires_manual_review = update.requires_manual_review
+    if update.priority is not None:
+        source.priority = update.priority
+    if update.base_url is not None:
+        source.base_url = update.base_url
+    if update.allowed_domains is not None:
+        import json
+
+        try:
+            json.loads(update.allowed_domains)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise HTTPException(
+                status_code=422, detail=f"allowed_domains is not valid JSON: {exc}"
+            )
+        source.allowed_domains = update.allowed_domains
+    if update.refresh_interval_minutes is not None:
+        source.refresh_interval_minutes = update.refresh_interval_minutes
+    if update.parser is not None:
+        source.parser = update.parser
 
     source.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -187,7 +229,11 @@ def update_source(
     return source
 
 
-@router.post("/{source_key}/enable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
+@router.post(
+    "/{source_key}/enable",
+    response_model=SourceResponse,
+    dependencies=[Depends(rate_limit_admin)],
+)
 def enable_source(
     source_key: str,
     request: Request,
@@ -195,9 +241,9 @@ def enable_source(
     actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Enable a source for ingestion."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
@@ -220,7 +266,11 @@ def enable_source(
     return source
 
 
-@router.post("/{source_key}/disable", response_model=SourceResponse, dependencies=[Depends(rate_limit_admin)])
+@router.post(
+    "/{source_key}/disable",
+    response_model=SourceResponse,
+    dependencies=[Depends(rate_limit_admin)],
+)
 def disable_source(
     source_key: str,
     request: Request,
@@ -228,9 +278,9 @@ def disable_source(
     actor: AdminActor = Depends(require_admin_token),
 ) -> SourceRegistry:
     """Disable a source (stops active crawls)."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
@@ -261,9 +311,9 @@ def get_source_health(
     days: int = Query(7, ge=1, le=90, description="Lookback period in days"),
 ) -> dict[str, Any]:
     """Get health metrics for a source."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
@@ -271,13 +321,16 @@ def get_source_health(
     # Calculate recent run metrics
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    run_stats = db.query(
-        func.count(IngestionRun.id).label("total_runs"),
-        func.sum(IngestionRun.error_count).label("total_errors"),
-    ).filter(
-        IngestionRun.source_name == source_key,
-        IngestionRun.started_at >= cutoff
-    ).first()
+    run_stats = (
+        db.query(
+            func.count(IngestionRun.id).label("total_runs"),
+            func.sum(IngestionRun.error_count).label("total_errors"),
+        )
+        .filter(
+            IngestionRun.source_name == source_key, IngestionRun.started_at >= cutoff
+        )
+        .first()
+    )
 
     return {
         "health_score": source.health_score,
@@ -290,6 +343,88 @@ def get_source_health(
     }
 
 
+class RunResult(BaseModel):
+    """Result of a manually triggered ingestion run."""
+
+    source_key: str
+    records_fetched: int
+    records_skipped: int
+    created_records: int
+    review_items: int
+    errors: list[str]
+    success: bool
+
+
+@router.post(
+    "/{source_key}/run",
+    response_model=RunResult,
+    dependencies=[Depends(rate_limit_admin)],
+)
+def run_source_now(
+    source_key: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: AdminActor = Depends(require_admin_token),
+) -> dict[str, Any]:
+    """Manually trigger an ingestion run for a source (stub — adapter wiring pending)."""
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
+
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
+
+    if not source.is_active:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Source '{source_key}' is disabled; enable it before running.",
+        )
+
+    # Import adapter registry lazily to avoid circular imports
+    from app.ingestion.source_adapters import ADAPTER_REGISTRY
+
+    parser_key = source.parser
+    adapter_cls = ADAPTER_REGISTRY.get(parser_key) if parser_key else None
+
+    if adapter_cls is None:
+        raise HTTPException(
+            status_code=501,
+            detail=f"No adapter registered for parser '{parser_key}'. Run not started.",
+        )
+
+    adapter = adapter_cls(
+        source_key=source.source_key,
+        base_url=source.base_url or "",
+        allowed_domains_json=source.allowed_domains or "[]",
+        public_record_authority=source.public_record_authority,
+    )
+    result = adapter.run()
+
+    log_mutation(
+        action="source.run",
+        entity_type="source_registry",
+        entity_id=source.source_key,
+        payload={
+            "records_fetched": result.records_fetched,
+            "created_records": len(result.created_records),
+            "review_items": len(result.review_items),
+            "errors": result.errors,
+        },
+        request=request,
+        actor=actor,
+    )
+
+    return {
+        "source_key": source_key,
+        "records_fetched": result.records_fetched,
+        "records_skipped": result.records_skipped,
+        "created_records": len(result.created_records),
+        "review_items": len(result.review_items),
+        "errors": result.errors,
+        "success": result.success,
+    }
+
+
 @router.get("/{source_key}/runs", response_model=list[IngestionRunSummary])
 def get_source_runs(
     source_key: str,
@@ -299,15 +434,20 @@ def get_source_runs(
     limit: int = Query(20, ge=1, le=100),
 ) -> list[IngestionRun]:
     """Get ingestion run history for a source."""
-    source = db.query(SourceRegistry).filter(
-        SourceRegistry.source_key == source_key
-    ).first()
+    source = (
+        db.query(SourceRegistry).filter(SourceRegistry.source_key == source_key).first()
+    )
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source '{source_key}' not found")
 
-    runs = db.query(IngestionRun).filter(
-        IngestionRun.source_name == source_key
-    ).order_by(desc(IngestionRun.started_at)).offset(skip).limit(limit).all()
+    runs = (
+        db.query(IngestionRun)
+        .filter(IngestionRun.source_name == source_key)
+        .order_by(desc(IngestionRun.started_at))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
     return runs

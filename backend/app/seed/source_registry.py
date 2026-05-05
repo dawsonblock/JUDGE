@@ -12,8 +12,11 @@ Run standalone:
 
 from __future__ import annotations
 
+import json
 import os
+import pathlib
 
+import yaml
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -180,10 +183,51 @@ _SOURCES: list[dict] = [
     },
 ]
 
+# ── YAML-driven Canada / Saskatchewan source definitions ─────────────────────
+# Sources defined in the YAML override any matching source_key in _SOURCES.
+
+_YAML_PATH = (
+    pathlib.Path(__file__).parent.parent
+    / "ingestion"
+    / "sources"
+    / "canada_saskatchewan_sources.yaml"
+)
+
+_LIST_FIELDS = ("allowed_domains", "creates")
+
+
+def _load_yaml_sources() -> list[dict]:
+    """Load sources from the YAML config, normalising list fields to JSON strings.
+
+    Returns an empty list if the YAML file is missing (allows the module to
+    import cleanly in environments where the file has not been deployed yet).
+    """
+    if not _YAML_PATH.exists():
+        return []
+    with _YAML_PATH.open("r", encoding="utf-8") as fh:
+        raw = yaml.safe_load(fh)
+    out: list[dict] = []
+    for entry in raw.get("sources", []):
+        normalised = dict(entry)
+        for field in _LIST_FIELDS:
+            val = normalised.get(field)
+            if isinstance(val, list):
+                normalised[field] = json.dumps(val)
+        out.append(normalised)
+    return out
+
+
+def _merged_sources() -> list[dict]:
+    """Return the canonical source list, with YAML entries taking precedence."""
+    yaml_sources = _load_yaml_sources()
+    yaml_keys = {s["source_key"] for s in yaml_sources}
+    base = [s for s in _SOURCES if s["source_key"] not in yaml_keys]
+    return base + yaml_sources
+
 
 def seed_source_registry(db: Session) -> None:
     """Insert source registry rows that do not yet exist (idempotent)."""
-    for spec in _SOURCES:
+    for spec in _merged_sources():
         existing = db.scalar(
             select(SourceRegistry).where(
                 SourceRegistry.source_key == spec["source_key"]
@@ -210,6 +254,20 @@ _REPAIR_FIELDS: tuple[str, ...] = (
     "province_state",
     "city",
     "precision_level",
+    # New metadata fields (YAML-sourced)
+    "jurisdiction",
+    "category",
+    "priority",
+    "public_record_authority",
+    "base_url",
+    "allowed_domains",
+    "refresh_interval_minutes",
+    "parser",
+    "license",
+    "license_url",
+    "terms_url",
+    "creates",
+    "public_publish_default",
 )
 
 
@@ -227,7 +285,7 @@ def repair_canada_first_defaults(db: Session, *, dry_run: bool = False) -> list[
         A list of human-readable change descriptions (one per field corrected).
     """
     changes: list[str] = []
-    for spec in _SOURCES:
+    for spec in _merged_sources():
         row = db.scalar(
             select(SourceRegistry).where(
                 SourceRegistry.source_key == spec["source_key"]

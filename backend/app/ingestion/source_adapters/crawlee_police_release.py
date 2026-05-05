@@ -1,0 +1,136 @@
+"""Adapter for police/RCMP news-release pages via Crawlee.
+
+Handles source keys: ``web_monitor_saskatoon_police_news``, ``rcmp_sk_news``
+Parser key: ``crawlee_police_release``
+Creates: ``ReviewItem`` records only (news context — no direct public record authority)
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from app.ingestion.adapters import (
+    CreatedReviewItem,
+    IngestionResult,
+    ParsedRecord,
+    SourceAdapter,
+)
+from app.ingestion.source_rules import check_domain_allowed, check_record_type_allowed
+
+logger = logging.getLogger(__name__)
+
+_RECORD_TYPE = "ReviewItem"
+_PUBLIC_RECORD_AUTHORITY = "news_context"
+
+
+class CrawleePoliceReleaseAdapter(SourceAdapter):
+    """Crawl police news-release pages and produce ReviewItem candidates.
+
+    This adapter uses Crawlee (via the existing ``web_monitor`` infrastructure)
+    to fetch news-release index pages from Saskatoon Police Service and RCMP
+    Saskatchewan and converts each discovered article into a ``ReviewItem``
+    for human review.  It does **not** auto-publish; all items require manual
+    review before any judge/defendant associations are made.
+
+    .. note::
+        Skeleton implementation.  Wire up the Crawlee runner from
+        ``app.ingestion.web_monitor.crawlee_runner`` when integrating.
+        The ``fetch()`` method must be replaced with actual crawl logic.
+    """
+
+    def __init__(
+        self,
+        source_key: str,
+        base_url: str,
+        allowed_domains_json: str | None = None,
+    ) -> None:
+        self._source_key = source_key
+        self._base_url = base_url
+        self._allowed_domains_json = allowed_domains_json or "[]"
+
+    def fetch(self) -> list[dict[str, Any]]:
+        """Return crawled article dicts.
+
+        Each dict should have:
+          - ``url``: canonical article URL
+          - ``headline``: article headline
+          - ``text``: extracted body text
+          - ``published_at``: ISO date string (optional)
+
+        TODO: Implement using Crawlee playwright or httpx crawler integrating
+        with the existing ``web_monitor`` infrastructure.
+        """
+        violation = check_domain_allowed(self._base_url, self._allowed_domains_json)
+        if violation:
+            logger.warning(
+                "Domain check failed for %s: %s", self._source_key, violation.detail
+            )
+            return []
+
+        # Stub — returns empty list until Crawlee integration is wired
+        logger.info(
+            "CrawleePoliceReleaseAdapter.fetch() is a stub; no data returned for %s",
+            self._source_key,
+        )
+        return []
+
+    def parse(self, raw: list[dict[str, Any]]) -> list[ParsedRecord]:
+        records: list[ParsedRecord] = []
+        for item in raw:
+            url = item.get("url", "")
+            violation = check_record_type_allowed(
+                _RECORD_TYPE,
+                _PUBLIC_RECORD_AUTHORITY,
+                f'["{_RECORD_TYPE}"]',
+            )
+            if violation:
+                logger.warning("Record type gate failed: %s", violation.detail)
+                continue
+            # Also gate per-URL domain
+            url_violation = check_domain_allowed(url, self._allowed_domains_json)
+            if url_violation:
+                logger.warning(
+                    "URL domain rejected for %s: %s",
+                    self._source_key,
+                    url_violation.detail,
+                )
+                continue
+            records.append(
+                ParsedRecord(
+                    source_key=self._source_key,
+                    record_type=_RECORD_TYPE,
+                    external_id=url or None,
+                    payload={
+                        "headline": item.get("headline"),
+                        "url": url,
+                        "extracted_text": item.get("text"),
+                        "published_at": item.get("published_at"),
+                    },
+                    source_url=url,
+                )
+            )
+        return records
+
+    def run(self) -> IngestionResult:
+        result = IngestionResult(source_key=self._source_key)
+        try:
+            raw = self.fetch()
+            result.records_fetched = len(raw)
+            parsed = self.parse(raw)
+            result.records_skipped = len(raw) - len(parsed)
+            for p in parsed:
+                result.review_items.append(
+                    CreatedReviewItem(
+                        source_key=p.source_key,
+                        headline=p.payload.get("headline"),
+                        url=p.source_url,
+                        extracted_text=p.payload.get("extracted_text"),
+                        confidence_score=0.0,
+                        payload=p.payload,
+                    )
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Unhandled error in %s adapter", self._source_key)
+            result.errors.append(str(exc))
+        return result

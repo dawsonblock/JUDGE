@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
 import { fetchAdminReviewQueue } from "@/lib/api";
 
-const PENDING = ["pending", "needs_info"];
+const PENDING = ["pending_review", "pending", "needs_info"];
 
 async function decideAction(formData: FormData) {
   "use server";
@@ -76,7 +76,7 @@ export default async function AdminReviewPage() {
                   <form action={decideAction}>
                     <input type="hidden" name="entity_type" value={item.entity_type} />
                     <input type="hidden" name="entity_id" value={String(item.entity_id)} />
-                    <input type="hidden" name="decision" value="approved" />
+                    <input type="hidden" name="decision" value="approve" />
                     <Button
                       type="submit"
                       size="sm"
