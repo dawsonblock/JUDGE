@@ -22,7 +22,6 @@ from app.ingestion.source_rules import check_domain_allowed, check_record_type_a
 logger = logging.getLogger(__name__)
 
 _RECORD_TYPE = "ReviewItem"
-_PUBLIC_RECORD_AUTHORITY = "news_context"
 
 
 class CrawleeGovNewsAdapter(CanadianSourceAdapter):
@@ -85,7 +84,7 @@ class CrawleeGovNewsAdapter(CanadianSourceAdapter):
             url = item.get("url", "")
             violation = check_record_type_allowed(
                 _RECORD_TYPE,
-                _PUBLIC_RECORD_AUTHORITY,
+                self._public_record_authority,
                 f'["{_RECORD_TYPE}"]',
             )
             if violation:

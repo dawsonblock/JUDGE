@@ -26,7 +26,6 @@ from app.ingestion.source_rules import check_domain_allowed, check_record_type_a
 logger = logging.getLogger(__name__)
 
 _RECORD_TYPE = "CrimeIncident"
-_PUBLIC_RECORD_AUTHORITY = "official_statistics"
 
 # Statistics Canada JSON API base for CANSIM table data
 _STATSCAN_API_BASE = (
@@ -110,7 +109,7 @@ class StatscanTableAdapter(CanadianSourceAdapter):
                 continue
             violation = check_record_type_allowed(
                 _RECORD_TYPE,
-                _PUBLIC_RECORD_AUTHORITY,
+                self._public_record_authority,
                 f'["{_RECORD_TYPE}"]',
             )
             if violation:
