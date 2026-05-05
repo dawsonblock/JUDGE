@@ -105,9 +105,8 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 2
-    source_class: machine_ingest
-
-  - source_key: sk_courts_qb_decisions
+    source_class: disabled_stub
+    admin_notes: "crawlee_police_release adapter not yet implemented; reclassified from machine_ingest pending real adapter."
     source_name: "Saskatchewan Court of King's Bench – Decisions"
     jurisdiction: "Saskatchewan, Canada"
     category: court_decisions
@@ -330,9 +329,8 @@ sources:
     public_publish_default: false
     precision_level: province
     priority: 3
-    source_class: machine_ingest
-
-  - source_key: sk_legislature_hansard
+    source_class: disabled_stub
+    admin_notes: "crawlee_gov_news adapter not yet implemented; reclassified from machine_ingest pending real adapter."
     source_name: "Saskatchewan Legislative Assembly – Hansard"
     jurisdiction: "Saskatchewan, Canada"
     category: legislation
@@ -416,9 +414,8 @@ sources:
     public_publish_default: false
     precision_level: city_centroid
     priority: 3
-    source_class: machine_ingest
-
-  # ── Canada Department of Justice – Legislation ───────────────────────────
+    source_class: disabled_stub
+    admin_notes: "crawlee_police_release adapter not yet implemented; reclassified from machine_ingest pending real adapter."
 
   - source_key: canada_justice_laws
     source_name: "Department of Justice Canada – Justice Laws Website"

@@ -360,6 +360,16 @@ class RunResult(BaseModel):
     success: bool
 
 
+_SOURCE_CLASS_NEXT_ACTION: dict[str | None, str] = {
+    "portal_reference": "Configure a supported machine-readable endpoint and adapter before enabling runs.",
+    "manual_reference": "Use as manual reference evidence only.",
+    "requires_api_key": "Configure the required API key before enabling machine ingestion.",
+    "disabled_stub": "Implement and test the adapter before marking this source runnable.",
+    "needs_endpoint_configuration": "Set an exact machine-readable endpoint before enabling runs.",
+    None: "Source class is not set; classify this source before running.",
+}
+
+
 @router.post(
     "/{source_key}/run",
     response_model=RunResult,
@@ -386,14 +396,17 @@ def run_source_now(
         )
 
     source_class = getattr(source, "source_class", None)
-    if source_class == "portal_reference":
+    if source_class != "machine_ingest":
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"Source '{source_key}' is a portal_reference and cannot be "
-                "auto-run. Update base_url to a machine-readable API endpoint "
-                "and set source_class to 'machine_ingest'."
-            ),
+            detail={
+                "source_key": source_key,
+                "source_class": source_class,
+                "reason": "Only machine_ingest sources can be run.",
+                "next_action": _SOURCE_CLASS_NEXT_ACTION.get(
+                    source_class, "Unknown source class; classify before running."
+                ),
+            },
         )
 
     from app.core.config import get_settings
@@ -423,6 +436,7 @@ def run_source_now(
         run_record.finished_at = datetime.now(timezone.utc)
         run_record.error_count = 1
         run_record.errors = [str(exc)]
+        update_source_health(db, source_key, run_record)
         db.commit()
         raise HTTPException(status_code=500, detail=f"Adapter error: {exc}") from exc
 

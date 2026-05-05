@@ -90,3 +90,45 @@ export function tierColour(tier: string): string {
     SOURCE_TIER_COLOURS.news_only_context
   );
 }
+
+// ---------------------------------------------------------------------------
+// Source class
+// ---------------------------------------------------------------------------
+
+export type SourceClass =
+  | "machine_ingest"
+  | "portal_reference"
+  | "manual_reference"
+  | "requires_api_key"
+  | "disabled_stub"
+  | "needs_endpoint_configuration";
+
+export const SOURCE_CLASS_LABELS: Record<SourceClass, string> = {
+  machine_ingest: "Machine Ingest",
+  portal_reference: "Portal Reference",
+  manual_reference: "Manual Reference",
+  requires_api_key: "Requires API Key",
+  disabled_stub: "Disabled Stub",
+  needs_endpoint_configuration: "Needs Endpoint Config",
+};
+
+export const SOURCE_CLASS_COLOURS: Record<SourceClass, string> = {
+  machine_ingest: "bg-green-100 text-green-800",
+  portal_reference: "bg-amber-100 text-amber-800",
+  manual_reference: "bg-gray-100 text-gray-600",
+  requires_api_key: "bg-orange-100 text-orange-800",
+  disabled_stub: "bg-red-100 text-red-700",
+  needs_endpoint_configuration: "bg-yellow-100 text-yellow-800",
+};
+
+/** Human-readable label for a source_class value, falling back to the raw value. */
+export function sourceClassLabel(sc: string | null): string {
+  if (!sc) return "Unclassified";
+  return SOURCE_CLASS_LABELS[sc as SourceClass] ?? sc.replace(/_/g, " ");
+}
+
+/** Tailwind colour string for a source_class value, falling back to disabled_stub colours. */
+export function sourceClassColour(sc: string | null): string {
+  if (!sc) return "bg-gray-100 text-gray-500";
+  return SOURCE_CLASS_COLOURS[sc as SourceClass] ?? "bg-gray-100 text-gray-500";
+}

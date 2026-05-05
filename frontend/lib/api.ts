@@ -331,7 +331,7 @@ export type AdminSourceItem = {
   creates: string | null;
   public_publish_default: boolean;
   terms_url: string | null;
-  source_class: string | null;
+  source_class: import("./sourceContracts").SourceClass | null;
 };
 
 export type SourceRunResult = {

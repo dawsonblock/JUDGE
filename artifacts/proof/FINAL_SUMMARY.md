@@ -1,3 +1,5 @@
+> ⚠️ **HISTORICAL ARTIFACT** — represents the codebase state prior to the current truth-hardening session. See [CURRENT_PROOF.md](CURRENT_PROOF.md) for the up-to-date record.
+
 > **Historical Record** — reflects state at time of writing; may not represent current implementation.
 
 # Final Summary — Truth-First Hardening Pass

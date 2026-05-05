@@ -22,9 +22,11 @@ from app.ingestion.source_rules import (
 
 
 class TestCheckDomainAllowed:
-    def test_empty_allowed_list_permits_any(self) -> None:
+    def test_empty_allowed_list_blocks_any(self) -> None:
+        # Empty allowlist → no domain can match → fail-closed
         result = check_domain_allowed("https://example.com/data.csv", "[]")
-        assert result is None
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "domain_allowlist"
 
     def test_matching_domain_permits(self) -> None:
         domains = json.dumps(["opendata.saskatoon.ca"])
@@ -37,11 +39,13 @@ class TestCheckDomainAllowed:
         domains = json.dumps(["opendata.saskatoon.ca"])
         result = check_domain_allowed("https://evil.example.com/data", domains)
         assert isinstance(result, RuleViolation)
-        assert "not in allowed domains" in result.detail
+        assert "not in allowed" in result.detail
 
-    def test_none_allowed_domains_permits(self) -> None:
+    def test_none_allowed_domains_blocks(self) -> None:
+        # None allowed_domains → fail-closed: no allowlist configured
         result = check_domain_allowed("https://example.com/", None)
-        assert result is None
+        assert isinstance(result, RuleViolation)
+        assert "No allowed_domains" in result.detail
 
     def test_invalid_url_blocks(self) -> None:
         domains = json.dumps(["opendata.saskatoon.ca"])
@@ -49,14 +53,89 @@ class TestCheckDomainAllowed:
         assert isinstance(result, RuleViolation)
 
     def test_ssrf_private_ip_blocked(self) -> None:
+        # SSRF block fires before the domain allowlist check
         domains = json.dumps(["192.168.1.1"])
         result = check_domain_allowed("http://192.168.1.1/internal", domains)
-        # Private IP should not be in allowed domains even if listed
-        # The rule: domain check passes if domain in allowed list.
-        # For SSRF safety the allowed_domains should never include private ranges,
-        # but that's a seeding concern. Here we just verify the check resolves.
-        # If the domain is in the list it should pass; callers must not seed private IPs.
-        assert result is None  # domain matches — SSRF prevention is at seed level
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+
+# ── SSRF blocking ────────────────────────────────────────────────────────────
+
+
+class TestSsrfBlocking:
+    """Verify _is_private_or_loopback fires before the domain allowlist."""
+
+    def test_loopback_ipv4_blocked(self) -> None:
+        result = check_domain_allowed(
+            "http://127.0.0.1/admin", json.dumps(["127.0.0.1"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_loopback_ipv6_blocked(self) -> None:
+        result = check_domain_allowed("http://[::1]/secret", json.dumps(["::1"]))
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_rfc1918_10_blocked(self) -> None:
+        result = check_domain_allowed("http://10.0.0.1/data", json.dumps(["10.0.0.1"]))
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_rfc1918_172_blocked(self) -> None:
+        result = check_domain_allowed(
+            "http://172.16.0.1/data", json.dumps(["172.16.0.1"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_rfc1918_192_168_blocked(self) -> None:
+        result = check_domain_allowed(
+            "http://192.168.0.1/data", json.dumps(["192.168.0.1"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_localhost_string_blocked(self) -> None:
+        result = check_domain_allowed(
+            "http://localhost/admin", json.dumps(["localhost"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_link_local_metadata_blocked(self) -> None:
+        # AWS/GCP metadata endpoint
+        result = check_domain_allowed(
+            "http://169.254.169.254/latest/meta-data", json.dumps(["169.254.169.254"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "ssrf_block"
+
+    def test_public_ip_passes_ssrf_check(self) -> None:
+        # A public IP in the allowlist must NOT be blocked by SSRF guard
+        result = check_domain_allowed("http://8.8.8.8/data", json.dumps(["8.8.8.8"]))
+        assert result is None
+
+    def test_public_hostname_passes(self) -> None:
+        result = check_domain_allowed(
+            "https://opendata.saskatoon.ca/api", json.dumps(["opendata.saskatoon.ca"])
+        )
+        assert result is None
+
+    def test_ftp_scheme_blocked_before_ssrf_check(self) -> None:
+        # ftp:// is blocked by scheme check, not SSRF check
+        result = check_domain_allowed(
+            "ftp://opendata.saskatoon.ca/file", json.dumps(["opendata.saskatoon.ca"])
+        )
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "domain_allowlist"
+
+    def test_no_allowlist_blocks_public_ip_too(self) -> None:
+        # Without an allowlist, even public IPs are refused
+        result = check_domain_allowed("http://8.8.8.8/data", None)
+        assert isinstance(result, RuleViolation)
+        assert result.rule == "domain_allowlist"
 
 
 # ── check_record_type_allowed ────────────────────────────────────────────────

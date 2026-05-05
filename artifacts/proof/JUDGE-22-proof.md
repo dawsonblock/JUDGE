@@ -1,3 +1,5 @@
+> ⚠️ **HISTORICAL ARTIFACT** — represents the codebase state prior to the current truth-hardening session. See [CURRENT_PROOF.md](CURRENT_PROOF.md) for the up-to-date record.
+
 # JUDGE-main 22 — Proof of Work
 
 **Date:** 2026-05-03  

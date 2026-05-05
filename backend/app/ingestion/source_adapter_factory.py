@@ -79,11 +79,11 @@ def build_adapter(
         common_kwargs["api_key"] = settings.canlii_api_key
 
     source_class = getattr(source, "source_class", None)
-    if source_class == "portal_reference":
+    if source_class != "machine_ingest":
         raise ValueError(
-            f"Source '{source.source_key}' is classified as portal_reference "
-            f"and cannot be auto-ingested. Update base_url to a machine-readable "
-            f"API endpoint and change source_class to 'machine_ingest' first."
+            f"Source '{source.source_key}' has source_class={source_class!r} which "
+            f"cannot be auto-ingested. Only 'machine_ingest' sources may be run. "
+            f"Classify this source correctly before enabling adapter runs."
         )
 
     try:

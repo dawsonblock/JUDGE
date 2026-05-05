@@ -82,6 +82,9 @@ def sync_claims_to_graph(
     now = datetime.now(timezone.utc)
 
     for claim in active_claims:
+        if not claim.is_active:
+            continue  # caller should pre-filter, but guard defensively
+
         predicate = _CLAIM_PREDICATE.get(claim.claim_type)
         if predicate is None:
             continue  # claim type not mapped → skip silently

@@ -20,7 +20,7 @@ import {
   disableSource,
   triggerSourceRun,
 } from "@/lib/api";
-import { authorityColour } from "@/lib/sourceContracts";
+import { authorityColour, sourceClassLabel, sourceClassColour } from "@/lib/sourceContracts";
 
 function AuthorityBadge({ authority }: { authority: string }) {
   return (
@@ -50,7 +50,7 @@ export function SourceControlCard({
   const location = [source.city, source.province_state, source.country]
     .filter(Boolean)
     .join(", ");
-  const isPortalRef = source.source_class === "portal_reference";
+  const canRun = source.source_class === "machine_ingest";
 
   async function handleToggle() {
     setToggleLoading(true);
@@ -103,10 +103,12 @@ export function SourceControlCard({
               {source.category}
             </Badge>
           )}
-          {isPortalRef && (
-            <Badge variant="secondary" className="text-xs text-amber-700">
-              portal-only
-            </Badge>
+          {source.source_class && (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${sourceClassColour(source.source_class)}`}
+            >
+              {sourceClassLabel(source.source_class)}
+            </span>
           )}
         </div>
 
@@ -213,7 +215,7 @@ export function SourceControlCard({
             {source.is_active ? "Disable" : "Enable"}
           </Button>
 
-          {source.is_active && !isPortalRef && (
+          {source.is_active && canRun && (
             <Button
               size="sm"
               variant="secondary"

@@ -30,8 +30,8 @@ def _robots_allowed(url: str, user_agent: str = "*") -> bool:
     """Check whether *url* is permitted by the site's robots.txt.
 
     Fetches <scheme>://<host>/robots.txt with a 5-second timeout and
-    evaluates the rule for *user_agent*.  Returns ``True`` (permissive)
-    on any network or parse error so a transient robots.txt outage never
+    evaluates the rule for *user_agent*.  Returns ``False`` (fail-closed)
+    on any network or parse error so an unverifiable robots.txt always
     blocks ingestion.
     """
     import urllib.request

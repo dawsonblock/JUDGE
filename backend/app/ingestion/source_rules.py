@@ -15,6 +15,7 @@ restrictive tier (news_context).
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import urllib.parse
 from dataclasses import dataclass
@@ -45,7 +46,34 @@ _AUTO_PUBLISH_ELIGIBLE: frozenset[str] = frozenset(
 )
 
 
-@dataclass(frozen=True)
+_INTERNAL_HOSTNAMES: frozenset[str] = frozenset(
+    {
+        "localhost",
+        "ip6-localhost",
+        "ip6-loopback",
+        "broadcasthost",
+        "local",
+    }
+)
+
+
+def _is_private_or_loopback(host: str) -> bool:
+    """Return True if *host* resolves to a private, loopback, or link-local address."""
+    if host in _INTERNAL_HOSTNAMES:
+        return True
+    try:
+        addr = ipaddress.ip_address(host)
+        return (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_reserved
+        )
+    except ValueError:
+        return False
+
+
+@dataclass
 class RuleViolation:
     rule: str
     detail: str
@@ -85,6 +113,11 @@ def check_domain_allowed(
             detail=f"Unsafe URL scheme {parsed.scheme!r}; only http/https are permitted",
         )
     host = parsed.hostname or ""
+    if _is_private_or_loopback(host):
+        return RuleViolation(
+            rule="ssrf_block",
+            detail=f"Host {host!r} resolves to a private/loopback/reserved address; SSRF blocked",
+        )
     # Strip leading "www." for comparison
     normalised_host = host.removeprefix("www.")
     for domain in allowed:
