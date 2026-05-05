@@ -4,6 +4,7 @@ These endpoints back the JWT authentication system.  The shared-token
 auth path in admin.py remains active until jwt_auth_enabled=True and
 at least one admin user record exists.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -68,7 +69,9 @@ class MeResponse(BaseModel):
 
 def _extract_bearer(authorization: str | None) -> str:
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Missing or invalid Authorization header"
+        )
     return authorization.removeprefix("Bearer ").strip()
 
 
@@ -95,6 +98,20 @@ def register(
     existing_count: int = db.query(User).count()
     is_bootstrap = existing_count == 0
 
+    # In non-development environments, require a bootstrap secret for first-user creation
+    if is_bootstrap and settings.app_env != "development":
+        bootstrap_secret = request.headers.get("X-JTA-Bootstrap-Secret")
+        if not settings.first_admin_secret:
+            raise HTTPException(
+                status_code=503,
+                detail="Bootstrap not available: JTA_FIRST_ADMIN_SECRET is not configured.",
+            )
+        if bootstrap_secret != settings.first_admin_secret:
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid bootstrap secret.",
+            )
+
     # After bootstrap, require jwt-authenticated system_admin
     if not is_bootstrap:
         auth_header = request.headers.get("Authorization")
@@ -106,7 +123,9 @@ def register(
         if payload.token_type != "access":
             raise HTTPException(status_code=401, detail="Access token required")
         if payload.role != "system_admin":
-            raise HTTPException(status_code=403, detail="Only system_admin may register new users")
+            raise HTTPException(
+                status_code=403, detail="Only system_admin may register new users"
+            )
 
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -125,16 +144,18 @@ def register(
     db.add(user)
     db.flush()
 
-    db.add(AuditLog(
-        action="user.register",
-        entity_type="user",
-        entity_id=str(user.id),
-        actor_id=body.email,
-        actor_type="user",
-        actor_role=assigned_role,
-        actor_ip=_client_ip(request),
-        user_agent=request.headers.get("User-Agent"),
-    ))
+    db.add(
+        AuditLog(
+            action="user.register",
+            entity_type="user",
+            entity_id=str(user.id),
+            actor_id=body.email,
+            actor_type="user",
+            actor_role=assigned_role,
+            actor_ip=_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    )
     db.commit()
 
     return {"id": user.id, "email": user.email, "role": user.role}
@@ -158,16 +179,18 @@ def login(
 
     # Update last login timestamp
     user.last_login_at = datetime.now(timezone.utc)
-    db.add(AuditLog(
-        action="user.login",
-        entity_type="user",
-        entity_id=str(user.id),
-        actor_id=user.email,
-        actor_type="user",
-        actor_role=user.role,
-        actor_ip=_client_ip(request),
-        user_agent=request.headers.get("User-Agent"),
-    ))
+    db.add(
+        AuditLog(
+            action="user.login",
+            entity_type="user",
+            entity_id=str(user.id),
+            actor_id=user.email,
+            actor_type="user",
+            actor_role=user.role,
+            actor_ip=_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    )
     db.commit()
 
     return TokenResponse(

@@ -25,7 +25,15 @@ function _mapVerificationStatus(vs: string): CrimeIncident["status"] {
 }
 
 function _mapConfidence(vs: string): CrimeIncident["confidence"] {
-  if (vs === "verified") return "verified" as CrimeIncident["confidence"];
+  if (
+    vs === "verified" ||
+    vs === "official_police_open_data_report" ||
+    vs === "verified_court_record" ||
+    vs === "official_court_record" ||
+    vs === "official_open_data"
+  ) {
+    return "verified" as CrimeIncident["confidence"];
+  }
   if (vs === "pending_review") return "pending" as CrimeIncident["confidence"];
   return "unverified" as CrimeIncident["confidence"];
 }

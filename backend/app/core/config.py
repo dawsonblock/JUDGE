@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
     # Set to True once at least one admin user has been created via POST /api/auth/register
     jwt_auth_enabled: bool = False
+    # Secret required for first-admin bootstrap in non-development environments
+    first_admin_secret: str | None = None  # JTA_FIRST_ADMIN_SECRET
 
     # Background scheduler (APScheduler); disabled by default for safe deploys
     enable_scheduler: bool = False

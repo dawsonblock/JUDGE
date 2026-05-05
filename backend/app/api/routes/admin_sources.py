@@ -382,6 +382,7 @@ def run_source_now(
 
     from app.core.config import get_settings
     from app.ingestion.source_adapter_factory import build_adapter
+    from app.ingestion.source_runner import persist_ingestion_result
 
     adapter = build_adapter(source, get_settings())
     if adapter is None:
@@ -413,10 +414,11 @@ def run_source_now(
     run_record.finished_at = datetime.now(timezone.utc)
     run_record.fetched_count = result.records_fetched
     run_record.parsed_count = len(result.created_records) + len(result.review_items)
-    run_record.persisted_count = len(result.created_records)
     run_record.skipped_count = result.records_skipped
     run_record.error_count = len(result.errors)
     run_record.errors = result.errors or None
+
+    persist_summary = persist_ingestion_result(db, source, run_record, result)
     db.commit()
 
     log_mutation(
@@ -426,8 +428,9 @@ def run_source_now(
         payload={
             "ingestion_run_id": run_record.id,
             "records_fetched": result.records_fetched,
-            "created_records": len(result.created_records),
-            "review_items": len(result.review_items),
+            "created_records": persist_summary.persisted_incidents,
+            "skipped_duplicates": persist_summary.skipped_duplicates,
+            "review_items": persist_summary.persisted_review_items,
             "errors": result.errors,
         },
         request=request,

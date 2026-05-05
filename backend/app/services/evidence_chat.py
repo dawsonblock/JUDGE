@@ -172,6 +172,14 @@ def chat_about_evidence(
         or_(*conditions),
         RelationshipEvidence.public_visibility.is_(True),
         RelationshipEvidence.confidence >= 0.25,
+        or_(
+            RelationshipEvidence.relationship_status.is_(None),
+            RelationshipEvidence.relationship_status.in_(["approved", "verified"]),
+        ),
+        or_(
+            RelationshipEvidence.verification_status.is_(None),
+            RelationshipEvidence.verification_status.in_(["verified", "reviewed"]),
+        ),
     )
     evidence_rows = list(db.scalars(stmt).all())
 

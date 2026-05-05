@@ -58,6 +58,14 @@ def _validate_production_safety(settings) -> None:
         )
         sys.exit(1)
 
+    # Require JWT auth to be explicitly enabled in production
+    if not settings.jwt_auth_enabled:
+        print(
+            "ERROR: JTA_JWT_AUTH_ENABLED must be true in production. "
+            "Set JTA_JWT_AUTH_ENABLED=true once admin users have been created."
+        )
+        sys.exit(1)
+
     # Check for missing admin tokens
     if not settings.admin_token:
         print("ERROR: JTA_ADMIN_TOKEN required in production")
